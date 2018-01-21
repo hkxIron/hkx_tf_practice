@@ -1,3 +1,4 @@
+# udacity link:https://github.com/tensorflow/tensorflow/blob/master/tensorflow/examples/udacity/5_word2vec.ipynb
 # These are all the modules we'll be using later. Make sure you can import them
 # before proceeding further.
 # %matplotlib inline
@@ -209,7 +210,7 @@ with tf.Session(graph=graph) as session:
     for step in range(num_steps):
         batch_data, batch_labels = generate_batch(
             batch_size, num_skips, skip_window)
-        feed_dict = {train_dataset: batch_data, train_labels: batch_labels}
+        feed_dict = {train_dataset: batch_data, train_labels: batch_labels} # 这里的train_dataset是上面graph里的train_dataset
         _, l = session.run([optimizer, loss], feed_dict=feed_dict)
         average_loss += l
         if step % 2000 == 0:
