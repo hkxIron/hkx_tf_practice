@@ -80,6 +80,7 @@ def get_cipher_score(text, cipher, scoring_params):
     scored_f = score_params_on_cipher(decrypted_text)
     cipher_score = 0
     #for k, v in scored_f.iteritems():
+    # 如果他们有共同的key，那么计算共同的value的指数值
     for k, v in scored_f.items():
         if k in scoring_params:
             cipher_score += v * math.log(scoring_params[k]) # y log p ,有点像交叉熵，不过这里是频数
@@ -125,14 +126,14 @@ def MCMC_decrypt(n_iter, cipher_text, scoring_params):
         score_diff = score_proposed_cipher - score_current_cipher
         if i==10: print("score_current_cipher:",score_current_cipher," score_proposed_cipher:",score_proposed_cipher) # 4918
         # 如果新分比较高，肯定要转移，但如果分较低，以一定概率转移，exp(x-y)=exp(x)/exp(y)
-        # 否则抛一枚正面朝上概率为ScoreP/ScoreC的硬币，如果正面朝上则转移至下一状态
+        # 否则以概率ScoreP/ScoreC进行转移
         acceptance_probability = min(1, math.exp(score_diff))
         # if score_current_cipher > score:
         #     best_state = current_cipher
         if random_coin(acceptance_probability):
             print("Trans!iter:",i," p:",acceptance_probability," score:",score_current_cipher,"score_diff:",score_diff)
             current_cipher = proposed_cipher
-            score =  score_proposed_cipher
+            #score =  score_proposed_cipher
         if i % 500 == 0:
             print("iter", i," score:",score_current_cipher,"score_diff:",score_diff, " accpet_p:",acceptance_probability," ->", apply_cipher_on_text(cipher_text, current_cipher)[0:99])
     return state_keeper, current_cipher
@@ -177,7 +178,7 @@ cipher_text = apply_cipher_on_text(plain_text2, encryption_key)
 decryption_key = "ICZNBKXGMPRQTWFDYEOLJVUAHS"
 
 print("Text To Decode:", cipher_text,"\n")
-states, best_state = MCMC_decrypt(20000, cipher_text, scoring_params)
-print("Decoded Text:", apply_cipher_on_text(cipher_text, best_state).lower(),"\n") # 测试发现即使用的是svd的测试文本，也可以解析出有意义的文本,非常厉害!!
-print("MCMC KEY FOUND:", best_state,"\n")
+states, best_cipher_state = MCMC_decrypt(20000, cipher_text, scoring_params)
+print("Decoded Text:", apply_cipher_on_text(cipher_text, best_cipher_state).lower(),"\n") # 测试发现即使用的是svd的测试文本，也可以解析出有意义的文本,非常厉害!!
+print("MCMC KEY FOUND:", best_cipher_state,"\n")
 print("ACTUAL DECRYPTION KEY:", decryption_key,"\n")

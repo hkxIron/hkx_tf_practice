@@ -12,7 +12,7 @@ def test_mcmc():
 
     # Beta分布概率密度函数(忽略了Beta函数)
     def beta_fpdf(x,a,b):
-        return x**(a-1) * (1-x)**(b-1)
+        return max(x,1e-8)**(a-1) * (1-x)**(b-1)
 
     # 根据接受概率决定是否转移
     def transform(ap):
@@ -32,7 +32,7 @@ def test_mcmc():
             ap = min(beta_fpdf(next,a,b)/beta_fpdf(cur,a,b),1) # 计算接受概率
             if transform(ap):
                 cur = next
-        return states[-1000:] # 返回进入平稳分布后的1000个状态
+        return states[-5000:] # 返回进入平稳分布后的1000个状态
 
 
     # 绘制通过MCMC方法抽样的Beta分布
@@ -40,13 +40,13 @@ def test_mcmc():
         Ly = []
         Lx = []
         i_list = np.mgrid[0:1:100j] # 当第3个参数为虚数时，表示返回数组的长度
-        print("i_list:",i_list)
+        # print("i_list:",i_list)
         for i in i_list:
             Lx.append(i)
             Ly.append(beta(i, a, b))
         # 绘制真实的Beta分布进行对照
         plt.plot(Lx, Ly, label="Real Distribution: a="+str(a)+", b="+str(b))
-        plt.hist(beta_mcmc(100000,a,b),normed=True,bins=25, histtype='step',label="Simulated_MCMC: a="+str(a)+", b="+str(b))
+        plt.hist(beta_mcmc(200000,a,b),normed=True,bins=100, histtype='step',label="Simulated_MCMC: a="+str(a)+", b="+str(b))
         plt.legend()
         plt.show()
 
