@@ -31,7 +31,8 @@ def maybe_download(filename, expected_bytes):
             'Failed to verify ' + filename + '. Can you get to it with a browser?')
     return filename
 
-file_path="D:\\tencent\\tensorflow\\tensorflow-models-master\\models-master\\tutorials\\embedding\\text8.zip"
+file_path="D:\\hkx\\linuxML\\nlp_dataset\\text8.zip"
+#file_path="D:\\tencent\\tensorflow\\tensorflow-models-master\\models-master\\tutorials\\embedding\\text8.zip"
 filename = maybe_download(file_path, 31344016)
 
 
