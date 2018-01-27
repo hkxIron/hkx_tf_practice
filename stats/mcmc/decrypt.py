@@ -83,7 +83,7 @@ def get_cipher_score(text, cipher, scoring_params):
     # 如果他们有共同的key，那么计算共同的value的指数值
     for k, v in scored_f.items():
         if k in scoring_params:
-            cipher_score += v * math.log(scoring_params[k]) # y log p ,有点像交叉熵，不过这里是频数
+            cipher_score += v * math.log(scoring_params[k]) # y log p ,有点像交叉熵，不过这里是频数, 其中y与p来自不同的分布，一个是参考样本的，一个是密文的
     return cipher_score
 
 
