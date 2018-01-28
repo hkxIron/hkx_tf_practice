@@ -44,6 +44,11 @@ word2vec = tf.load_op_library(os.path.join(os.path.dirname(os.path.realpath(__fi
 
 flags = tf.app.flags
 
+# python word2vec_optimized.py \
+#   --train_data=text8 \
+#   --eval_data=questions-words.txt \
+#   --save_path=/tmp/
+
 flags.DEFINE_string("save_path", None, "Directory to write the model.")
 flags.DEFINE_string(
     "train_data", None,

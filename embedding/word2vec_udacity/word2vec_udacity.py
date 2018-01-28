@@ -1,3 +1,5 @@
+# coding:utf-8
+# 其实这个就是tensorflow 官网的 word2vec_basic.py
 # udacity link:https://github.com/tensorflow/tensorflow/blob/master/tensorflow/examples/udacity/5_word2vec.ipynb
 # These are all the modules we'll be using later. Make sure you can import them
 # before proceeding further.
@@ -171,7 +173,7 @@ with graph.as_default(), tf.device('/cpu:0'):
     softmax_weights = tf.Variable(
         tf.truncated_normal([vocabulary_size, embedding_size],
                             stddev=1.0 / math.sqrt(embedding_size)))
-    # 有多少个输出，就有多少个bias
+    # 有多少个输出，就有多少个bias,记住输出层是有bias的
     softmax_biases = tf.Variable(tf.zeros([vocabulary_size]))
 
     # Model.
@@ -179,7 +181,8 @@ with graph.as_default(), tf.device('/cpu:0'):
     embed = tf.nn.embedding_lookup(embeddings, train_dataset) # batch_size*embedding_size
     print("tensor embed:",embed)
     # Compute the softmax loss, using a sample of the negative labels each time.
-    # 但是google给出的word2vec代码中，计算的是标准nce loss，而不是用sampled softmax近似softmax
+    # 但是google给出的word2vec代码中，计算的是标准nce loss，而不是用sampled softmax近似softmax,
+    # 并且sampled_softmax仅用于训练，而在测试时使用标准的softmax
     # tf的文档上建议将partition_strategy="div"
     loss = tf.reduce_mean(
         tf.nn.sampled_softmax_loss(weights=softmax_weights, biases=softmax_biases, inputs=embed,
@@ -196,12 +199,12 @@ with graph.as_default(), tf.device('/cpu:0'):
     # Compute the similarity between minibatch examples and all embeddings.
     # We use the cosine distance:
     norm = tf.sqrt(tf.reduce_sum(tf.square(embeddings), 1, keep_dims=True)) # 所有词的embedding求模（先逐元素平方求和）
-    normalized_embeddings = embeddings / norm # M*D, M为所有的样本个数
-    print("normalized_embeddings:",normalized_embeddings) # M*D
+    normalized_embeddings = embeddings / norm # V*D, V为词汇表的大小
+    print("normalized_embeddings:",normalized_embeddings) # V*D
     valid_embeddings = tf.nn.embedding_lookup(normalized_embeddings, valid_dataset) # N*D, N为本次验证集的样本个数
     print("valid embeddings:",valid_embeddings)
-    similarity = tf.matmul(valid_embeddings, tf.transpose(normalized_embeddings)) # N*D* ((M*D).T) ，验证集中的词与所有其他的词间的相似度
-    print("similarity:",similarity) # N*M
+    similarity = tf.matmul(valid_embeddings, tf.transpose(normalized_embeddings)) # N*D* ((V*D).T) ，验证集中的词与所有其他的词间的相似度
+    print("similarity:",similarity) # N*V
 
 num_steps = 100001
 with tf.Session(graph=graph) as session:

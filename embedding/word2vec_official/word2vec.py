@@ -42,6 +42,11 @@ import tensorflow as tf
 
 word2vec = tf.load_op_library(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'word2vec_ops.so'))
 
+# python word2vec_optimized.py \
+#   --train_data=text8 \
+#   --eval_data=questions-words.txt \
+#   --save_path=/tmp/
+
 flags = tf.app.flags
 
 flags.DEFINE_string("save_path", None, "Directory to write the model and "
