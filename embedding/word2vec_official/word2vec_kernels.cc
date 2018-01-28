@@ -15,7 +15,7 @@ limitations under the License.
 #include "tensorflow/core/lib/core/stringpiece.h"
 #include "tensorflow/core/lib/gtl/map_util.h"
 #include "tensorflow/core/lib/random/distribution_sampler.h"
-#include "tensorflow/core/lib/random/philox_random.h"
+#include "tensorflow/core/lib/random/philox_random.h" // 并行生成随机数
 #include "tensorflow/core/lib/random/simple_philox.h"
 #include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/platform/thread_annotations.h"
@@ -60,7 +60,7 @@ class SkipgramWord2vecOp : public OpKernel {
     label_pos_ = corpus_size_;
     label_limit_ = corpus_size_;
     sentence_index_ = kSentenceSize;
-    for (int i = 0; i < kPrecalc; ++i) {
+    for (int i = 0; i < kPrecalc; ++i) {　// 事先处理多少个word
       NextExample(&precalc_examples_[i].input, &precalc_examples_[i].label);
     }
   }
@@ -114,7 +114,7 @@ class SkipgramWord2vecOp : public OpKernel {
   Tensor word_;
   Tensor freq_;
   int64 corpus_size_ = 0;
-  std::vector<int32> corpus_;
+  std::vector<int32> corpus_; // 将语料中的每个词转成index存起来
   std::vector<Example> precalc_examples_;
   int precalc_index_ = 0;
   std::vector<int32> sentence_;
@@ -146,17 +146,17 @@ class SkipgramWord2vecOp : public OpKernel {
               example_pos_ = 0;
             }
             if (subsample_ > 0) {
-              int32 word_freq = freq_.flat<int32>()(corpus_[example_pos_]);
+              int32 word_freq = freq_.flat<int32>()(corpus_[example_pos_]); //获取某个词的freq
               // See Eq. 5 in http://arxiv.org/abs/1310.4546
               float keep_prob =
                   (std::sqrt(word_freq / (subsample_ * corpus_size_)) + 1) *
                   (subsample_ * corpus_size_) / word_freq;
-              if (rng_.RandFloat() > keep_prob) {
+              if (rng_.RandFloat() > keep_prob) { // 以一定概率去掉
                 i--;
                 continue;
               }
             }
-            sentence_[i] = corpus_[example_pos_];
+            sentence_[i] = corpus_[example_pos_];  // 将词放句子中去
           }
         }
         const int32 skip = 1 + rng_.Uniform(window_size_);
@@ -175,13 +175,13 @@ class SkipgramWord2vecOp : public OpKernel {
 
   Status Init(Env* env, const string& filename) {
     string data;
-    TF_RETURN_IF_ERROR(ReadFileToString(env, filename, &data));
+    TF_RETURN_IF_ERROR(ReadFileToString(env, filename, &data)); // 将file里的数据读到data里
     StringPiece input = data;
     string w;
     corpus_size_ = 0;
     std::unordered_map<string, int32> word_freq;
     while (ScanWord(&input, &w)) {
-      ++(word_freq[w]);
+      ++(word_freq[w]); // c++ map初始始化值均为0
       ++corpus_size_;
     }
     if (corpus_size_ < window_size_ * 10) {
@@ -190,9 +190,9 @@ class SkipgramWord2vecOp : public OpKernel {
                                      corpus_size_, " words");
     }
     typedef std::pair<string, int32> WordFreq;
-    std::vector<WordFreq> ordered;
+    std::vector<WordFreq> ordered; // vector里装的都是 word_freq
     for (const auto& p : word_freq) {
-      if (p.second >= min_count_) ordered.push_back(p);
+      if (p.second >= min_count_) ordered.push_back(p); // 只对有效的word_freq 进行
     }
     LOG(INFO) << "Data file: " << filename << " contains " << data.size()
               << " bytes, " << corpus_size_ << " words, " << word_freq.size()
@@ -202,30 +202,30 @@ class SkipgramWord2vecOp : public OpKernel {
     std::sort(ordered.begin(), ordered.end(),
               [](const WordFreq& x, const WordFreq& y) {
                 return x.second > y.second;
-              });
+              }); // 降序排序
     vocab_size_ = static_cast<int32>(1 + ordered.size());
     Tensor word(DT_STRING, TensorShape({vocab_size_}));
     Tensor freq(DT_INT32, TensorShape({vocab_size_}));
-    word.flat<string>()(0) = "UNK";
+    word.flat<string>()(0) = "UNK"; // 一维向量
     static const int32 kUnkId = 0;
-    std::unordered_map<string, int32> word_id;
+    std::unordered_map<string, int32> word_id; // word -> index
     int64 total_counted = 0;
     for (std::size_t i = 0; i < ordered.size(); ++i) {
-      const auto& w = ordered[i].first;
+      const auto& w = ordered[i].first; // word -> count
       auto id = i + 1;
-      word.flat<string>()(id) = w;
+      word.flat<string>()(id) = w; // word
       auto word_count = ordered[i].second;
-      freq.flat<int32>()(id) = word_count;
+      freq.flat<int32>()(id) = word_count; // count
       total_counted += word_count;
       word_id[w] = id;
     }
-    freq.flat<int32>()(kUnkId) = corpus_size_ - total_counted;
-    word_ = word;
-    freq_ = freq;
-    corpus_.reserve(corpus_size_);
+    freq.flat<int32>()(kUnkId) = corpus_size_ - total_counted; // 其它的都看成未登录词
+    word_ = word;　// word_ 是一维的string Tensor
+    freq_ = freq; // freq_ 是一维的int32 Tensor
+    corpus_.reserve(corpus_size_); // vector<int32>
     input = data;
     while (ScanWord(&input, &w)) {
-      corpus_.push_back(gtl::FindWithDefault(word_id, w, kUnkId));
+      corpus_.push_back(gtl::FindWithDefault(word_id, w, kUnkId)); // 从word_id中查找词w的index,若未找到则返回未登录词的index
     }
     precalc_examples_.resize(kPrecalc);
     sentence_.resize(kSentenceSize);
