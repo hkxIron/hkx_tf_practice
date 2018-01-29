@@ -223,11 +223,12 @@ class Word2Vec(object):
         tf.cast(labels, dtype=tf.int64),
         [opts.batch_size, 1])
 
-    # Negative sampling.
+    # 随机负采样 Negative sampling. sampled_ids:[num_neg_samples]
+    # 比如每个batch会采样100个随机负例
     sampled_ids, _, _ = (tf.nn.fixed_unigram_candidate_sampler(
         true_classes=labels_matrix,
         num_true=1,
-        num_sampled=opts.num_samples,
+        num_sampled=opts.num_samples, # 随机负例的个数,如 100
         unique=True,
         range_max=opts.vocab_size,
         distortion=0.75,
@@ -236,7 +237,7 @@ class Word2Vec(object):
     # Embeddings for examples: [batch_size, emb_dim]
     example_emb = tf.nn.embedding_lookup(emb, examples)
 
-    # Weights for labels: [batch_size, emb_dim]
+    # Weights for labels: [batch_size, emb_dim] , sm_w_t:[vocab_size,emb_dim]
     true_w = tf.nn.embedding_lookup(sm_w_t, labels)
     # Biases for labels: [batch_size, 1]
     true_b = tf.nn.embedding_lookup(sm_b, labels)
@@ -249,14 +250,14 @@ class Word2Vec(object):
     # True logits: [batch_size, 1]
     true_logits = tf.reduce_sum(tf.multiply(example_emb, true_w), 1) + true_b # tf.multiply为矩阵逐元素点乘
 
-    # 每个正枰本，都有num_sampled个负样本
+    # 每个batch有num_sampled(100)个负样本
     # Sampled logits: [batch_size, num_sampled]
     # We replicate sampled noise labels for all examples in the batch
     # using the matmul.
     sampled_b_vec = tf.reshape(sampled_b, [opts.num_samples])
-    sampled_logits = tf.matmul(example_emb,
-                               sampled_w,
-                               transpose_b=True) + sampled_b_vec
+    sampled_logits = tf.matmul(example_emb, # batch_size*emb_dim
+                               sampled_w, # num_sampled*emb_dim
+                               transpose_b=True) + sampled_b_vec # num_sampled
     return true_logits, sampled_logits
 
   def nce_loss(self, true_logits, sampled_logits):
@@ -391,9 +392,9 @@ class Word2Vec(object):
                              opts.vocab_counts[i]))
 
   def _train_thread_body(self):
-    initial_epoch, = self._session.run([self._epoch])
+    initial_epoch, = self._session.run([self._epoch]) # _epoch会累加
     while True:
-      _, epoch = self._session.run([self._train, self._epoch])
+      _, epoch = self._session.run([self._train, self._epoch]) # 如果一个epoch处理完成,那么跳出循环,否则一直run
       if epoch != initial_epoch:
         break
 
@@ -523,7 +524,7 @@ def main(_):
     with tf.device("/cpu:0"):
       model = Word2Vec(opts, session)
       model.read_analogies() # Read analogy questions
-    for _ in xrange(opts.epochs_to_train):
+    for _ in xrange(opts.epochs_to_train): # 共训练多少次epoch
       model.train()  # Process one epoch
       model.eval()  # Eval analogies.
     # Perform a final save.
