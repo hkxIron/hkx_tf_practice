@@ -53,7 +53,7 @@ class SkipgramWord2vecOp : public OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("window_size", &window_size_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("min_count", &min_count_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("subsample", &subsample_));
-    OP_REQUIRES_OK(ctx, Init(ctx->env(), filename));
+    OP_REQUIRES_OK(ctx, Init(ctx->env(), filename)); // 调用初始化程序
 
     mutex_lock l(mu_);
     example_pos_ = corpus_size_;
@@ -70,13 +70,13 @@ class SkipgramWord2vecOp : public OpKernel {
     Tensor current_epoch(DT_INT32, TensorShape({}));
     Tensor total_words_processed(DT_INT64, TensorShape({}));
     Tensor examples(DT_INT32, TensorShape({batch_size_}));
-    auto Texamples = examples.flat<int32>();
+    auto Texamples = examples.flat<int32>(); // 将examples展开为一维向量
     Tensor labels(DT_INT32, TensorShape({batch_size_}));
     auto Tlabels = labels.flat<int32>(); // 一维的向量
     {
       mutex_lock l(mu_);
       for (int i = 0; i < batch_size_; ++i) {
-        Texamples(i) = precalc_examples_[precalc_index_].input;
+        Texamples(i) = precalc_examples_[precalc_index_].input; // vector<Example>
         Tlabels(i) = precalc_examples_[precalc_index_].label;
         precalc_index_++;
         if (precalc_index_ >= kPrecalc) {
@@ -115,7 +115,7 @@ class SkipgramWord2vecOp : public OpKernel {
   Tensor freq_;
   int64 corpus_size_ = 0;
   std::vector<int32> corpus_; // 将语料中的每个词转成index存起来
-  std::vector<Example> precalc_examples_;
+  std::vector<Example> precalc_examples_; //
   int precalc_index_ = 0;
   std::vector<int32> sentence_;
   int sentence_index_ = 0;
@@ -150,7 +150,7 @@ class SkipgramWord2vecOp : public OpKernel {
               // See Eq. 5 in http://arxiv.org/abs/1310.4546
               float keep_prob =
                   (std::sqrt(word_freq / (subsample_ * corpus_size_)) + 1) *
-                  (subsample_ * corpus_size_) / word_freq;
+                  (subsample_ * corpus_size_) / word_freq; // 公式里好像没有corpus_size_
               if (rng_.RandFloat() > keep_prob) { // 以一定概率去掉
                 i--;
                 continue;
