@@ -349,6 +349,10 @@ class Word2Vec(object):
     """Build the graph for the full model."""
     opts = self._options
     # The training data. A text file.
+    # 获取一个batch的数据
+    # words是此batch中的所有词
+    # count对应于每个词的词频
+    # self._words当前已经处理了多少个单词
     (words, counts, words_per_epoch, self._epoch, self._words, examples,
      labels) = word2vec.skipgram_word2vec(filename=opts.train_data,
                                           batch_size=opts.batch_size,
