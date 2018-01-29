@@ -42,6 +42,7 @@ bool ScanWord(StringPiece* input, string* word) {
 }
 
 }  // end namespace
+// 每次处理一个batch
 
 class SkipgramWord2vecOp : public OpKernel {
  public:
@@ -53,7 +54,7 @@ class SkipgramWord2vecOp : public OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("window_size", &window_size_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("min_count", &min_count_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("subsample", &subsample_));
-    OP_REQUIRES_OK(ctx, Init(ctx->env(), filename));
+    OP_REQUIRES_OK(ctx, Init(ctx->env(), filename)); // 调用初始化程序
 
     mutex_lock l(mu_);
     example_pos_ = corpus_size_;
@@ -65,18 +66,20 @@ class SkipgramWord2vecOp : public OpKernel {
     }
   }
 
+  // 每次处理一个batch
   void Compute(OpKernelContext* ctx) override {
     Tensor words_per_epoch(DT_INT64, TensorShape({}));
     Tensor current_epoch(DT_INT32, TensorShape({}));
     Tensor total_words_processed(DT_INT64, TensorShape({}));
-    Tensor examples(DT_INT32, TensorShape({batch_size_}));
-    auto Texamples = examples.flat<int32>();
+    Tensor examples(DT_INT32, TensorShape({batch_size_})); // examples声明为batch_size大小的Tensor
+    auto Texamples = examples.flat<int32>(); // 将examples展开为一维向量
     Tensor labels(DT_INT32, TensorShape({batch_size_}));
     auto Tlabels = labels.flat<int32>(); // 一维的向量
     {
       mutex_lock l(mu_);
+      // 将vector里一个batch的数据读到Tensor中去
       for (int i = 0; i < batch_size_; ++i) {
-        Texamples(i) = precalc_examples_[precalc_index_].input;
+        Texamples(i) = precalc_examples_[precalc_index_].input; // vector<Example>
         Tlabels(i) = precalc_examples_[precalc_index_].label;
         precalc_index_++;
         if (precalc_index_ >= kPrecalc) {
@@ -87,15 +90,16 @@ class SkipgramWord2vecOp : public OpKernel {
           }
         }
       }
-      words_per_epoch.scalar<int64>()() = corpus_size_; // scalar
+      words_per_epoch.scalar<int64>()() = corpus_size_; // 将tensor转为一个标量
       current_epoch.scalar<int32>()() = current_epoch_;
       total_words_processed.scalar<int64>()() = total_words_processed_;
     }
-    ctx->set_output(0, word_);
-    ctx->set_output(1, freq_);
-    ctx->set_output(2, words_per_epoch);
-    ctx->set_output(3, current_epoch);
-    ctx->set_output(4, total_words_processed);
+    // 将tensor设置为函数输出
+    ctx->set_output(0, word_);//word_ 是一维的string Tensor
+    ctx->set_output(1, freq_);// freq_ 是一维的int32 Tensor
+    ctx->set_output(2, words_per_epoch);// 每个epoch处理多少个单词
+    ctx->set_output(3, current_epoch); // 当前的epoch
+    ctx->set_output(4, total_words_processed); // 当前已经处理了多少个单词
     ctx->set_output(5, examples);
     ctx->set_output(6, labels);
   }
@@ -115,7 +119,7 @@ class SkipgramWord2vecOp : public OpKernel {
   Tensor freq_;
   int64 corpus_size_ = 0;
   std::vector<int32> corpus_; // 将语料中的每个词转成index存起来
-  std::vector<Example> precalc_examples_;
+  std::vector<Example> precalc_examples_; //
   int precalc_index_ = 0;
   std::vector<int32> sentence_;
   int sentence_index_ = 0;
@@ -136,13 +140,13 @@ class SkipgramWord2vecOp : public OpKernel {
   void NextExample(int32* example, int32* label) EXCLUSIVE_LOCKS_REQUIRED(mu_) {
     while (true) {
       if (label_pos_ >= label_limit_) {
-        ++total_words_processed_;
+        ++total_words_processed_; // 总共处理了多少个单词
         ++sentence_index_;
         if (sentence_index_ >= kSentenceSize) {
           sentence_index_ = 0;
           for (int i = 0; i < kSentenceSize; ++i, ++example_pos_) {
             if (example_pos_ >= corpus_size_) {
-              ++current_epoch_;
+              ++current_epoch_; // 一个epoch处理完成
               example_pos_ = 0;
             }
             if (subsample_ > 0) {
@@ -150,7 +154,7 @@ class SkipgramWord2vecOp : public OpKernel {
               // See Eq. 5 in http://arxiv.org/abs/1310.4546
               float keep_prob =
                   (std::sqrt(word_freq / (subsample_ * corpus_size_)) + 1) *
-                  (subsample_ * corpus_size_) / word_freq;
+                  (subsample_ * corpus_size_) / word_freq; // 公式里好像没有corpus_size_
               if (rng_.RandFloat() > keep_prob) { // 以一定概率去掉
                 i--;
                 continue;
@@ -206,7 +210,7 @@ class SkipgramWord2vecOp : public OpKernel {
     vocab_size_ = static_cast<int32>(1 + ordered.size());
     Tensor word(DT_STRING, TensorShape({vocab_size_}));
     Tensor freq(DT_INT32, TensorShape({vocab_size_}));
-    word.flat<string>()(0) = "UNK"; // 一维向量
+    word.flat<string>()(0) = "UNK"; // 一维向量,里面装的是string
     static const int32 kUnkId = 0;
     std::unordered_map<string, int32> word_id; // word -> index
     int64 total_counted = 0;
