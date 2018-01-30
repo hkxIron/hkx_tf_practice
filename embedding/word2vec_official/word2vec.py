@@ -251,14 +251,14 @@ class Word2Vec(object):
     # True logits: [batch_size, 1]
     true_logits = tf.reduce_sum(tf.multiply(example_emb, true_w), 1) + true_b # tf.multiply为矩阵逐元素点乘
 
-    # batch里的每个正样本，都有num_sampled个负样本
+    # batch里的每个正样本，都有num_sampled个负样本(即100个)
     # Sampled logits: [batch_size, num_sampled]
     # We replicate sampled noise labels for all examples in the batch
     # using the matmul.
     sampled_b_vec = tf.reshape(sampled_b, [opts.num_samples])
     sampled_logits = tf.matmul(example_emb, #  [batch_size, emb_dim]
                                sampled_w, # [num_sampled, emb_dim]
-                               transpose_b=True) + sampled_b_vec
+                               transpose_b=True) + sampled_b_vec # [opts.num_samples]
     return true_logits, sampled_logits
 
   def nce_loss(self, true_logits, sampled_logits):
@@ -285,6 +285,7 @@ class Word2Vec(object):
     # Linear learning rate decay.
     opts = self._options
     words_to_train = float(opts.words_per_epoch * opts.epochs_to_train)
+    # 学习率随着训练进度而逐渐减小
     lr = opts.learning_rate * tf.maximum(
         0.0001, 1.0 - tf.cast(self._words, tf.float32) / words_to_train)
     self._lr = lr
@@ -407,16 +408,18 @@ class Word2Vec(object):
     """Train the model."""
     opts = self._options
 
+    # initial_words:当前已经处理的单词个数
     initial_epoch, initial_words = self._session.run([self._epoch, self._words])
 
     summary_op = tf.summary.merge_all()
     summary_writer = tf.summary.FileWriter(opts.save_path, self._session.graph)
     workers = []
-    for _ in xrange(opts.concurrent_steps):
+    for _ in xrange(opts.concurrent_steps): # 开启多个线程同时进行train
       t = threading.Thread(target=self._train_thread_body)
       t.start()
       workers.append(t)
 
+    # 主线程一直运行验证程序
     last_words, last_time, last_summary_time = initial_words, time.time(), 0
     last_checkpoint_time = 0
     while True:
