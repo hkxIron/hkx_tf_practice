@@ -228,9 +228,9 @@ class Word2Vec(object):
     sampled_ids, _, _ = (tf.nn.fixed_unigram_candidate_sampler(
         true_classes=labels_matrix,
         num_true=1,
-        num_sampled=opts.num_samples, # 随机负例的个数,如 100
+        num_sampled=opts.num_samples, # 随机负例的个数,如 100,batch: 16
         unique=True,
-        range_max=opts.vocab_size,
+        range_max=opts.vocab_size, # 从所有词中按词频分布随机采样一些负样本
         distortion=0.75,
         unigrams=opts.vocab_counts.tolist()))
 
@@ -242,6 +242,7 @@ class Word2Vec(object):
     # Biases for labels: [batch_size, 1]
     true_b = tf.nn.embedding_lookup(sm_b, labels)
 
+    # batch_size:16, num_sampled:100
     # Weights for sampled ids: [num_sampled, emb_dim]
     sampled_w = tf.nn.embedding_lookup(sm_w_t, sampled_ids)
     # Biases for sampled ids: [num_sampled, 1]
@@ -250,14 +251,14 @@ class Word2Vec(object):
     # True logits: [batch_size, 1]
     true_logits = tf.reduce_sum(tf.multiply(example_emb, true_w), 1) + true_b # tf.multiply为矩阵逐元素点乘
 
-    # 每个batch有num_sampled(100)个负样本
+    # batch里的每个正样本，都有num_sampled个负样本
     # Sampled logits: [batch_size, num_sampled]
     # We replicate sampled noise labels for all examples in the batch
     # using the matmul.
     sampled_b_vec = tf.reshape(sampled_b, [opts.num_samples])
-    sampled_logits = tf.matmul(example_emb, # batch_size*emb_dim
-                               sampled_w, # num_sampled*emb_dim
-                               transpose_b=True) + sampled_b_vec # num_sampled
+    sampled_logits = tf.matmul(example_emb, #  [batch_size, emb_dim]
+                               sampled_w, # [num_sampled, emb_dim]
+                               transpose_b=True) + sampled_b_vec
     return true_logits, sampled_logits
 
   def nce_loss(self, true_logits, sampled_logits):
@@ -351,8 +352,10 @@ class Word2Vec(object):
     opts = self._options
     # The training data. A text file.
     # 获取一个batch的数据
-    # words是此batch中的所有词
-    # count对应于每个词的词频
+    # examples:上下文的词的index
+    # labels: 目标词的index
+    # words:语料库里所有的单词
+    # counts:每个单词的词频
     # self._words当前已经处理了多少个单词
     (words, counts, words_per_epoch, self._epoch, self._words, examples,
      labels) = word2vec.skipgram_word2vec(filename=opts.train_data,
@@ -368,9 +371,11 @@ class Word2Vec(object):
     print("Words per epoch: ", opts.words_per_epoch)
     self._examples = examples
     self._labels = labels
-    self._id2word = opts.vocab_words
+    self._id2word = opts.vocab_words # list("UNK","test",...)
     for i, w in enumerate(self._id2word):
       self._word2id[w] = i
+    # cross-entropy(logits, labels)
+    # true_logits: [batch_size, 1], sample_logits: [batch_size, num_sampled]
     true_logits, sampled_logits = self.forward(examples, labels)
     loss = self.nce_loss(true_logits, sampled_logits)
     tf.summary.scalar("NCE loss", loss)

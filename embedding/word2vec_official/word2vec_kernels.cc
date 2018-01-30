@@ -54,14 +54,15 @@ class SkipgramWord2vecOp : public OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("window_size", &window_size_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("min_count", &min_count_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("subsample", &subsample_));
+    // 注意此处调用了初始化程序
     OP_REQUIRES_OK(ctx, Init(ctx->env(), filename)); // 调用初始化程序
 
     mutex_lock l(mu_);
-    example_pos_ = corpus_size_;
+    example_pos_ = corpus_size_; // example_pos_是指在语料库中的索引
     label_pos_ = corpus_size_;
-    label_limit_ = corpus_size_;
-    sentence_index_ = kSentenceSize;
-    for (int i = 0; i < kPrecalc; ++i) {　// 事先处理多少个word
+    label_limit_ = corpus_size_; // 不允许超出语料库的大小
+    sentence_index_ = kSentenceSize; // 一个句子中最大的单词个数1000
+    for (int i = 0; i < kPrecalc; ++i) {　// 事先处理3000个word
       NextExample(&precalc_examples_[i].input, &precalc_examples_[i].label);
     }
   }
@@ -82,6 +83,7 @@ class SkipgramWord2vecOp : public OpKernel {
         Texamples(i) = precalc_examples_[precalc_index_].input; // vector<Example>
         Tlabels(i) = precalc_examples_[precalc_index_].label;
         precalc_index_++;
+        // 每当预计算的样本读取完毕时，我们就重新读取一批
         if (precalc_index_ >= kPrecalc) {
           precalc_index_ = 0;
           for (int j = 0; j < kPrecalc; ++j) {
@@ -91,8 +93,8 @@ class SkipgramWord2vecOp : public OpKernel {
         }
       }
       words_per_epoch.scalar<int64>()() = corpus_size_; // 将tensor转为一个标量
-      current_epoch.scalar<int32>()() = current_epoch_;
-      total_words_processed.scalar<int64>()() = total_words_processed_;
+      current_epoch.scalar<int32>()() = current_epoch_; // 当前的epoch
+      total_words_processed.scalar<int64>()() = total_words_processed_; //处理了多少单词
     }
     // 将tensor设置为函数输出
     ctx->set_output(0, word_);//word_ 是一维的string Tensor
@@ -100,8 +102,8 @@ class SkipgramWord2vecOp : public OpKernel {
     ctx->set_output(2, words_per_epoch);// 每个epoch处理多少个单词
     ctx->set_output(3, current_epoch); // 当前的epoch
     ctx->set_output(4, total_words_processed); // 当前已经处理了多少个单词
-    ctx->set_output(5, examples);
-    ctx->set_output(6, labels);
+    ctx->set_output(5, examples); // 一个batch 的样本 上下文词index
+    ctx->set_output(6, labels); // 一个batch的样本的 目标词的index
   }
 
  private:
@@ -119,7 +121,7 @@ class SkipgramWord2vecOp : public OpKernel {
   Tensor freq_;
   int64 corpus_size_ = 0;
   std::vector<int32> corpus_; // 将语料中的每个词转成index存起来
-  std::vector<Example> precalc_examples_; //
+  std::vector<Example> precalc_examples_; // 大小为3000
   int precalc_index_ = 0;
   std::vector<int32> sentence_;
   int sentence_index_ = 0;
@@ -139,40 +141,45 @@ class SkipgramWord2vecOp : public OpKernel {
   // labels.
   void NextExample(int32* example, int32* label) EXCLUSIVE_LOCKS_REQUIRED(mu_) {
     while (true) {
-      if (label_pos_ >= label_limit_) {
+      if (label_pos_ >= label_limit_) { // label_limit 为语料库的大小
         ++total_words_processed_; // 总共处理了多少个单词
-        ++sentence_index_;
-        if (sentence_index_ >= kSentenceSize) {
+        ++sentence_index_; // 句子里的index加1
+        if (sentence_index_ >= kSentenceSize) { // 超出句子最大长度
           sentence_index_ = 0;
-          for (int i = 0; i < kSentenceSize; ++i, ++example_pos_) {
-            if (example_pos_ >= corpus_size_) {
+          for (int i = 0; i < kSentenceSize; ++i, ++example_pos_) {// i是句子中的索引
+            if (example_pos_ >= corpus_size_) { // example_pos_是指在语料库中的索引
               ++current_epoch_; // 一个epoch处理完成
-              example_pos_ = 0;
+              example_pos_ = 0; // 语料库从头开始采样
             }
+            // 对语料中的词按概率进行丢弃
             if (subsample_ > 0) {
-              int32 word_freq = freq_.flat<int32>()(corpus_[example_pos_]); //获取某个词的freq
+              int32 word_freq = freq_.flat<int32>()(corpus_[example_pos_]); //获取某个词的freq,corpus_:vector<int32>
               // See Eq. 5 in http://arxiv.org/abs/1310.4546
+              // 根据词频来计算一个词是否需要丢弃，词频越高的词，越容易被丢弃
               float keep_prob =
                   (std::sqrt(word_freq / (subsample_ * corpus_size_)) + 1) *
                   (subsample_ * corpus_size_) / word_freq; // 公式里好像没有corpus_size_
               if (rng_.RandFloat() > keep_prob) { // 以一定概率去掉
-                i--;
+                i--; // 该词被丢弃，所以并不算在句子长度之内
                 continue;
               }
             }
             sentence_[i] = corpus_[example_pos_];  // 将词放句子中去
-          }
+          } // for
         }
-        const int32 skip = 1 + rng_.Uniform(window_size_);
-        label_pos_ = std::max<int32>(0, sentence_index_ - skip);
+        // SimplePhilox.Uniform integer in [0, n).
+        const int32 skip = 1 + rng_.Uniform(window_size_); // windows_size = 5, 从窗口里选一个步长
+        // 但从此处看，都是用中心词来预测其前面的词
+        label_pos_ = std::max<int32>(0, sentence_index_ - skip); // 以当前词窗口内的词作为target
+        // sentence_index_为中心词，label_pos_ 为待预测的词
         label_limit_ =
             std::min<int32>(kSentenceSize, sentence_index_ + skip + 1);
-      }
+      } // end of if
       if (sentence_index_ != label_pos_) {
-        break;
+        break; // 如果中心词与预测词不同，那么跳出while,生成一个样本
       }
       ++label_pos_;
-    }
+    } // end of while
     *example = sentence_[sentence_index_];
     *label = sentence_[label_pos_++];
   }
@@ -182,8 +189,8 @@ class SkipgramWord2vecOp : public OpKernel {
     TF_RETURN_IF_ERROR(ReadFileToString(env, filename, &data)); // 将file里的数据读到data里
     StringPiece input = data;
     string w;
-    corpus_size_ = 0;
-    std::unordered_map<string, int32> word_freq;
+    corpus_size_ = 0; // 词料库的大小
+    std::unordered_map<string, int32> word_freq; // 词 -> 词频
     while (ScanWord(&input, &w)) {
       ++(word_freq[w]); // c++ map初始始化值均为0
       ++corpus_size_;
@@ -194,29 +201,30 @@ class SkipgramWord2vecOp : public OpKernel {
                                      corpus_size_, " words");
     }
     typedef std::pair<string, int32> WordFreq;
-    std::vector<WordFreq> ordered; // vector里装的都是 word_freq
+    std::vector<WordFreq> ordered; // vector里装的都是 word_freq ,去除了那些低频的词
     for (const auto& p : word_freq) {
       if (p.second >= min_count_) ordered.push_back(p); // 只对有效的word_freq 进行
     }
     LOG(INFO) << "Data file: " << filename << " contains " << data.size()
               << " bytes, " << corpus_size_ << " words, " << word_freq.size()
-              << " unique words, " << ordered.size()
+              << " unique words, " << ordered.size() //  去重之后的词个数
               << " unique frequent words.";
     word_freq.clear();
+    // 对vector按内容进行排序
     std::sort(ordered.begin(), ordered.end(),
               [](const WordFreq& x, const WordFreq& y) {
                 return x.second > y.second;
               }); // 降序排序
-    vocab_size_ = static_cast<int32>(1 + ordered.size());
+    vocab_size_ = static_cast<int32>(1 + ordered.size()); // 词汇表的大小，加上一个未登录词
     Tensor word(DT_STRING, TensorShape({vocab_size_}));
     Tensor freq(DT_INT32, TensorShape({vocab_size_}));
     word.flat<string>()(0) = "UNK"; // 一维向量,里面装的是string
     static const int32 kUnkId = 0;
     std::unordered_map<string, int32> word_id; // word -> index
     int64 total_counted = 0;
-    for (std::size_t i = 0; i < ordered.size(); ++i) {
+    for (std::size_t i = 0; i < ordered.size(); ++i) { // 遍历去重之后的词个数
       const auto& w = ordered[i].first; // word -> count
-      auto id = i + 1;
+      auto id = i + 1; // 第0个是未登录词
       word.flat<string>()(id) = w; // word
       auto word_count = ordered[i].second;
       freq.flat<int32>()(id) = word_count; // count
@@ -228,11 +236,12 @@ class SkipgramWord2vecOp : public OpKernel {
     freq_ = freq; // freq_ 是一维的int32 Tensor
     corpus_.reserve(corpus_size_); // vector<int32>
     input = data;
-    while (ScanWord(&input, &w)) {
-      corpus_.push_back(gtl::FindWithDefault(word_id, w, kUnkId)); // 从word_id中查找词w的index,若未找到则返回未登录词的index
+    // corpus_:vector<int32>
+    while (ScanWord(&input, &w)) { // string w ;
+      corpus_.push_back(gtl::FindWithDefault(word_id, w, kUnkId)); // 从word_id中查找词w的index,若未找到则返回未登录词的index=0
     }
-    precalc_examples_.resize(kPrecalc);
-    sentence_.resize(kSentenceSize);
+    precalc_examples_.resize(kPrecalc); //3000
+    sentence_.resize(kSentenceSize); //1000
     return Status::OK();
   }
 };
