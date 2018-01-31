@@ -180,12 +180,20 @@ class Word2Vec(object):
     opts = self._options
 
     # The training data. A text file. 先用一个c++ op读取数据
+    # The training data. A text file.
+    # 获取一个batch的数据
+    # examples:上下文的词的index
+    # labels: 目标词的index
+    # words:语料库里所有的单词
+    # counts:每个单词的词频
+    # total_words_processed 当前已经处理了多少个单词
     (words, counts, words_per_epoch, current_epoch, total_words_processed,
      examples, labels) = word2vec.skipgram_word2vec(filename=opts.train_data,
                                                     batch_size=opts.batch_size,
                                                     window_size=opts.window_size,
                                                     min_count=opts.min_count,
                                                     subsample=opts.subsample)
+    # opts.vocab_words 获取词库里的单词， opts.vocab_counts:每个单词的词频
     (opts.vocab_words, opts.vocab_counts,
      opts.words_per_epoch) = self._session.run([words, counts, words_per_epoch])
     opts.vocab_size = len(opts.vocab_words)
@@ -205,10 +213,10 @@ class Word2Vec(object):
              opts.emb_dim], -0.5 / opts.emb_dim, 0.5 / opts.emb_dim),
         name="w_in")
 
-    # Global step: scalar, i.e., shape [].
+    # w_out: [vocab_size, emb_dim ]
     w_out = tf.Variable(tf.zeros([opts.vocab_size, opts.emb_dim]), name="w_out")
 
-    # Global step: []
+    # Global step:scalar []
     global_step = tf.Variable(0, name="global_step")
 
     # Linear learning rate decay.
@@ -221,12 +229,12 @@ class Word2Vec(object):
     inc = global_step.assign_add(1)
     with tf.control_dependencies([inc]):
       # 然后利用c++的代码进行train
-      train = word2vec.neg_train_word2vec(w_in,
-                                          w_out,
-                                          examples,
-                                          labels,
-                                          lr,
-                                          vocab_count=opts.vocab_counts.tolist(),
+      train = word2vec.neg_train_word2vec(w_in, # index =0
+                                          w_out, # index =1
+                                          examples, # batch ,index =2 `
+                                          labels, # index=3
+                                          lr, # index =4
+                                          vocab_count=opts.vocab_counts.tolist(), # 每个单词的词频
                                           num_negative_samples=opts.num_samples)
 
     self._w_in = w_in

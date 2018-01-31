@@ -42,8 +42,8 @@ bool ScanWord(StringPiece* input, string* word) {
 }
 
 }  // end namespace
-// 每次处理一个batch
 
+// 此op用来优化读取
 class SkipgramWord2vecOp : public OpKernel {
  public:
   explicit SkipgramWord2vecOp(OpKernelConstruction* ctx)
@@ -184,6 +184,7 @@ class SkipgramWord2vecOp : public OpKernel {
     *label = sentence_[label_pos_++];
   }
 
+  // Init其实并非一个重写的方法
   Status Init(Env* env, const string& filename) {
     string data;
     TF_RETURN_IF_ERROR(ReadFileToString(env, filename, &data)); // 将file里的数据读到data里
@@ -248,6 +249,7 @@ class SkipgramWord2vecOp : public OpKernel {
 
 REGISTER_KERNEL_BUILDER(Name("SkipgramWord2vec").Device(DEVICE_CPU), SkipgramWord2vecOp);
 
+// 此op主要用来优化计算
 class NegTrainWord2vecOp : public OpKernel {
  public:
   explicit NegTrainWord2vecOp(OpKernelConstruction* ctx) : OpKernel(ctx) {
@@ -270,10 +272,12 @@ class NegTrainWord2vecOp : public OpKernel {
   ~NegTrainWord2vecOp() { delete sampler_; }
 
   void Compute(OpKernelContext* ctx) override {
-    Tensor w_in = ctx->mutable_input(0, false);
+    Tensor w_in = ctx->mutable_input(0, false); // w_in 可读写
     OP_REQUIRES(ctx, TensorShapeUtils::IsMatrix(w_in.shape()),
                 errors::InvalidArgument("Must be a matrix"));
-    Tensor w_out = ctx->mutable_input(1, false);
+    // Tensor mutable_input(int index, bool lock_held);
+    // lock_held = false时，需要独占写锁
+    Tensor w_out = ctx->mutable_input(1, false); // w_out 可写
     OP_REQUIRES(ctx, w_in.shape() == w_out.shape(),
                 errors::InvalidArgument("w_in.shape == w_out.shape"));
     const Tensor& examples = ctx->input(2);
@@ -286,56 +290,56 @@ class NegTrainWord2vecOp : public OpKernel {
     OP_REQUIRES(ctx, TensorShapeUtils::IsScalar(learning_rate.shape()),
                 errors::InvalidArgument("Must be a scalar"));
 
-    auto Tw_in = w_in.matrix<float>();
-    auto Tw_out = w_out.matrix<float>();
-    auto Texamples = examples.flat<int32>();
-    auto Tlabels = labels.flat<int32>();
-    auto lr = learning_rate.scalar<float>()();
-    const int64 vocab_size = w_in.dim_size(0);
+    auto Tw_in = w_in.matrix<float>(); // TTypes<float>::Matrix
+    auto Tw_out = w_out.matrix<float>(); // TTypes<T>::Matrix
+    auto Texamples = examples.flat<int32>(); // TTypes<T>::ConstMatrix
+    auto Tlabels = labels.flat<int32>(); // TTypes<T>::ConstFlat
+    auto lr = learning_rate.scalar<float>()(); // TTypes<T>::Scalar
+    const int64 vocab_size = w_in.dim_size(0); // vocab_size * embed_size
     const int64 dims = w_in.dim_size(1);
-    const int64 batch_size = examples.dim_size(0);
+    const int64 batch_size = examples.dim_size(0); // batch_size*1
     OP_REQUIRES(ctx, vocab_size == sampler_->num(),
                 errors::InvalidArgument("vocab_size mismatches: ", vocab_size,
                                         " vs. ", sampler_->num()));
 
-    // Gradient accumulator for v_in.
+    // Gradient accumulator for v_in. 即 embed_w
     Tensor buf(DT_FLOAT, TensorShape({dims}));
-    auto Tbuf = buf.flat<float>();
+    auto Tbuf = buf.flat<float>(); // TTypes<T>::Flat
 
     // Scalar buffer to hold sigmoid(+/- dot).
-    Tensor g_buf(DT_FLOAT, TensorShape({}));
-    auto g = g_buf.scalar<float>();
+    Tensor g_buf(DT_FLOAT, TensorShape({})); // 标量
+    auto g = g_buf.scalar<float>(); // TTypes<T>::Scalar
 
     // The following loop needs 2 random 32-bit values per negative
     // sample.  We reserve 8 values per sample just in case the
     // underlying implementation changes.
-    auto rnd = base_.ReserveSamples32(batch_size * num_samples_ * 8);
+    auto rnd = base_.ReserveSamples32(batch_size * num_samples_ * 8); // num_samples: negative_samples
     random::SimplePhilox srnd(&rnd);
 
     for (int64 i = 0; i < batch_size; ++i) {
-      const int32 example = Texamples(i);
+      const int32 example = Texamples(i); // TTypes<T>::ConstMatrix ,example的值比如 词w的index
       DCHECK(0 <= example && example < vocab_size) << example;
       const int32 label = Tlabels(i);
       DCHECK(0 <= label && label < vocab_size) << label;
-      auto v_in = Tw_in.chip<0>(example);
+      auto v_in = Tw_in.chip<0>(example); // 从第0维选择下标为example的矩阵行，相当于lookup_embedding
 
       // Positive: example predicts label.
       //   forward: x = v_in' * v_out
-      //            l = log(sigmoid(x))
-      //   backward: dl/dx = g = sigmoid(-x)
+      //            l = log(sigmoid(x)) = p(log(sigmoid(x)))
+      //   backward: dl/dx = g = sigmoid(-x) =1 - sigmoid(x) = 1/(1+exp(x))
       //             dl/d(v_in) = g * v_out'
       //             dl/d(v_out) = v_in' * g
       {
-        auto v_out = Tw_out.chip<0>(label);
-        auto dot = (v_in * v_out).sum(); // 应该还有一个bias 才对
-        g = (dot.exp() + 1.f).inverse();
-        Tbuf = v_out * (g() * lr);
-        v_out += v_in * (g() * lr);
+        auto v_out = Tw_out.chip<0>(label); //  从第0维选择下标为label的矩阵行
+        auto dot = (v_in * v_out).sum(); // 两个向量点乘，然后相加，是一个标量
+        g = (dot.exp() + 1.f).inverse(); // TTypes<float>::Scalar g; 觉得此处应该是 (-dot).exp()才对
+        Tbuf = v_out * (g() * lr); // TTypes<T>::Flat, embeding_w的梯度由于后面也要更新，因此先缓存起来
+        v_out += v_in * (g() * lr); // v_out的梯度直接更新
       }
 
       // Negative samples:
       //   forward: x = v_in' * v_sample
-      //            l = log(sigmoid(-x))
+      //            l = log(sigmoid(-x))= (1-p)*log(1-sigmoid(x))
       //   backward: dl/dx = g = -sigmoid(x)
       //             dl/d(v_in) = g * v_out'
       //             dl/d(v_out) = v_in' * g
@@ -345,13 +349,13 @@ class NegTrainWord2vecOp : public OpKernel {
         auto v_sample = Tw_out.chip<0>(sample);
         auto dot = (v_in * v_sample).sum();
         g = -((-dot).exp() + 1.f).inverse();
-        Tbuf += v_sample * (g() * lr);
+        Tbuf += v_sample * (g() * lr); // 累加embedding的更新
         v_sample += v_in * (g() * lr);
       }
 
       // Applies the gradient on v_in.
-      v_in += Tbuf;
-    }
+      v_in += Tbuf; // 应用embedding的更新
+    } // 注意，此函数并没有输出值,即ctx->set_output()
   }
 
  private:
