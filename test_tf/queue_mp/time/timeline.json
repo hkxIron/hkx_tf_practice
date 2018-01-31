@@ -1,0 +1,156 @@
+{
+    "traceEvents": [
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 0,
+            "args": {
+                "name": "Allocators"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 1,
+            "args": {
+                "name": "/job:localhost/replica:0/task:0/device:CPU:0 Compute"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 2,
+            "args": {
+                "name": "/job:localhost/replica:0/task:0/device:CPU:0 Tensors"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "NoOp",
+            "pid": 1,
+            "tid": 0,
+            "ts": 1511928888648061,
+            "dur": 0,
+            "args": {
+                "name": "_SOURCE",
+                "op": "NoOp"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Const",
+            "pid": 1,
+            "tid": 1,
+            "ts": 1511928888648061,
+            "dur": 0,
+            "args": {
+                "name": "input_producer/limit_epochs/Const",
+                "op": "Const"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Const",
+            "pid": 1,
+            "tid": 2,
+            "ts": 1511928888648061,
+            "dur": 0,
+            "args": {
+                "name": "matching_filenames/MatchingFiles/_0__cf__0",
+                "op": "Const"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "VariableV2",
+            "pid": 1,
+            "tid": 3,
+            "ts": 1511928888648061,
+            "dur": 0,
+            "args": {
+                "name": "input_producer/limit_epochs/epochs",
+                "op": "VariableV2"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Assign",
+            "pid": 1,
+            "tid": 4,
+            "ts": 1511928888648061,
+            "dur": 0,
+            "args": {
+                "name": "input_producer/limit_epochs/epochs/Assign",
+                "op": "Assign",
+                "input0": "input_producer/limit_epochs/epochs",
+                "input1": "input_producer/limit_epochs/Const"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "input_producer/limit_epochs/Const",
+            "pid": 1,
+            "tid": 1,
+            "ts": 1511928888648061,
+            "id": 0
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "input_producer/limit_epochs/Const",
+            "pid": 1,
+            "tid": 4,
+            "ts": 1511928888648061,
+            "id": 0
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "VariableV2",
+            "pid": 1,
+            "tid": 5,
+            "ts": 1511928888648061,
+            "dur": 0,
+            "args": {
+                "name": "matching_filenames",
+                "op": "VariableV2"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Assign",
+            "pid": 1,
+            "tid": 6,
+            "ts": 1511928888648061,
+            "dur": 0,
+            "args": {
+                "name": "matching_filenames/Assign",
+                "op": "Assign",
+                "input0": "matching_filenames",
+                "input1": "matching_filenames/MatchingFiles"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "NoOp",
+            "pid": 1,
+            "tid": 7,
+            "ts": 1511928888648061,
+            "dur": 0,
+            "args": {
+                "name": "init_1",
+                "op": "NoOp",
+                "input0": "^matching_filenames/Assign",
+                "input1": "^input_producer/limit_epochs/epochs/Assign"
+            }
+        }
+    ]
+}

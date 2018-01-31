@@ -1,0 +1,527 @@
+node {
+  name: "input_producer/range/start"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "input_producer/range/limit"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1000
+      }
+    }
+  }
+}
+node {
+  name: "input_producer/range/delta"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "input_producer/range"
+  op: "Range"
+  input: "input_producer/range/start"
+  input: "input_producer/range/limit"
+  input: "input_producer/range/delta"
+  attr {
+    key: "Tidx"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "input_producer/RandomShuffle"
+  op: "RandomShuffle"
+  input: "input_producer/range"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "seed"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "seed2"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "input_producer"
+  op: "FIFOQueueV2"
+  attr {
+    key: "capacity"
+    value {
+      i: 2000000
+    }
+  }
+  attr {
+    key: "component_types"
+    value {
+      list {
+        type: DT_INT32
+      }
+    }
+  }
+  attr {
+    key: "container"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "shapes"
+    value {
+      list {
+        shape {
+        }
+      }
+    }
+  }
+  attr {
+    key: "shared_name"
+    value {
+      s: ""
+    }
+  }
+}
+node {
+  name: "input_producer/input_producer_EnqueueMany"
+  op: "QueueEnqueueManyV2"
+  input: "input_producer"
+  input: "input_producer/RandomShuffle"
+  attr {
+    key: "Tcomponents"
+    value {
+      list {
+        type: DT_INT32
+      }
+    }
+  }
+  attr {
+    key: "timeout_ms"
+    value {
+      i: -1
+    }
+  }
+}
+node {
+  name: "input_producer/input_producer_Close"
+  op: "QueueCloseV2"
+  input: "input_producer"
+  attr {
+    key: "cancel_pending_enqueues"
+    value {
+      b: false
+    }
+  }
+}
+node {
+  name: "input_producer/input_producer_Close_1"
+  op: "QueueCloseV2"
+  input: "input_producer"
+  attr {
+    key: "cancel_pending_enqueues"
+    value {
+      b: true
+    }
+  }
+}
+node {
+  name: "input_producer/input_producer_Size"
+  op: "QueueSizeV2"
+  input: "input_producer"
+}
+node {
+  name: "input_producer/ToFloat"
+  op: "Cast"
+  input: "input_producer/input_producer_Size"
+  attr {
+    key: "DstT"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "SrcT"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "input_producer/mul/y"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_FLOAT
+        tensor_shape {
+        }
+        float_val: 4.999999987376214e-07
+      }
+    }
+  }
+}
+node {
+  name: "input_producer/mul"
+  op: "Mul"
+  input: "input_producer/ToFloat"
+  input: "input_producer/mul/y"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
+  name: "input_producer/fraction_of_2000000_full/tags"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_STRING
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_STRING
+        tensor_shape {
+        }
+        string_val: "input_producer/fraction_of_2000000_full"
+      }
+    }
+  }
+}
+node {
+  name: "input_producer/fraction_of_2000000_full"
+  op: "ScalarSummary"
+  input: "input_producer/fraction_of_2000000_full/tags"
+  input: "input_producer/mul"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
+  name: "input_producer_Dequeue"
+  op: "QueueDequeueV2"
+  input: "input_producer"
+  attr {
+    key: "component_types"
+    value {
+      list {
+        type: DT_INT32
+      }
+    }
+  }
+  attr {
+    key: "timeout_ms"
+    value {
+      i: -1
+    }
+  }
+}
+node {
+  name: "batch/Const"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_BOOL
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_BOOL
+        tensor_shape {
+        }
+        bool_val: true
+      }
+    }
+  }
+}
+node {
+  name: "batch/fifo_queue"
+  op: "FIFOQueueV2"
+  attr {
+    key: "capacity"
+    value {
+      i: 2000000
+    }
+  }
+  attr {
+    key: "component_types"
+    value {
+      list {
+        type: DT_INT32
+        type: DT_INT32
+      }
+    }
+  }
+  attr {
+    key: "container"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "shapes"
+    value {
+      list {
+        shape {
+        }
+        shape {
+        }
+      }
+    }
+  }
+  attr {
+    key: "shared_name"
+    value {
+      s: ""
+    }
+  }
+}
+node {
+  name: "batch/fifo_queue_enqueue"
+  op: "QueueEnqueueV2"
+  input: "batch/fifo_queue"
+  input: "input_producer_Dequeue"
+  input: "input_producer_Dequeue"
+  attr {
+    key: "Tcomponents"
+    value {
+      list {
+        type: DT_INT32
+        type: DT_INT32
+      }
+    }
+  }
+  attr {
+    key: "timeout_ms"
+    value {
+      i: -1
+    }
+  }
+}
+node {
+  name: "batch/fifo_queue_Close"
+  op: "QueueCloseV2"
+  input: "batch/fifo_queue"
+  attr {
+    key: "cancel_pending_enqueues"
+    value {
+      b: false
+    }
+  }
+}
+node {
+  name: "batch/fifo_queue_Close_1"
+  op: "QueueCloseV2"
+  input: "batch/fifo_queue"
+  attr {
+    key: "cancel_pending_enqueues"
+    value {
+      b: true
+    }
+  }
+}
+node {
+  name: "batch/fifo_queue_Size"
+  op: "QueueSizeV2"
+  input: "batch/fifo_queue"
+}
+node {
+  name: "batch/ToFloat"
+  op: "Cast"
+  input: "batch/fifo_queue_Size"
+  attr {
+    key: "DstT"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "SrcT"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "batch/mul/y"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_FLOAT
+        tensor_shape {
+        }
+        float_val: 4.999999987376214e-07
+      }
+    }
+  }
+}
+node {
+  name: "batch/mul"
+  op: "Mul"
+  input: "batch/ToFloat"
+  input: "batch/mul/y"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
+  name: "batch/fraction_of_2000000_full/tags"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_STRING
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_STRING
+        tensor_shape {
+        }
+        string_val: "batch/fraction_of_2000000_full"
+      }
+    }
+  }
+}
+node {
+  name: "batch/fraction_of_2000000_full"
+  op: "ScalarSummary"
+  input: "batch/fraction_of_2000000_full/tags"
+  input: "batch/mul"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
+  name: "batch/n"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 100
+      }
+    }
+  }
+}
+node {
+  name: "batch"
+  op: "QueueDequeueManyV2"
+  input: "batch/fifo_queue"
+  input: "batch/n"
+  attr {
+    key: "component_types"
+    value {
+      list {
+        type: DT_INT32
+        type: DT_INT32
+      }
+    }
+  }
+  attr {
+    key: "timeout_ms"
+    value {
+      i: -1
+    }
+  }
+}
+versions {
+  producer: 24
+}

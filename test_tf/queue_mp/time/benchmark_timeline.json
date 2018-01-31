@@ -1,0 +1,534 @@
+{
+    "traceEvents": [
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 0,
+            "args": {
+                "name": "Allocators"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 1,
+            "args": {
+                "name": "/job:localhost/replica:0/task:0/device:CPU:0 Compute"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 2,
+            "args": {
+                "name": "/job:localhost/replica:0/task:0/device:CPU:0 Tensors"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "NoOp",
+            "pid": 1,
+            "tid": 0,
+            "ts": 1511927282569428,
+            "dur": 0,
+            "args": {
+                "name": "_SOURCE",
+                "op": "NoOp"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Const",
+            "pid": 1,
+            "tid": 1,
+            "ts": 1511927282569428,
+            "dur": 0,
+            "args": {
+                "name": "shuffle_batch/n",
+                "op": "Const"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Const",
+            "pid": 1,
+            "tid": 2,
+            "ts": 1511927282569428,
+            "dur": 0,
+            "args": {
+                "name": "ParseExample/ParseExample/names",
+                "op": "Const"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Const",
+            "pid": 1,
+            "tid": 3,
+            "ts": 1511927282569428,
+            "dur": 0,
+            "args": {
+                "name": "ParseExample/ParseExample/sparse_keys_0",
+                "op": "Const"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Const",
+            "pid": 1,
+            "tid": 4,
+            "ts": 1511927282569428,
+            "dur": 0,
+            "args": {
+                "name": "ParseExample/ParseExample/sparse_keys_1",
+                "op": "Const"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Const",
+            "pid": 1,
+            "tid": 5,
+            "ts": 1511927282569428,
+            "dur": 0,
+            "args": {
+                "name": "ParseExample/ParseExample/dense_keys_0",
+                "op": "Const"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Const",
+            "pid": 1,
+            "tid": 6,
+            "ts": 1511927282569428,
+            "dur": 0,
+            "args": {
+                "name": "ParseExample/Const",
+                "op": "Const"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "RandomShuffleQueueV2",
+            "pid": 1,
+            "tid": 7,
+            "ts": 1511927282569428,
+            "dur": 0,
+            "args": {
+                "name": "shuffle_batch/random_shuffle_queue",
+                "op": "RandomShuffleQueueV2"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "QueueDequeueManyV2",
+            "pid": 1,
+            "tid": 8,
+            "ts": 1511927282569428,
+            "dur": 0,
+            "args": {
+                "name": "shuffle_batch",
+                "op": "QueueDequeueManyV2",
+                "input0": "shuffle_batch/random_shuffle_queue",
+                "input1": "shuffle_batch/n"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "shuffle_batch/random_shuffle_queue",
+            "pid": 1,
+            "tid": 7,
+            "ts": 1511927282569428,
+            "id": 0
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "shuffle_batch/random_shuffle_queue",
+            "pid": 1,
+            "tid": 8,
+            "ts": 1511927282569428,
+            "id": 0
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "shuffle_batch/n",
+            "pid": 1,
+            "tid": 1,
+            "ts": 1511927282569428,
+            "id": 1
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "shuffle_batch/n",
+            "pid": 1,
+            "tid": 8,
+            "ts": 1511927282569428,
+            "id": 1
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "ParseExample",
+            "pid": 1,
+            "tid": 9,
+            "ts": 1511927282569428,
+            "dur": 1000,
+            "args": {
+                "name": "ParseExample/ParseExample",
+                "op": "ParseExample",
+                "input0": "shuffle_batch",
+                "input1": "ParseExample/ParseExample/names",
+                "input2": "ParseExample/ParseExample/sparse_keys_0",
+                "input3": "ParseExample/ParseExample/sparse_keys_1",
+                "input4": "ParseExample/ParseExample/dense_keys_0",
+                "input5": "ParseExample/Const"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "shuffle_batch",
+            "pid": 1,
+            "tid": 8,
+            "ts": 1511927282569428,
+            "id": 2
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "shuffle_batch",
+            "pid": 1,
+            "tid": 9,
+            "ts": 1511927282569428,
+            "id": 2
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample/names",
+            "pid": 1,
+            "tid": 2,
+            "ts": 1511927282569428,
+            "id": 3
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample/names",
+            "pid": 1,
+            "tid": 9,
+            "ts": 1511927282569428,
+            "id": 3
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample/sparse_keys_0",
+            "pid": 1,
+            "tid": 3,
+            "ts": 1511927282569428,
+            "id": 4
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample/sparse_keys_0",
+            "pid": 1,
+            "tid": 9,
+            "ts": 1511927282569428,
+            "id": 4
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample/sparse_keys_1",
+            "pid": 1,
+            "tid": 4,
+            "ts": 1511927282569428,
+            "id": 5
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample/sparse_keys_1",
+            "pid": 1,
+            "tid": 9,
+            "ts": 1511927282569428,
+            "id": 5
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample/dense_keys_0",
+            "pid": 1,
+            "tid": 5,
+            "ts": 1511927282569428,
+            "id": 6
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample/dense_keys_0",
+            "pid": 1,
+            "tid": 9,
+            "ts": 1511927282569428,
+            "id": 6
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "ParseExample/Const",
+            "pid": 1,
+            "tid": 6,
+            "ts": 1511927282569428,
+            "id": 7
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "ParseExample/Const",
+            "pid": 1,
+            "tid": 9,
+            "ts": 1511927282569428,
+            "id": 7
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 1,
+            "tid": 0,
+            "ts": 1511927282570428,
+            "dur": 0,
+            "args": {
+                "name": "_retval_ParseExample/ParseExample_6_6",
+                "op": "_Retval",
+                "input0": "ParseExample/ParseExample:6"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample:6",
+            "pid": 1,
+            "tid": 9,
+            "ts": 1511927282570428,
+            "id": 8
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample:6",
+            "pid": 1,
+            "tid": 0,
+            "ts": 1511927282570428,
+            "id": 8
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 1,
+            "tid": 1,
+            "ts": 1511927282570428,
+            "dur": 0,
+            "args": {
+                "name": "_retval_ParseExample/ParseExample_0_0",
+                "op": "_Retval",
+                "input0": "ParseExample/ParseExample"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample",
+            "pid": 1,
+            "tid": 9,
+            "ts": 1511927282570428,
+            "id": 9
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample",
+            "pid": 1,
+            "tid": 1,
+            "ts": 1511927282570428,
+            "id": 9
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 1,
+            "tid": 2,
+            "ts": 1511927282570428,
+            "dur": 0,
+            "args": {
+                "name": "_retval_ParseExample/ParseExample_1_1",
+                "op": "_Retval",
+                "input0": "ParseExample/ParseExample:1"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample:1",
+            "pid": 1,
+            "tid": 9,
+            "ts": 1511927282570428,
+            "id": 10
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample:1",
+            "pid": 1,
+            "tid": 2,
+            "ts": 1511927282570428,
+            "id": 10
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 1,
+            "tid": 3,
+            "ts": 1511927282570428,
+            "dur": 0,
+            "args": {
+                "name": "_retval_ParseExample/ParseExample_2_2",
+                "op": "_Retval",
+                "input0": "ParseExample/ParseExample:2"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample:2",
+            "pid": 1,
+            "tid": 9,
+            "ts": 1511927282570428,
+            "id": 11
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample:2",
+            "pid": 1,
+            "tid": 3,
+            "ts": 1511927282570428,
+            "id": 11
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 1,
+            "tid": 4,
+            "ts": 1511927282570428,
+            "dur": 0,
+            "args": {
+                "name": "_retval_ParseExample/ParseExample_3_3",
+                "op": "_Retval",
+                "input0": "ParseExample/ParseExample:3"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample:3",
+            "pid": 1,
+            "tid": 9,
+            "ts": 1511927282570428,
+            "id": 12
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample:3",
+            "pid": 1,
+            "tid": 4,
+            "ts": 1511927282570428,
+            "id": 12
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 1,
+            "tid": 5,
+            "ts": 1511927282570428,
+            "dur": 0,
+            "args": {
+                "name": "_retval_ParseExample/ParseExample_4_4",
+                "op": "_Retval",
+                "input0": "ParseExample/ParseExample:4"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample:4",
+            "pid": 1,
+            "tid": 9,
+            "ts": 1511927282570428,
+            "id": 13
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample:4",
+            "pid": 1,
+            "tid": 5,
+            "ts": 1511927282570428,
+            "id": 13
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 1,
+            "tid": 6,
+            "ts": 1511927282570428,
+            "dur": 0,
+            "args": {
+                "name": "_retval_ParseExample/ParseExample_5_5",
+                "op": "_Retval",
+                "input0": "ParseExample/ParseExample:5"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample:5",
+            "pid": 1,
+            "tid": 9,
+            "ts": 1511927282570428,
+            "id": 14
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "ParseExample/ParseExample:5",
+            "pid": 1,
+            "tid": 6,
+            "ts": 1511927282570428,
+            "id": 14
+        }
+    ]
+}

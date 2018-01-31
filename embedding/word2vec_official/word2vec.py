@@ -1,3 +1,4 @@
+# coding:utf-8
 # Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,6 +58,7 @@ flags.DEFINE_string(
     "eval_data", None, "File consisting of analogies of four tokens."
     "embedding 2 - embedding 1 + embedding 3 should be close "
     "to embedding 4."
+    "example: Athens Greece Beijing China"
     "See README.md for how to get 'questions-words.txt'.")
 flags.DEFINE_integer("embedding_size", 200, "The embedding dimension size.")
 flags.DEFINE_integer(
@@ -172,6 +174,7 @@ class Word2Vec(object):
 
   def read_analogies(self):
     """Reads through the analogy question file.
+       example: Athens Greece Beijing China
     Returns:
       questions: a [n, 4] numpy array containing the analogy question's
                  word ids.
@@ -184,7 +187,7 @@ class Word2Vec(object):
         if line.startswith(b":"):  # Skip comments.
           continue
         words = line.strip().lower().split(b" ")
-        ids = [self._word2id.get(w.strip()) for w in words]
+        ids = [self._word2id.get(w.strip()) for w in words] # 将词word转为id
         if None in ids or len(ids) != 4:
           questions_skipped += 1
         else:
@@ -192,7 +195,7 @@ class Word2Vec(object):
     print("Eval analogy file: ", self._options.eval_data)
     print("Questions: ", len(questions))
     print("Skipped: ", questions_skipped)
-    self._analogy_questions = np.array(questions, dtype=np.int32)
+    self._analogy_questions = np.array(questions, dtype=np.int32) # 转化为二维数组
 
   def forward(self, examples, labels):
     """Build the graph for the forward pass."""
@@ -226,7 +229,7 @@ class Word2Vec(object):
     # 随机负采样 Negative sampling. sampled_ids:[num_neg_samples]
     # 比如每个batch会采样100个随机负例
     sampled_ids, _, _ = (tf.nn.fixed_unigram_candidate_sampler(
-        true_classes=labels_matrix,
+        true_classes=labels_matrix, # 这个应该是负采样时用来做排除label的
         num_true=1,
         num_sampled=opts.num_samples, # 随机负例的个数,如 100,batch: 16
         unique=True,
@@ -266,6 +269,7 @@ class Word2Vec(object):
 
     # cross-entropy(logits, labels)
     # true_logits: [batch_size, 1], sample_logits: [batch_size, num_sampled]
+    # 即每个样本有num_sampled个负样本
     opts = self._options
     true_xent = tf.nn.sigmoid_cross_entropy_with_logits(
         labels=tf.ones_like(true_logits), logits=true_logits)
@@ -311,7 +315,7 @@ class Word2Vec(object):
     analogy_c = tf.placeholder(dtype=tf.int32)  # [N]
 
     # Normalized word embeddings of shape [vocab_size, emb_dim].
-    nemb = tf.nn.l2_normalize(self._emb, 1)
+    nemb = tf.nn.l2_normalize(self._emb, 1) # 对每一个word的 embedding进行归一化
 
     # Each row of a_emb, b_emb, c_emb is a word's embedding vector.
     # They all have the shape [N, emb_dim]
@@ -325,16 +329,18 @@ class Word2Vec(object):
 
     # Compute cosine distance between each pair of target and vocab.
     # dist has shape [N, vocab_size].
-    dist = tf.matmul(target, nemb, transpose_b=True)
+    # target: [N, emb_dim]  nemb: [vocab_size, emb_dim]
+    # 即对此批里的每个样本，计算词库里所有的词与其的相似度
+    dist = tf.matmul(target, nemb, transpose_b=True) # [N, vocab_size]
 
     # For each question (row in dist), find the top 4 words.
-    _, pred_idx = tf.nn.top_k(dist, 4)
+    _, pred_idx = tf.nn.top_k(dist, 4) # 返回最大值以及它们的indices
 
     # Nodes for computing neighbors for a given word according to
     # their cosine distance.
-    nearby_word = tf.placeholder(dtype=tf.int32)  # word id
-    nearby_emb = tf.gather(nemb, nearby_word)
-    nearby_dist = tf.matmul(nearby_emb, nemb, transpose_b=True)
+    nearby_word = tf.placeholder(dtype=tf.int32)  # word id , [N]
+    nearby_emb = tf.gather(nemb, nearby_word) # nearby_emb:[N,emb_dim], nemb:[vocab_size, emb_dim]
+    nearby_dist = tf.matmul(nearby_emb, nemb, transpose_b=True) # [N, vocab_size]
     nearby_val, nearby_idx = tf.nn.top_k(nearby_dist,
                                          min(1000, self._options.vocab_size))
 
@@ -343,7 +349,7 @@ class Word2Vec(object):
     self._analogy_a = analogy_a
     self._analogy_b = analogy_b
     self._analogy_c = analogy_c
-    self._analogy_pred_idx = pred_idx
+    self._analogy_pred_idx = pred_idx # 这个是预测的
     self._nearby_word = nearby_word
     self._nearby_val = nearby_val
     self._nearby_idx = nearby_idx
@@ -390,6 +396,7 @@ class Word2Vec(object):
 
   def save_vocab(self):
     """Save the vocabulary to a file so the model can be reloaded."""
+    # 保存词以及相应的词频
     opts = self._options
     with open(os.path.join(opts.save_path, "vocab.txt"), "w") as f:
       for i in xrange(opts.vocab_size):
@@ -441,17 +448,19 @@ class Word2Vec(object):
                         os.path.join(opts.save_path, "model.ckpt"),
                         global_step=step.astype(int))
         last_checkpoint_time = now
-      if epoch != initial_epoch:
+      if epoch != initial_epoch: # 一个epoch 训练完毕，验证也要结束
         break
-
+    # 主线程等待train线程
     for t in workers:
       t.join()
 
     return epoch
 
   def _predict(self, analogy):
+    # analogy:np.array, [N,4],N：问题的个数
     """Predict the top 4 answers for analogy questions."""
-    idx, = self._session.run([self._analogy_pred_idx], {
+    # 为每个问题，预测的前1000个词的下标
+    idx, = self._session.run(fetches=[self._analogy_pred_idx],feed_dict = {
         self._analogy_a: analogy[:, 0],
         self._analogy_b: analogy[:, 1],
         self._analogy_c: analogy[:, 2]
@@ -465,7 +474,7 @@ class Word2Vec(object):
     correct = 0
 
     try:
-      total = self._analogy_questions.shape[0]
+      total = self._analogy_questions.shape[0] # 推理问题的总数
     except AttributeError as e:
       raise AttributeError("Need to read analogy questions.")
 
@@ -473,12 +482,13 @@ class Word2Vec(object):
     while start < total:
       limit = start + 2500
       sub = self._analogy_questions[start:limit, :]
-      idx = self._predict(sub)
+      idx = self._predict(sub) # 每次预测一个 batch 的问题
       start = limit
       for question in xrange(sub.shape[0]):
         for j in xrange(4):
-          if idx[question, j] == sub[question, 3]:
-            # Bingo! We predicted correctly. E.g., [italy, rome, france, paris].
+          # sub[question, 3]为真实的答案，idx[question, j] 为预测的候选答案
+          if idx[question, j] == sub[question, 3]: #
+            # Bingo(答对了)! We predicted correctly. E.g., [italy, rome, france, paris].
             correct += 1
             break
           elif idx[question, j] in sub[question, :3]:
@@ -494,7 +504,7 @@ class Word2Vec(object):
   def analogy(self, w0, w1, w2):
     """Predict word w3 as in w0:w1 vs w2:w3."""
     wid = np.array([[self._word2id.get(w, 0) for w in [w0, w1, w2]]])
-    idx = self._predict(wid)
+    idx = self._predict(wid) # 输出预测的word index
     for c in [self._id2word[i] for i in idx[0, :]]:
       if c not in [w0, w1, w2]:
         print(c)
@@ -505,7 +515,8 @@ class Word2Vec(object):
     """Prints out nearby words given a list of words."""
     ids = np.array([self._word2id.get(x, 0) for x in words])
     vals, idx = self._session.run(
-        [self._nearby_val, self._nearby_idx], {self._nearby_word: ids})
+        fetchs = [self._nearby_val, self._nearby_idx],
+        feed_dict = {self._nearby_word: ids})
     for i in xrange(len(words)):
       print("\n%s\n=====================================" % (words[i]))
       for (neighbor, distance) in zip(idx[i, :num], vals[i, :num]):
