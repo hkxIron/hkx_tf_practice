@@ -1,3 +1,4 @@
+# coding:utf-8
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -11,6 +12,8 @@ TRAINING_EXAMPLES = 10000                   # 训练数据个数。
 TESTING_EXAMPLES = 1000                     # 测试数据个数。
 SAMPLE_GAP = 0.01                           # 采样间隔。
 
+# 因为标准的神经网络模型预测的是离散的数值，所以在程序中需要将连续的sin函数曲线离散化
+# 下面的程序每隔SAMPLE_INTERVAL对sin函数进行一次采样
 def generate_data(seq):
     X = []
     y = []

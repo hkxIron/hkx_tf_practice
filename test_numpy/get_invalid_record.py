@@ -3,7 +3,6 @@
 #
 # 查找全量训练任务时非法的样本
 # 返回不符合指定上限的特征以及其所在的样本
-# Author: Kexin Hu (kexinhu@tencent.com)
 
 import os,sys,argparse
 
