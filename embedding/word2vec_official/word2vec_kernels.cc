@@ -271,6 +271,7 @@ class NegTrainWord2vecOp : public OpKernel {
 
   ~NegTrainWord2vecOp() { delete sampler_; }
 
+  // 调用 session.run时,compute函数才开始计算
   void Compute(OpKernelContext* ctx) override {
     Tensor w_in = ctx->mutable_input(0, false); // w_in 可读写
     OP_REQUIRES(ctx, TensorShapeUtils::IsMatrix(w_in.shape()),
@@ -326,20 +327,20 @@ class NegTrainWord2vecOp : public OpKernel {
       // Positive: example predicts label.
       //   forward: x = v_in' * v_out
       //            l = log(sigmoid(x)) = p(log(sigmoid(x)))
-      //   backward: dl/dx = g = sigmoid(-x) =1 - sigmoid(x) = 1/(1+exp(x))
-      //             dl/d(v_in) = g * v_out'
+      //   backward: dl/dx = g = sigmoid(-x) =1-sigmoid(x) = 1/(1+exp(x))
+      //             dl/d(v_in) =dl/dx*dx/d(v_in)= g * v_out'
       //             dl/d(v_out) = v_in' * g
       {
         auto v_out = Tw_out.chip<0>(label); //  从第0维选择下标为label的矩阵行
         auto dot = (v_in * v_out).sum(); // 两个向量点乘，然后相加，是一个标量
-        g = (dot.exp() + 1.f).inverse(); // TTypes<float>::Scalar g; 觉得此处应该是 (-dot).exp()才对
+        g = (dot.exp() + 1.f).inverse(); // TTypes<float>::Scalar g;
         Tbuf = v_out * (g() * lr); // TTypes<T>::Flat, embeding_w的梯度由于后面也要更新，因此先缓存起来
         v_out += v_in * (g() * lr); // v_out的梯度直接更新
       }
 
       // Negative samples:
       //   forward: x = v_in' * v_sample
-      //            l = log(sigmoid(-x))= (1-p)*log(1-sigmoid(x))
+      //            l = log(sigmoid(-x)) = (1-p)*log(1-sigmoid(x))=(1-0)log(1-sigmoid(x))
       //   backward: dl/dx = g = -sigmoid(x)
       //             dl/d(v_in) = g * v_out'
       //             dl/d(v_out) = v_in' * g

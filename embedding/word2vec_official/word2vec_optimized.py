@@ -317,7 +317,7 @@ class Word2Vec(object):
   def _train_thread_body(self):
     initial_epoch, = self._session.run([self._epoch])
     while True:
-      _, epoch = self._session.run([self._train, self._epoch])
+      _, epoch = self._session.run([self._train, self._epoch]) # train返回的是None
       if epoch != initial_epoch:
         break
 
