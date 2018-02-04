@@ -20,28 +20,31 @@ def generate_data(seq):
     # 序列的第i项和后面的TIMESTEPS-1项合在一起作为输入；第i + TIMESTEPS项作为输
     # 出。即用sin函数前面的TIMESTEPS个点的信息，预测第i + TIMESTEPS个点的函数值。
     for i in range(len(seq) - TIMESTEPS):
-        X.append([seq[i: i + TIMESTEPS]])
-        y.append([seq[i + TIMESTEPS]])
+        X.append([seq[i: i + TIMESTEPS]]) # 用前面10个点, seq[i:i+n] 是一个np.array，x:[[np.array([...])],[np.array([...])],...]
+        y.append([seq[i + TIMESTEPS]]) # 预测后1个点, 而y里装的都是元素
     return np.array(X, dtype=np.float32), np.array(y, dtype=np.float32)
 
 # 用正弦函数生成训练和测试数据集合。
 test_start = (TRAINING_EXAMPLES + TIMESTEPS) * SAMPLE_GAP
 test_end = test_start + (TESTING_EXAMPLES + TIMESTEPS) * SAMPLE_GAP
-train_X, train_y = generate_data(np.sin(np.linspace(
-    0, test_start, TRAINING_EXAMPLES + TIMESTEPS, dtype=np.float32)))
+data_seq= np.sin(np.linspace(0, test_start, TRAINING_EXAMPLES + TIMESTEPS, dtype=np.float32)) # data_seq shape:[10010]
+train_X, train_y = generate_data(data_seq)
+print("data_seq:",data_seq.shape," X shape:",train_X.shape,"y shape:", train_y.shape) # x:[10000,1,10]  y:[10000,1]
 test_X, test_y = generate_data(np.sin(np.linspace(
-    test_start, test_end, TESTING_EXAMPLES + TIMESTEPS, dtype=np.float32)))
-
+    test_start, test_end, TESTING_EXAMPLES + TIMESTEPS, dtype=np.float32))) # x:[1000,1,10] y:[1000,1]
 
 def lstm_model(X, y, is_training):
     # 使用多层的LSTM结构。
-    cell = tf.nn.rnn_cell.MultiRNNCell([
+    # 那么当state_is_tuple=True的时候，state是元组形式，state=(c,h)。如果是False，那么state是一个由c和h拼接起来的张量，
+    # state=tf.concat(1,[c,h])。在运行时，则返回2值，一个是h，还有一个state。
+    cells = tf.nn.rnn_cell.MultiRNNCell([
         tf.nn.rnn_cell.BasicLSTMCell(HIDDEN_SIZE)
         for _ in range(NUM_LAYERS)])
 
     # 使用TensorFlow接口将多层的LSTM结构连接成RNN网络并计算其前向传播结果。
-    outputs, _ = tf.nn.dynamic_rnn(cell, X, dtype=tf.float32)
-    output = outputs[:, -1, :]
+    outputs, _ = tf.nn.dynamic_rnn(cells, X, dtype=tf.float32)
+    # 只关注最后一个时刻的输出结果
+    output = outputs[:, -1, :] # 感觉是output是公式里的Ot
 
     # 对LSTM网络的输出再做加一层全链接层并计算损失。注意这里默认的损失为平均
     # 平方差损失函数。
