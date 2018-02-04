@@ -61,7 +61,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import time
+import time,sys
 
 import numpy as np
 import tensorflow as tf
@@ -129,29 +129,33 @@ class PTBModel(object):
 
     with tf.device("/cpu:0"):
       embedding = tf.get_variable("embedding", [vocab_size, size], dtype=data_type())
-      # 将输入seq用embedding表示, shape=[batch, steps, hidden_size]
-      inputs = tf.nn.embedding_lookup(embedding, input_.input_data) # input_data:[batch_size,num_steps]
+      # 将输入seq用embedding表示, inputs=[batch, num_steps, hidden_size], 20*20*200
+      inputs = tf.nn.embedding_lookup(embedding, input_.input_data) # input_data:[batch_size,num_steps],embedding:[vocab_size,size]
       print("inputs:",inputs)
 
     if is_training and config.keep_prob < 1:
-      inputs = tf.nn.dropout(inputs, config.keep_prob)
-
+      inputs = tf.nn.dropout(inputs, config.keep_prob) #在lookup后立即就开始dropout,随机将某些embedding置为0,但维持原来的维度不变
+      print("inputs after drop out:",inputs) # 维度： [batch_size, num_steps, hidden_size],
+    # output:[batch_size*num_step,hidden_size], state:[batch_size,hidden_size]
     output, state = self._build_rnn_graph(inputs, config, is_training)
 
     softmax_w = tf.get_variable(
         "softmax_w", [size, vocab_size], dtype=data_type())
     softmax_b = tf.get_variable("softmax_b", [vocab_size], dtype=data_type())
-    logits = tf.nn.xw_plus_b(output, softmax_w, softmax_b)
+    logits = tf.nn.xw_plus_b(output, softmax_w, softmax_b) # logits:[batch_size*num_step,vocab_size]
      # Reshape logits to be a 3-D tensor for sequence loss
     logits = tf.reshape(logits, [self.batch_size, self.num_steps, vocab_size])
 
     # Use the contrib sequence loss and average over the batches
     loss = tf.contrib.seq2seq.sequence_loss(
-        logits,
-        input_.targets,
+        logits, # [batch_size,num_steps,vocab_size]
+        input_.targets, # targets:[batch_size,num_steps]
         tf.ones([self.batch_size, self.num_steps], dtype=data_type()),
         average_across_timesteps=False,
         average_across_batch=True)
+
+    print("loss:",loss) # loss:[20],20个num_steps
+    #sys.exit(-1)
 
     # Update the cost
     self._cost = tf.reduce_sum(loss)
@@ -226,10 +230,11 @@ class PTBModel(object):
       return cell
 
     cell = tf.contrib.rnn.MultiRNNCell(
-        [make_cell() for _ in range(config.num_layers)], state_is_tuple=True)
+        [make_cell() for _ in range(config.num_layers)], state_is_tuple=True) # (cell_state,hidden_state)
 
     self._initial_state = cell.zero_state(config.batch_size, data_type())
     state = self._initial_state
+    print("state:",state) # [batch_size,hidden_size]
     # Simplified version of tensorflow_models/tutorials/rnn/rnn.py's rnn().
     # This builds an unrolled LSTM for tutorial purposes only.
     # In general, use the rnn() or state_saving_rnn() from rnn.py.
@@ -243,9 +248,10 @@ class PTBModel(object):
     with tf.variable_scope("RNN"):
       for time_step in range(self.num_steps):
         if time_step > 0: tf.get_variable_scope().reuse_variables()
-        (cell_output, state) = cell(inputs[:, time_step, :], state)
+        (cell_output, state) = cell(inputs[:, time_step, :], state) # cell_state, hidden_state
         outputs.append(cell_output)
     output = tf.reshape(tf.concat(outputs, 1), [-1, config.hidden_size])
+    print("output size:",output) # output:[batch_size*num_step,hidden_size]
     return output, state
 
   def assign_lr(self, session, lr_value):
@@ -297,7 +303,7 @@ class PTBModel(object):
   def initial_state(self):
     return self._initial_state
 
-  @property
+  @property #porperty:可当成属性来用，而且不用加括号
   def cost(self):
     return self._cost
 
@@ -332,7 +338,7 @@ class SmallConfig(object):
   hidden_size = 200
   max_epoch = 4
   max_max_epoch = 13
-  keep_prob = 1.0
+  keep_prob =1.0 #1.0
   lr_decay = 0.5
   batch_size = 20
   vocab_size = 10000
