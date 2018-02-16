@@ -1,0 +1,9 @@
+digraph classification {
+    "Iris Setosa?" [shape = diamond];
+    "Iris Virginica?" [shape = diamond];
+    "Iris Setosa?" -> "is Iris Setosa";
+    "Iris Setosa?" -> "Iris Virginica?";
+    "Iris Virginica?" -> "is Iris Virginica";
+    "Iris Virginica?" -> "is Iris Versicolour";
+
+}

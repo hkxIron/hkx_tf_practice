@@ -479,9 +479,9 @@ def main(_):
     with tf.name_scope("Train"):
       train_input = PTBInput(config=config, data=train_data, name="TrainInput")
       with tf.variable_scope("Model", reuse=None, initializer=initializer):
-        m = PTBModel(is_training=True, config=config, input_=train_input)
-      tf.summary.scalar("Training Loss", m.cost)
-      tf.summary.scalar("Learning Rate", m.lr)
+        mtrain = PTBModel(is_training=True, config=config, input_=train_input)
+      tf.summary.scalar("Training Loss", mtrain.cost)
+      tf.summary.scalar("Learning Rate", mtrain.lr)
 
     with tf.name_scope("Valid"):
       valid_input = PTBInput(config=config, data=valid_data, name="ValidInput")
@@ -496,7 +496,7 @@ def main(_):
         mtest = PTBModel(is_training=False, config=eval_config,
                          input_=test_input)
 
-    models = {"Train": m, "Valid": mvalid, "Test": mtest}
+    models = {"Train": mtrain, "Valid": mvalid, "Test": mtest}
     for name, model in models.items():
       model.export_ops(name)
     metagraph = tf.train.export_meta_graph()
@@ -506,7 +506,7 @@ def main(_):
     soft_placement = False
     if FLAGS.num_gpus > 1:
       soft_placement = True
-      util.auto_parallel(metagraph, m)
+      util.auto_parallel(metagraph, mtrain)
 
   with tf.Graph().as_default():
     tf.train.import_meta_graph(metagraph)
@@ -517,10 +517,10 @@ def main(_):
     with sv.managed_session(config=config_proto) as session:
       for i in range(config.max_max_epoch):
         lr_decay = config.lr_decay ** max(i + 1 - config.max_epoch, 0.0)
-        m.assign_lr(session, config.learning_rate * lr_decay)
+        mtrain.assign_lr(session, config.learning_rate * lr_decay)
 
-        print("Epoch: %d Learning rate: %.3f" % (i + 1, session.run(m.lr)))
-        train_perplexity = run_epoch(session, m, eval_op=m.train_op,
+        print("Epoch: %d Learning rate: %.3f" % (i + 1, session.run(mtrain.lr)))
+        train_perplexity = run_epoch(session, mtrain, eval_op=mtrain.train_op,
                                      verbose=True)
         print("Epoch: %d Train Perplexity: %.3f" % (i + 1, train_perplexity))
         valid_perplexity = run_epoch(session, mvalid)

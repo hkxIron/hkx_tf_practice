@@ -272,12 +272,12 @@ def test_sparse_map_fn():
     sess.close()
 """
 
-def main():
-    #test_embedding_lookup()
+def main(_):
+    test_embedding_lookup()
     #test_lookup_sparse()
     #test_all()
     #test_sparse_map_fn()
-    test_tensor()
+    #test_tensor()
     #test_idx()
     #test_sparse_count()
     #test_t1()

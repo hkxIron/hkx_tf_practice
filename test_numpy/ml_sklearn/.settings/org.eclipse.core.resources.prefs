@@ -1,0 +1,11 @@
+eclipse.preferences.version=1
+encoding//decisiontree/test_decisiontree.py=utf-8
+encoding//kmeans/test_kmeans.py=utf-8
+encoding//knn/test_knn.py=utf-8
+encoding//linear\ regression/test_linear_regression.py=utf-8
+encoding//logisticRegression/test_logisticregression.py=utf-8
+encoding//naivebayes/test_naivebayes.py=utf-8
+encoding//recommendMatrix/test_recommendMatrix.py=utf-8
+encoding//svm/test_svm.py=utf-8
+encoding//svm/test_svm_round.py=utf-8
+encoding//tfidf/test_tfidf.py=utf-8
