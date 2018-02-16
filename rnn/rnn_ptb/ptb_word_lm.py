@@ -1,5 +1,5 @@
 # coding:utf-8
-# 用lstm训练一个语言模型
+# 用lstm训练一个语言模型(language model)
 # Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -222,6 +222,8 @@ class PTBModel(object):
     # Slightly better results can be obtained with forget gate biases
     # initialized to 1 but the hyperparameters of the model would need to be
     # different than reported in the paper.
+    # 在rnn中进行dropout时，对于rnn的部分不进行dropout，也就是说从t-1时候的状态传递到t时刻进行计算时，
+    # 这个中间不进行memory的dropout；仅在同一个t时刻中，多层cell之间传递信息的时候进行dropout
     def make_cell():
       cell = self._get_lstm_cell(config, is_training)
       if is_training and config.keep_prob < 1:
