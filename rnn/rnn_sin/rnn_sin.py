@@ -1,4 +1,5 @@
 # coding:utf-8
+# 用lstm来模拟sin曲线
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -25,29 +26,27 @@ def generate_data(seq):
     return np.array(X, dtype=np.float32), np.array(y, dtype=np.float32)
 
 # 用正弦函数生成训练和测试数据集合。
-test_start = (TRAINING_EXAMPLES + TIMESTEPS) * SAMPLE_GAP
-test_end = test_start + (TESTING_EXAMPLES + TIMESTEPS) * SAMPLE_GAP
-data_seq= np.sin(np.linspace(0, test_start, TRAINING_EXAMPLES + TIMESTEPS, dtype=np.float32)) # data_seq shape:[10010]
+test_start = (TRAINING_EXAMPLES + TIMESTEPS) * SAMPLE_GAP # 10010*0.01=100.1
+test_end = test_start + (TESTING_EXAMPLES + TIMESTEPS) * SAMPLE_GAP # 1010*0.01=10.1
+data_seq= np.sin(np.linspace(start=0, stop=test_start, num= TRAINING_EXAMPLES + TIMESTEPS, dtype=np.float32)) # data_seq shape:[10010,]
 train_X, train_y = generate_data(data_seq)
-print("data_seq:",data_seq.shape," X shape:",train_X.shape,"y shape:", train_y.shape) # x:[10000,1,10]  y:[10000,1]
-test_X, test_y = generate_data(np.sin(np.linspace(
-    test_start, test_end, TESTING_EXAMPLES + TIMESTEPS, dtype=np.float32))) # x:[1000,1,10] y:[1000,1]
+print("data_seq:",data_seq.shape," train X shape:",train_X.shape,"train y shape:", train_y.shape) # x:[10000,1,10]  y:[10000,1]
+test_X, test_y = generate_data(np.sin(np.linspace(test_start, test_end, TESTING_EXAMPLES + TIMESTEPS, dtype=np.float32))) # x:[1000,1,10] y:[1000,1]
 
 def lstm_model(X, y, is_training):
     # 使用多层的LSTM结构。
-    # 那么当state_is_tuple=True的时候，state是元组形式，state=(c,h)。如果是False，那么state是一个由c和h拼接起来的张量，
-    # state=tf.concat(1,[c,h])。在运行时，则返回2值，一个是h，还有一个state。
     cells = tf.nn.rnn_cell.MultiRNNCell([
-        tf.nn.rnn_cell.BasicLSTMCell(HIDDEN_SIZE)
-        for _ in range(NUM_LAYERS)])
+        tf.nn.rnn_cell.BasicLSTMCell(HIDDEN_SIZE) for _ in range(NUM_LAYERS)])
 
     # 使用TensorFlow接口将多层的LSTM结构连接成RNN网络并计算其前向传播结果。
-    outputs, _ = tf.nn.dynamic_rnn(cells, X, dtype=tf.float32)
+    # outputs = [batch_size, max_time, cell.output_size]
+    # x=(?, 1, 10), y=(?, 1)
+    outputs, _ = tf.nn.dynamic_rnn(cell= cells, inputs= X, dtype=tf.float32) # output,state
     # 只关注最后一个时刻的输出结果
-    output = outputs[:, -1, :] # 感觉是output是公式里的Ot
+    output = outputs[:, -1, :] # 感觉是output是公式里的Ot,最后一次的输出
+    print("output: ",output) # output: [N, hidden_size]
 
-    # 对LSTM网络的输出再做加一层全链接层并计算损失。注意这里默认的损失为平均
-    # 平方差损失函数。
+    # 对LSTM网络的输出再做加一层全链接层并计算损失。注意这里默认的损失为平均平方差损失函数。
     predictions = tf.contrib.layers.fully_connected(
         output, 1, activation_fn=None)
 
@@ -73,7 +72,7 @@ def run_eval(sess, test_X, test_y):
 
     # 调用模型得到计算结果。这里不需要输入真实的y值。
     with tf.variable_scope("model", reuse=True):
-        prediction, _, _ = lstm_model(X, [0.0], False)
+        prediction, _, _ = lstm_model(X=X, y= [0.0],is_training= False)
 
     # 将预测结果存入一个数组。
     predictions = []
@@ -98,9 +97,10 @@ def run_eval(sess, test_X, test_y):
 
 
 # 将训练数据以数据集的方式提供给计算图。
-ds = tf.data.Dataset.from_tensor_slices((train_X, train_y))
+ds = tf.data.Dataset.from_tensor_slices((train_X, train_y)) # train_X:[10000,1,10],train_y:[10000,1]
 ds = ds.repeat().shuffle(1000).batch(BATCH_SIZE)
 X, y = ds.make_one_shot_iterator().get_next()
+print("ds X:",X," ds y:",y) # x=(?, 1, 10), y=(?, 1)
 
 # 定义模型，得到预测结果、损失函数，和训练操作。
 with tf.variable_scope("model"):

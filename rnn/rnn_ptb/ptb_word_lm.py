@@ -138,8 +138,8 @@ class PTBModel(object):
     if is_training and config.keep_prob < 1:
       inputs = tf.nn.dropout(inputs, config.keep_prob) #在lookup后立即就开始dropout,随机将某些embedding置为0,但维持原来的维度不变
       print("inputs after drop out: ",inputs) # 维度： [batch_size, num_steps, hidden_size],
-    # cell_output:[batch_size*num_step,hidden_size], state:[batch_size,hidden_size]
-    cell_output, hidden_state = self._build_rnn_graph(inputs, config, is_training)
+    # cell_output:[batch_size*num_step,hidden_size], hidden_state:[batch_size,hidden_size]
+    cell_output, hidden_state = self._build_rnn_graph(inputs, config, is_training) #  将所有time_step的细胞状态层连成一个向量,用它拿去作分类
 
     softmax_w = tf.get_variable(
         "softmax_w", [hidden_size, vocab_size], dtype=data_type())
@@ -237,7 +237,7 @@ class PTBModel(object):
     cell = tf.contrib.rnn.MultiRNNCell( # 多层rnn, num_layers:2，即两层layer
         [make_cell() for _ in range(config.num_layers)], state_is_tuple=True) # (cell_state, hidden_state)
 
-    self._initial_state = cell.zero_state(config.batch_size, data_type())
+    self._initial_state = cell.zero_state(config.batch_size, data_type()) # 隐藏层
     hidden_state = self._initial_state
     print("hidden_state: ",hidden_state) # [batch_size,hidden_size]
     # Simplified version of tensorflow_models/tutorials/rnn/rnn.py's rnn().
@@ -254,7 +254,7 @@ class PTBModel(object):
       for time_step in range(self.num_steps):
         if time_step > 0: tf.get_variable_scope().reuse_variables()
         # inputs: [batch, num_steps, hidden_size], 20*20*200
-        (cell_output, hidden_state) = cell(inputs[:, time_step, :], hidden_state) # cell_state, hidden_state
+        (cell_output, hidden_state) = cell(inputs[:, time_step, :], hidden_state) # cell_state, hidden_state,这里在调用带有括号的方法，会返回细胞的当前状态以及隐藏状态
         # print("inputs[:,time_step,:] : ",inputs[:,time_step,:]," cell_output: " ,cell_output) # inputs[:,time_step,:] : [batch,hidden_size], cell_output :[batch,hidden_size]
         outputs.append(cell_output)
     output = tf.reshape(tf.concat(outputs, 1), [-1, config.hidden_size]) # 将各时间内的time_step的hidden_state连成一个向量，作为output
