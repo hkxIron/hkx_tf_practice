@@ -17,7 +17,7 @@ class LSTM:
     # +1 for the biases, which will be the first row of WLSTM
     # W_gx*x(t)+W_gh*h(t-1)+b_g,即input_size+hidden_size+1
     # 4*hidden_size:输入门,输出门,忘记门,输入数据,input:10,hidden:4
-    #如果是单个门,维度为:15*4,而现在是3个门+gate,则 15*(4*4)=15*16
+    # 如果是单个门,维度为:15*4,而现在是3个门+gate,则 15*(4*4)=15*16,gate 是cell_candidate
     WLSTM = np.random.randn(input_size + hidden_size + 1, 4 * hidden_size) / np.sqrt(input_size + hidden_size) #15*16
     WLSTM[0,:] = 0 # initialize biases to zero,15*16
     if fancy_forget_bias_init != 0:
@@ -172,7 +172,7 @@ def checkSequentialMatchesBatch():
 
   # eval loss
   wrand = np.random.randn(*Hcat.shape) # (5,3,4)
-  loss = np.sum(Hcat * wrand) #(5,3,4).*(5,3,4),逐元素做点乘
+  loss = np.sum(Hcat * wrand) #(5,3,4).*(5,3,4),逐元素做点乘,即各time_step的loss求和
   dH = wrand
 
   # get the batched version gradients

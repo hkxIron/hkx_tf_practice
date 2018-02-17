@@ -1,5 +1,7 @@
 # coding:utf-8
 # 用lstm训练一个语言模型(language model)
+# 来源于tensorflow官网
+# 网上教程：http://blog.csdn.net/u014595019/article/details/52759104
 # Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -108,10 +110,10 @@ class PTBInput(object):
   def __init__(self, config, data, name=None):
     self.batch_size = batch_size = config.batch_size
     self.num_steps = num_steps = config.num_steps # num_steps: 20
+    # epoch_size 表示批次总数。也就是说，需要向session喂这么多批数据
     self.epoch_size = ((len(data) // batch_size) - 1) // num_steps
     # input_data:[batch_size,num_steps], targets:[batch_size,num_steps]
-    self.input_data, self.targets = reader.ptb_producer(
-        data, batch_size, num_steps, name=name)
+    self.input_data, self.targets = reader.ptb_producer(data, batch_size, num_steps, name=name)
 
 
 class PTBModel(object):
@@ -124,58 +126,59 @@ class PTBModel(object):
     self._cell = None
     self.batch_size = input_.batch_size
     self.num_steps = input_.num_steps
-    size = config.hidden_size # 200
+    hidden_size = config.hidden_size # 200
     vocab_size = config.vocab_size # 10000
 
     with tf.device("/cpu:0"):
-      embedding = tf.get_variable("embedding", [vocab_size, size], dtype=data_type())
+      embedding = tf.get_variable("embedding", [vocab_size, hidden_size], dtype=data_type())
       # 将输入seq用embedding表示, inputs=[batch, num_steps, hidden_size], 20*20*200
-      inputs = tf.nn.embedding_lookup(embedding, input_.input_data) # input_data:[batch_size,num_steps],embedding:[vocab_size,size]
-      print("inputs:",inputs)
+      inputs = tf.nn.embedding_lookup(embedding, input_.input_data) # embedding:[vocab_size, hidden_size] input_data:[batch_size,num_steps]
+      print("input after embedding: ",inputs) # inputs=[batch, num_steps, hidden_size], 20*20*200
 
     if is_training and config.keep_prob < 1:
       inputs = tf.nn.dropout(inputs, config.keep_prob) #在lookup后立即就开始dropout,随机将某些embedding置为0,但维持原来的维度不变
-      print("inputs after drop out:",inputs) # 维度： [batch_size, num_steps, hidden_size],
-    # output:[batch_size*num_step,hidden_size], state:[batch_size,hidden_size]
-    output, state = self._build_rnn_graph(inputs, config, is_training)
+      print("inputs after drop out: ",inputs) # 维度： [batch_size, num_steps, hidden_size],
+    # cell_output:[batch_size*num_step,hidden_size], state:[batch_size,hidden_size]
+    cell_output, hidden_state = self._build_rnn_graph(inputs, config, is_training)
 
     softmax_w = tf.get_variable(
-        "softmax_w", [size, vocab_size], dtype=data_type())
+        "softmax_w", [hidden_size, vocab_size], dtype=data_type())
     softmax_b = tf.get_variable("softmax_b", [vocab_size], dtype=data_type())
-    logits = tf.nn.xw_plus_b(output, softmax_w, softmax_b) # logits:[batch_size*num_step,vocab_size]
+    logits = tf.nn.xw_plus_b(cell_output, softmax_w, softmax_b) # logits:[batch_size*num_step,vocab_size]
      # Reshape logits to be a 3-D tensor for sequence loss
     logits = tf.reshape(logits, [self.batch_size, self.num_steps, vocab_size])
 
     # Use the contrib sequence loss and average over the batches
-    loss = tf.contrib.seq2seq.sequence_loss(
-        logits, # [batch_size,num_steps,vocab_size]
+    loss = tf.contrib.seq2seq.sequence_loss( #这里使用了交叉熵函数
+        logits, # logits:[batch_size,num_steps,vocab_size]
         input_.targets, # targets:[batch_size,num_steps]
-        tf.ones([self.batch_size, self.num_steps], dtype=data_type()),
-        average_across_timesteps=False,
-        average_across_batch=True)
+        tf.ones([self.batch_size, self.num_steps], dtype=data_type()), # weights
+        average_across_timesteps=False, #各time_step求和
+        average_across_batch=True) # 各batch求平均
 
-    print("loss:",loss) # loss:[20],20个num_steps
+    print("loss: ",loss) # loss:[20],20个num_steps
     #sys.exit(-1)
 
     # Update the cost
     self._cost = tf.reduce_sum(loss)
-    self._final_state = state
+    self._final_state = hidden_state
 
     if not is_training:
       return
 
     self._lr = tf.Variable(0.0, trainable=False)
     tvars = tf.trainable_variables()
-    grads, _ = tf.clip_by_global_norm(tf.gradients(self._cost, tvars),
-                                      config.max_grad_norm)
+    # 也就是说，当t_list的L2模大于指定的Nc时，就会对t_list做等比例缩放
+    grads, _ = tf.clip_by_global_norm(tf.gradients(self._cost, tvars), # 实际得到的tvars是一个列表，里面存有所有可以进行训练的变量。
+                                      config.max_grad_norm) # 5
     optimizer = tf.train.GradientDescentOptimizer(self._lr)
     self._train_op = optimizer.apply_gradients(
         zip(grads, tvars),
         global_step=tf.train.get_or_create_global_step())
-
+    # 动态改变学习率
     self._new_lr = tf.placeholder(
         tf.float32, shape=[], name="new_learning_rate")
-    self._lr_update = tf.assign(self._lr, self._new_lr)
+    self._lr_update = tf.assign(self._lr, self._new_lr) # 将new_lr赋值给lr
 
   def _build_rnn_graph(self, inputs, config, is_training):
     if config.rnn_mode == CUDNN:
@@ -201,7 +204,7 @@ class PTBModel(object):
                  tf.float32)
     h = tf.zeros([config.num_layers, self.batch_size, config.hidden_size],
                  tf.float32)
-    self._initial_state = (tf.contrib.rnn.LSTMStateTuple(h=h, c=c),)
+    self._initial_state = (tf.contrib.rnn.LSTMStateTuple(h=h, c=c),) # hidden_state
     outputs, h, c = self._cell(inputs, h, c, self._rnn_params, is_training)
     outputs = tf.transpose(outputs, [1, 0, 2])
     outputs = tf.reshape(outputs, [-1, config.hidden_size])
@@ -231,12 +234,12 @@ class PTBModel(object):
             cell, output_keep_prob=config.keep_prob)
       return cell
 
-    cell = tf.contrib.rnn.MultiRNNCell(
-        [make_cell() for _ in range(config.num_layers)], state_is_tuple=True) # (cell_state,hidden_state)
+    cell = tf.contrib.rnn.MultiRNNCell( # 多层rnn, num_layers:2，即两层layer
+        [make_cell() for _ in range(config.num_layers)], state_is_tuple=True) # (cell_state, hidden_state)
 
     self._initial_state = cell.zero_state(config.batch_size, data_type())
-    state = self._initial_state
-    print("state:",state) # [batch_size,hidden_size]
+    hidden_state = self._initial_state
+    print("hidden_state: ",hidden_state) # [batch_size,hidden_size]
     # Simplified version of tensorflow_models/tutorials/rnn/rnn.py's rnn().
     # This builds an unrolled LSTM for tutorial purposes only.
     # In general, use the rnn() or state_saving_rnn() from rnn.py.
@@ -250,11 +253,13 @@ class PTBModel(object):
     with tf.variable_scope("RNN"):
       for time_step in range(self.num_steps):
         if time_step > 0: tf.get_variable_scope().reuse_variables()
-        (cell_output, state) = cell(inputs[:, time_step, :], state) # cell_state, hidden_state
+        # inputs: [batch, num_steps, hidden_size], 20*20*200
+        (cell_output, hidden_state) = cell(inputs[:, time_step, :], hidden_state) # cell_state, hidden_state
+        # print("inputs[:,time_step,:] : ",inputs[:,time_step,:]," cell_output: " ,cell_output) # inputs[:,time_step,:] : [batch,hidden_size], cell_output :[batch,hidden_size]
         outputs.append(cell_output)
-    output = tf.reshape(tf.concat(outputs, 1), [-1, config.hidden_size])
-    print("output size:",output) # output:[batch_size*num_step,hidden_size]
-    return output, state
+    output = tf.reshape(tf.concat(outputs, 1), [-1, config.hidden_size]) # 将各时间内的time_step的hidden_state连成一个向量，作为output
+    print("output size: ",output) # cell_output: [batch_size*num_step,hidden_size], (20*20)*200
+    return output, hidden_state # cell_output: [batch_size*num_step,hidden_size], hidden_size:[batch,hidden_size]
 
   def assign_lr(self, session, lr_value):
     session.run(self._lr_update, feed_dict={self._new_lr: lr_value})
@@ -292,9 +297,10 @@ class PTBModel(object):
         tf.add_to_collection(tf.GraphKeys.SAVEABLE_OBJECTS, params_saveable)
     self._cost = tf.get_collection_ref(util.with_prefix(self._name, "cost"))[0]
     num_replicas = FLAGS.num_gpus if self._name == "Train" else 1
+    # _initial_state : hidden_state
     self._initial_state = util.import_state_tuples(
         self._initial_state, self._initial_state_name, num_replicas)
-    self._final_state = util.import_state_tuples(
+    self._final_state = util.import_state_tuples( # final hidden state
         self._final_state, self._final_state_name, num_replicas)
 
   @property
@@ -305,7 +311,7 @@ class PTBModel(object):
   def initial_state(self):
     return self._initial_state
 
-  @property #porperty:可当成属性来用，而且不用加括号
+  @property # property: 可当成属性来用，而且不用加括号
   def cost(self):
     return self._cost
 
@@ -333,17 +339,17 @@ class PTBModel(object):
 class SmallConfig(object):
   """Small config."""
   init_scale = 0.1
-  learning_rate = 1.0
-  max_grad_norm = 5
-  num_layers = 2
-  num_steps = 20
-  hidden_size = 200
-  max_epoch = 4
-  max_max_epoch = 13
-  keep_prob =1.0 #1.0
+  learning_rate = 1.0 # 学习率
+  max_grad_norm = 5 # 用于控制梯度膨胀
+  num_layers = 2 # lstm层数
+  num_steps = 20 # 单个数据中，序列的长度
+  hidden_size = 200 # 隐藏层大小
+  max_epoch = 4 # epoch<max_epoch时，lr_decay值=1,epoch>max_epoch时,lr_decay逐渐减小
+  max_max_epoch = 13 # 指的是整个文本循环13遍
+  keep_prob =1.0 # 1.0
   lr_decay = 0.5
-  batch_size = 20
-  vocab_size = 10000
+  batch_size = 20 # 每批数据的规模，每批有20个。
+  vocab_size = 10000 # 词典规模，总共10K个词
   rnn_mode = BLOCK
 
 
@@ -403,35 +409,37 @@ def run_epoch(session, model, eval_op=None, verbose=False):
   start_time = time.time()
   costs = 0.0
   iters = 0
-  state = session.run(model.initial_state)
+  state = session.run(model.initial_state) # cell_state, hidden_state
 
   fetches = {
       "cost": model.cost,
       "final_state": model.final_state,
   }
+  # 要注意传入的eval_op。在训练阶段，会往其中传入train_op，这样模型就会自动进行优化；
+  # 而在交叉检验和测试阶段，传入的是tf.no_op，此时模型就不会优化。
   if eval_op is not None:
     fetches["eval_op"] = eval_op
 
   for step in range(model.input.epoch_size):
     feed_dict = {}
     for i, (c, h) in enumerate(model.initial_state):
-      feed_dict[c] = state[i].c
+      feed_dict[c] = state[i].c # 未看懂
       feed_dict[h] = state[i].h
 
-    vals = session.run(fetches, feed_dict)
+    vals = session.run(fetches, feed_dict) # 运行session,获取cost和state
     cost = vals["cost"]
     state = vals["final_state"]
 
-    costs += cost
+    costs += cost # 将cost累积
     iters += model.input.num_steps
 
-    if verbose and step % (model.input.epoch_size // 10) == 10:
+    if verbose and step % (model.input.epoch_size // 10) == 10: # 也就是每个epoch要输出10个perplexity值
       print("%.3f perplexity: %.3f speed: %.0f wps" %
             (step * 1.0 / model.input.epoch_size, np.exp(costs / iters),
              iters * model.input.batch_size * max(1, FLAGS.num_gpus) /
              (time.time() - start_time)))
 
-  return np.exp(costs / iters)
+  return np.exp(costs / iters) # 困惑度
 
 
 def get_config():
@@ -466,7 +474,7 @@ def main(_):
         "which is less than the requested --num_gpus=%d."
         % (len(gpus), FLAGS.num_gpus))
 
-  raw_data = reader.ptb_raw_data(FLAGS.data_path)
+  raw_data = reader.ptb_raw_data(FLAGS.data_path) # train_data, valid_data, test_data, vocabulary
   train_data, valid_data, test_data, _ = raw_data
 
   config = get_config()
@@ -479,10 +487,11 @@ def main(_):
                                                 config.init_scale)
 
     with tf.name_scope("Train"):
+      # input_data:[batch_size,num_steps], targets:[batch_size,num_steps]
       train_input = PTBInput(config=config, data=train_data, name="TrainInput")
       with tf.variable_scope("Model", reuse=None, initializer=initializer):
         mtrain = PTBModel(is_training=True, config=config, input_=train_input)
-      tf.summary.scalar("Training Loss", mtrain.cost)
+      tf.summary.scalar("Training Loss", mtrain.cost)# 记录loss
       tf.summary.scalar("Learning Rate", mtrain.lr)
 
     with tf.name_scope("Valid"):
@@ -492,11 +501,9 @@ def main(_):
       tf.summary.scalar("Validation Loss", mvalid.cost)
 
     with tf.name_scope("Test"):
-      test_input = PTBInput(
-          config=eval_config, data=test_data, name="TestInput")
+      test_input = PTBInput(config=eval_config, data=test_data, name="TestInput")
       with tf.variable_scope("Model", reuse=True, initializer=initializer):
-        mtest = PTBModel(is_training=False, config=eval_config,
-                         input_=test_input)
+        mtest = PTBModel(is_training=False, config=eval_config, input_=test_input)
 
     models = {"Train": mtrain, "Valid": mvalid, "Test": mtest}
     for name, model in models.items():
@@ -509,7 +516,7 @@ def main(_):
     if FLAGS.num_gpus > 1:
       soft_placement = True
       util.auto_parallel(metagraph, mtrain)
-
+  # -------------------------
   with tf.Graph().as_default():
     tf.train.import_meta_graph(metagraph)
     for model in models.values():
@@ -518,12 +525,12 @@ def main(_):
     config_proto = tf.ConfigProto(allow_soft_placement=soft_placement)
     with sv.managed_session(config=config_proto) as session:
       for i in range(config.max_max_epoch):
-        lr_decay = config.lr_decay ** max(i + 1 - config.max_epoch, 0.0)
-        mtrain.assign_lr(session, config.learning_rate * lr_decay)
+        lr_decay = config.lr_decay ** max(i + 1 - config.max_epoch, 0.0) # config.max_epoch = 4
+        mtrain.assign_lr(session, config.learning_rate * lr_decay) # 设置learning rate
 
         print("Epoch: %d Learning rate: %.3f" % (i + 1, session.run(mtrain.lr)))
         train_perplexity = run_epoch(session, mtrain, eval_op=mtrain.train_op,
-                                     verbose=True)
+                                     verbose=True) # 训练困惑度
         print("Epoch: %d Train Perplexity: %.3f" % (i + 1, train_perplexity))
         valid_perplexity = run_epoch(session, mvalid)
         print("Epoch: %d Valid Perplexity: %.3f" % (i + 1, valid_perplexity))

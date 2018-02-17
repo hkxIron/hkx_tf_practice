@@ -103,6 +103,9 @@ def ptb_producer(raw_data, batch_size, num_steps, name=None):
   Raises:
     tf.errors.InvalidArgumentError: if batch_size or num_steps are too high.
   """
+  """
+  input_data:[batch_size,num_steps]
+  """
   with tf.name_scope(name, "PTBProducer", [raw_data, batch_size, num_steps]):
     print("before convert:",type(raw_data)," value:",raw_data[0:10]) # raw_data:list<int>,len: 95w
     raw_data = tf.convert_to_tensor(raw_data, name="raw_data", dtype=tf.int32)
@@ -116,7 +119,7 @@ def ptb_producer(raw_data, batch_size, num_steps, name=None):
     data = tf.reshape(raw_data[0 : batch_size * batch_len],
                       [batch_size, batch_len])
     print("data:",data) # 20 * 4.5w
-    epoch_size = (batch_len - 1) // num_steps # 4.5w/20 = 2200 个 num_steps
+    epoch_size = (batch_len - 1) // num_steps # 4.5w/20 = 2200 个 num_steps, 整除
     assertion = tf.assert_positive(
         epoch_size,
         message="epoch_size == 0, decrease batch_size or num_steps")
@@ -128,10 +131,10 @@ def ptb_producer(raw_data, batch_size, num_steps, name=None):
     i = tf.train.range_input_producer(epoch_size, shuffle=False).dequeue()
     # data:[20,4.5w], x: 连续num_steps的batch数据 [batch_size,num_steps]
     x = tf.strided_slice(data, begin=[0, i * num_steps],
-                         end=[batch_size, (i + 1) * num_steps])
+                         end=[batch_size, (i + 1) * num_steps]) # end 是开区间，即获取一个batch*num_steps的数据
     print("before convert x:",x) # shape=(?,?)
     x.set_shape([batch_size, num_steps])
-    # y:[batch_size,num_steps], 即用前一个word来预测后一个word
+    # y:[batch_size,num_steps], 即用前一个word来预测后一个word，左边的词在前，右边的词在后，即用左边的词预测右边的词
     y = tf.strided_slice(data, [0, i * num_steps + 1], # 注意，这里平移了一个元素
                          [batch_size, (i + 1) * num_steps + 1])
     y.set_shape([batch_size, num_steps])
