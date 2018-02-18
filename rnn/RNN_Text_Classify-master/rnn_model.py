@@ -9,12 +9,13 @@ class RNN_Model(object):
     def __init__(self,config,is_training=True):
 
         self.keep_prob=config.keep_prob
-        self.batch_size=tf.Variable(0,dtype=tf.int32,trainable=False)
+        self.batch_size=64
+        #self.batch_size=tf.Variable(0,dtype=tf.int32,trainable=False)
 
         num_step=config.num_step
-        self.input_data=tf.placeholder(tf.int32,[None,num_step])
-        self.target = tf.placeholder(tf.int64,[None])
-        self.mask_x = tf.placeholder(tf.float32,[num_step,None])
+        self.input_data=tf.placeholder(tf.int32,[None,num_step]) # batch*num_step
+        self.target = tf.placeholder(tf.int64,[None]) # batch
+        self.mask_x = tf.placeholder(tf.float32,[num_step,None]) # num_step*batch
 
         class_num=config.class_num
         hidden_neural_size=config.hidden_neural_size
@@ -22,19 +23,21 @@ class RNN_Model(object):
         embed_dim=config.embed_dim
         hidden_layer_num=config.hidden_layer_num
         self.new_batch_size = tf.placeholder(tf.int32,shape=[],name="new_batch_size")
-        self._batch_size_update = tf.assign(self.batch_size,self.new_batch_size)
+        #self._batch_size_update = tf.assign(self.batch_size,self.new_batch_size)
 
         #build LSTM network
-
         lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(hidden_neural_size,forget_bias=0.0,state_is_tuple=True)
         if self.keep_prob<1:
-            lstm_cell =  tf.nn.rnn_cell.DropoutWrapper(
-                lstm_cell,output_keep_prob=self.keep_prob
-            )
+            lstm_cell =  tf.nn.rnn_cell.DropoutWrapper(lstm_cell,output_keep_prob=self.keep_prob)
 
         cell = tf.nn.rnn_cell.MultiRNNCell([lstm_cell]*hidden_layer_num,state_is_tuple=True)
-
-        self._initial_state = cell.zero_state(self.batch_size,dtype=tf.float32)
+        """
+        返回的是两个维度是batch_size*hidden_neural_size的零向量元组，
+        其实就是LSTM初始化的c0、h0向量，
+        当然这里指的是对于单层的LSTM，对于多层的，返回的是多个元组。
+        """
+        print("batch_size:",self.batch_size)
+        self._initial_state = cell.zero_state(self.batch_size,dtype=tf.float32) # 这个地方应该是常数，但此处batch_size为Tensor,因此不能正确运行
 
         #embedding layer
         with tf.device("/cpu:0"),tf.name_scope("embedding_layer"):
@@ -52,10 +55,10 @@ class RNN_Model(object):
                 (cell_output,state)=cell(inputs[:,time_step,:],state)
                 out_put.append(cell_output)
 
-        out_put=out_put*self.mask_x[:,:,None]
+        print("inputs:",inputs," output: ",out_put," mask:",self.mask_x) # inputs:[batch,max_time,embedding_size] output:list([batch,hidden_size]), mask:[max_time,batch]
+        out_put=out_put*self.mask_x[:,:,None] # out_put=out_put*self.mask_x[:,:,None]
 
         with tf.name_scope("mean_pooling_layer"):
-
             out_put=tf.reduce_sum(out_put,0)/(tf.reduce_sum(self.mask_x,0)[:,None])
 
         with tf.name_scope("Softmax_layer_and_output"):
@@ -64,19 +67,21 @@ class RNN_Model(object):
             self.logits = tf.matmul(out_put,softmax_w)+softmax_b
 
         with tf.name_scope("loss"):
-            self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(self.logits+1e-10,self.target)
+            self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits+1e-10,labels=self.target)
             self.cost = tf.reduce_mean(self.loss)
 
         with tf.name_scope("accuracy"):
-            self.prediction = tf.argmax(self.logits,1)
+            self.prediction = tf.argmax(input=self.logits,axis=1)
             correct_prediction = tf.equal(self.prediction,self.target)
             self.correct_num=tf.reduce_sum(tf.cast(correct_prediction,tf.float32))
             self.accuracy = tf.reduce_mean(tf.cast(correct_prediction,tf.float32),name="accuracy")
 
         #add summary
-        loss_summary = tf.scalar_summary("loss",self.cost)
+        loss_summary = tf.summary.scalar("loss",self.cost)
+        #loss_summary = tf.scalar_summary("loss",self.cost)
         #add summary
-        accuracy_summary=tf.scalar_summary("accuracy_summary",self.accuracy)
+        accuracy_summary=tf.summary.scalar("accuracy_summary",self.accuracy)
+        #accuracy_summary=tf.scalar_summary("accuracy_summary",self.accuracy)
 
         if not is_training:
             return
@@ -93,13 +98,17 @@ class RNN_Model(object):
         grad_summaries = []
         for g, v in zip(grads, tvars):
             if g is not None:
-                grad_hist_summary = tf.histogram_summary("{}/grad/hist".format(v.name), g)
-                sparsity_summary = tf.scalar_summary("{}/grad/sparsity".format(v.name), tf.nn.zero_fraction(g))
+                grad_hist_summary = tf.summary.histogram("{}/grad/hist".format(v.name), g)
+                sparsity_summary = tf.summary.scalar("{}/grad/sparsity".format(v.name), tf.nn.zero_fraction(g))
+                #grad_hist_summary = tf.histogram_summary("{}/grad/hist".format(v.name), g)
+                #sparsity_summary = tf.scalar_summary("{}/grad/sparsity".format(v.name), tf.nn.zero_fraction(g))
                 grad_summaries.append(grad_hist_summary)
                 grad_summaries.append(sparsity_summary)
-        self.grad_summaries_merged = tf.merge_summary(grad_summaries)
+        self.grad_summaries_merged = tf.summary.merge(grad_summaries)
+        #self.grad_summaries_merged = tf.merge_summary(grad_summaries)
 
-        self.summary =tf.merge_summary([loss_summary,accuracy_summary,self.grad_summaries_merged])
+        self.summary =tf.summary.merge([loss_summary,accuracy_summary,self.grad_summaries_merged])
+        #self.summary =tf.merge_summary([loss_summary,accuracy_summary,self.grad_summaries_merged])
 
 
 
@@ -113,23 +122,5 @@ class RNN_Model(object):
     def assign_new_lr(self,session,lr_value):
         session.run(self._lr_update,feed_dict={self.new_lr:lr_value})
     def assign_new_batch_size(self,session,batch_size_value):
-        session.run(self._batch_size_update,feed_dict={self.new_batch_size:batch_size_value})
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        #session.run(self._batch_size_update,feed_dict={self.new_batch_size:batch_size_value})
+        pass

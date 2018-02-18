@@ -1,3 +1,5 @@
+# coding:utf-8
+# blog: http://blog.csdn.net/u010223750/article/details/53334313
 import tensorflow as tf
 import numpy as np
 import os
@@ -6,10 +8,8 @@ import datetime
 from rnn_model import RNN_Model
 import data_helper
 
-
 flags =tf.app.flags
 FLAGS = flags.FLAGS
-
 
 flags.DEFINE_integer('batch_size',64,'the batch_size of the training procedure')
 flags.DEFINE_float('lr',0.1,'the learning rate')
@@ -32,7 +32,6 @@ flags.DEFINE_string('out_dir',os.path.abspath(os.path.join(os.path.curdir,"runs"
 flags.DEFINE_integer('check_point_every',10,'checkpoint every num epoch ')
 
 class Config(object):
-
     hidden_neural_size=FLAGS.hidden_neural_size
     vocabulary_size=FLAGS.vocabulary_size
     embed_dim=FLAGS.emdedding_dim
@@ -52,12 +51,9 @@ class Config(object):
 
 
 def evaluate(model,session,data,global_steps=None,summary_writer=None):
-
-
     correct_num=0
     total_num=len(data[0])
     for step, (x,y,mask_x) in enumerate(data_helper.batch_iter(data,batch_size=FLAGS.batch_size)):
-
          fetches = model.correct_num
          feed_dict={}
          feed_dict[model.input_data]=x
@@ -70,9 +66,9 @@ def evaluate(model,session,data,global_steps=None,summary_writer=None):
             feed_dict[h]=state[i].h
          count=session.run(fetches,feed_dict)
          correct_num+=count
-
     accuracy=float(correct_num)/total_num
-    dev_summary = tf.scalar_summary('dev_accuracy',accuracy)
+    dev_summary = tf.summary.scalar('dev_accuracy',accuracy)
+    #dev_summary = tf.scalar_summary('dev_accuracy',accuracy)
     dev_summary = session.run(dev_summary)
     if summary_writer:
         summary_writer.add_summary(dev_summary,global_steps)
@@ -81,7 +77,6 @@ def evaluate(model,session,data,global_steps=None,summary_writer=None):
 
 def run_epoch(model,session,data,global_steps,valid_model,valid_data,train_summary_writer,valid_summary_writer=None):
     for step, (x,y,mask_x) in enumerate(data_helper.batch_iter(data,batch_size=FLAGS.batch_size)):
-
         feed_dict={}
         feed_dict[model.input_data]=x
         feed_dict[model.target]=y
@@ -99,18 +94,14 @@ def run_epoch(model,session,data,global_steps,valid_model,valid_data,train_summa
         if(global_steps%100==0):
             print("the %i step, train cost is: %f and the train accuracy is %f and the valid accuracy is %f"%(global_steps,cost,accuracy,valid_accuracy))
         global_steps+=1
-
     return global_steps
 
 def train_step():
-
     print("loading the dataset...")
     config = Config()
     eval_config=Config()
     eval_config.keep_prob=1.0
-
     train_data,valid_data,test_data=data_helper.load_data(FLAGS.max_len,batch_size=config.batch_size)
-
     print("begin training")
 
     # gpu_config=tf.ConfigProto()
@@ -127,19 +118,20 @@ def train_step():
         #add summary
         # train_summary_op = tf.merge_summary([model.loss_summary,model.accuracy])
         train_summary_dir = os.path.join(config.out_dir,"summaries","train")
-        train_summary_writer =  tf.train.SummaryWriter(train_summary_dir,session.graph)
+        train_summary_writer =  tf.summary.FileWriter(train_summary_dir,session.graph)
+        #train_summary_writer =  tf.train.SummaryWriter(train_summary_dir,session.graph)
 
         # dev_summary_op = tf.merge_summary([valid_model.loss_summary,valid_model.accuracy])
         dev_summary_dir = os.path.join(eval_config.out_dir,"summaries","dev")
-        dev_summary_writer =  tf.train.SummaryWriter(dev_summary_dir,session.graph)
+        dev_summary_writer =  tf.summary.FileWriter(dev_summary_dir,session.graph)
 
         #add checkpoint
         checkpoint_dir = os.path.abspath(os.path.join(config.out_dir, "checkpoints"))
         checkpoint_prefix = os.path.join(checkpoint_dir, "model")
         if not os.path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)
-        saver = tf.train.Saver(tf.all_variables())
-
+        saver = tf.train.Saver(tf.global_variables())
+        #saver = tf.train.Saver(tf.all_variables())
 
         tf.initialize_all_variables().run()
         global_steps=1
@@ -153,7 +145,7 @@ def train_step():
 
             if i% config.checkpoint_every==0:
                 path = saver.save(session,checkpoint_prefix,global_steps)
-                print("Saved model chechpoint to{}\n".format(path))
+                print("Saved model chechpoint to {}\n".format(path))
 
         print("the train is finished")
         end_time=int(time.time())
@@ -162,11 +154,8 @@ def train_step():
         print("the test data accuracy is %f"%test_accuracy)
         print("program end!")
 
-
-
 def main(_):
     train_step()
-
 
 if __name__ == "__main__":
     tf.app.run()

@@ -25,9 +25,7 @@ def load_data(max_len,batch_size,n_words=20000,valid_portion=0.1,sort_by_len=Tru
     test_set = np.array(pkl.load(f))
     f.close()
 
-    train_set_x,train_set_y = train_set
-
-
+    train_set_x,train_set_y = train_set # train_set_x:[9000,] train_set_y:[9000,]
 
 
     #train_set length
