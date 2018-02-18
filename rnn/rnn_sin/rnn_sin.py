@@ -43,26 +43,25 @@ def lstm_model(X, y, is_training):
     # x=(?, 1, 10), y=(?, 1)
     outputs, _ = tf.nn.dynamic_rnn(cell= cells, inputs= X, dtype=tf.float32) # output,state
     # 只关注最后一个时刻的输出结果
-    output = outputs[:, -1, :] # 感觉是output是公式里的Ot,最后一次的输出
-    print("output: ",output) # output: [N, hidden_size]
+    output = outputs[:, -1, :] # 感觉是output是公式里的hidden_state,最后一次的隐藏层输出
+    print("output: ",output) # output: [batch, hidden_size]
 
     # 对LSTM网络的输出再做加一层全链接层并计算损失。注意这里默认的损失为平均平方差损失函数。
-    predictions = tf.contrib.layers.fully_connected(
-        output, 1, activation_fn=None)
+    predictions = tf.contrib.layers.fully_connected(output, 1, activation_fn=None)
 
     # 只在训练时计算损失函数和优化步骤。测试时直接返回预测结果。
     if not is_training:
         return predictions, None, None
 
+    print("pred: ",predictions)
     # 计算损失函数。
-    loss = tf.losses.mean_squared_error(labels=y, predictions=predictions)
+    loss = tf.losses.mean_squared_error(labels=y, predictions=predictions) # y:[batch*1],pred:[batch,1]
 
     # 创建模型优化器并得到优化步骤。
     train_op = tf.contrib.layers.optimize_loss(
         loss, tf.train.get_global_step(),
         optimizer="Adagrad", learning_rate=0.1)
     return predictions, loss, train_op
-
 
 def run_eval(sess, test_X, test_y):
     # 将测试数据以数据集的方式提供给计算图。
@@ -100,7 +99,7 @@ def run_eval(sess, test_X, test_y):
 ds = tf.data.Dataset.from_tensor_slices((train_X, train_y)) # train_X:[10000,1,10],train_y:[10000,1]
 ds = ds.repeat().shuffle(1000).batch(BATCH_SIZE)
 X, y = ds.make_one_shot_iterator().get_next()
-print("ds X:",X," ds y:",y) # x=(?, 1, 10), y=(?, 1)
+print("ds X:",X," ds y:",y) # x=(batch_size, 1, 10), y=(batch_size, 1)
 
 # 定义模型，得到预测结果、损失函数，和训练操作。
 with tf.variable_scope("model"):
@@ -122,5 +121,3 @@ with tf.Session() as sess:
     # 使用训练好的模型对测试数据进行预测。
     print("Evaluate model after training.")
     run_eval(sess, test_X, test_y)
-
-
