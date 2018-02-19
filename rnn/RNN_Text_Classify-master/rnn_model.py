@@ -53,13 +53,13 @@ class RNN_Model(object):
             for time_step in range(num_step):
                 if time_step>0: tf.get_variable_scope().reuse_variables()
                 (cell_output,state)=cell(inputs[:,time_step,:],state)
-                out_put.append(cell_output)
+                out_put.append(cell_output) # 根据博客上的描述,感觉out_put其实是hidden_state
 
         print("inputs:",inputs," output: ",out_put," mask:",self.mask_x) # inputs:[batch,max_time,embedding_size] output:list([batch,hidden_size]), mask:[max_time,batch]
         out_put=out_put*self.mask_x[:,:,None] # out_put=out_put*self.mask_x[:,:,None]
 
         with tf.name_scope("mean_pooling_layer"):
-            out_put=tf.reduce_sum(out_put,0)/(tf.reduce_sum(self.mask_x,0)[:,None])
+            out_put=tf.reduce_sum(out_put,0)/(tf.reduce_sum(self.mask_x,0)[:,None]) # 此处将各时间内的hidden_state进行平均
 
         with tf.name_scope("Softmax_layer_and_output"):
             softmax_w = tf.get_variable("softmax_w",[hidden_neural_size,class_num],dtype=tf.float32)
