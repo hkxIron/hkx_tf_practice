@@ -116,3 +116,36 @@ for i in range(2000):
 
 # 计算测试数据的准确率
 print("test accuracy %g"% sess.run(accuracy, feed_dict={_X: mnist.test.images, y: mnist.test.labels, keep_prob: 1.0, batch_size:mnist.test.images.shape[0]}))
+
+
+# 查看LSTM的工作原理
+import matplotlib.pyplot as plt
+print("example label: ",mnist.train.labels[4])
+X3 = mnist.train.images[4]
+img3 = X3.reshape([28, 28])
+plt.imshow(img3, cmap='gray')
+plt.show()
+plt.title("3")
+
+X3.shape = [-1, 784]
+y_batch = mnist.train.labels[0]
+y_batch.shape = [-1, class_num]
+X3_outputs = np.array(sess.run(outputs, feed_dict={ _X: X3, y: y_batch, keep_prob: 1.0, batch_size: 1}))
+print(X3_outputs.shape) # (28,1,256)，即[timestep_size,1,hidden_size]
+X3_outputs.shape = [28, hidden_size]
+print(X3_outputs.shape) # (28,256)，即[timestep_size,hidden_size]
+
+# -------------------
+h_W = sess.run(W, feed_dict={ _X:X3, y: y_batch, keep_prob: 1.0, batch_size: 1})
+h_bias = sess.run(bias, feed_dict={ _X:X3, y: y_batch, keep_prob: 1.0, batch_size: 1})
+h_bias.shape = [-1, 10]
+
+bar_index = range(class_num)
+for i in range(X3_outputs.shape[0]):
+    plt.subplot(7, 4, i+1) # 4*7=28个图
+    X3_h_shate = X3_outputs[i, :].reshape([-1, hidden_size])
+    pro = sess.run(tf.nn.softmax(tf.matmul(X3_h_shate, h_W) + h_bias)) # 计算输出概率
+    plt.bar(bar_index, pro[0], width=0.2 , align='center') # 画柱状图
+    plt.axis('off')
+plt.show()
+
