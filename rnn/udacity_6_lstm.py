@@ -81,59 +81,59 @@ print(id2char(1), id2char(26), id2char(0)) # 1->a,26->z,0->' '
 batch_size = 64
 num_unrollings = 10 # time_step
 
-
 class BatchGenerator(object):
   def __init__(self, text, batch_size, num_unrollings):
     self._text = text
     self._text_size = len(text)
     self._batch_size = batch_size
     self._num_unrollings = num_unrollings
-    segment = self._text_size // batch_size # 每个batch的长度
-    self._cursor = [offset * segment for offset in range(batch_size)] # 每个batch的开始指针
+    segment = self._text_size // batch_size # 每个batch是一段，为一个segment
+    print("segment:",segment)
+    self._cursor = [offset * segment for offset in range(batch_size)] # 每个batch的开始指针,有batch_size 个开始指针
     self._last_batch = self._next_batch()
 
   def _next_batch(self):
     """Generate a single batch from the current cursor position in the data."""
-    batch = np.zeros(shape=(self._batch_size, vocabulary_size), dtype=np.float) # batch:[batch, 27]
-    for b in range(self._batch_size):
+    batch = np.zeros(shape=(self._batch_size, vocabulary_size), dtype=np.float) # batch:[batch, vocab_size]
+    for b in range(self._batch_size): # 64
       batch[b, char2id(self._text[self._cursor[b]])] = 1.0
       self._cursor[b] = (self._cursor[b] + 1) % self._text_size
-    return batch
+    return batch # [batch,vocab_size],即一个batch 里的各个字母其实并不相邻
 
-  def next(self):
+  def next_batch_list(self):
     """Generate the next array of batches from the data. The array consists of
     the last batch of the previous array, followed by num_unrollings new ones.
+    一个batch里的各个字母其实并不相邻，而相邻batch里同位置上的元素才相邻.
+    这里产生样本的方法比较巧妙，这样训练语料才不会重复，相当于将text分成batch份，每份文本长度为segment
+    每次产生一个batch时，各个segment出队第一个元素
     """
-    batches = [self._last_batch]
+    batche_list = [self._last_batch]
     for step in range(self._num_unrollings): # time_step: 10
-      batches.append(self._next_batch())
-    self._last_batch = batches[-1]
-    return batches # 每次会返回 num_unrollings+1 个batch
+      batche_list.append(self._next_batch())
+    self._last_batch = batche_list[-1]
+    return batche_list # 每次会返回 num_unrollings+1 个batch
 
-
-def characters(probabilities):
+def characters(probabilities): # prob:ndarray,[batch,vocab]
   """Turn a 1-hot encoding or a probability distribution over the possible
   characters back into its (most likely) character representation."""
-  return [id2char(c) for c in np.argmax(probabilities, 1)]
+  return [id2char(c) for c in np.argmax(probabilities, 1)] # 返回的就是一些char,['n','h','l',' ',...]
 
-
-def batches2string(batches):
+def batches2string(batches): # batches长度num_unrollings+1,每个batch:[batch,vocab]
   """Convert a sequence of batches back into their (most likely) string
   representation."""
-  s = [''] * batches[0].shape[0]
+  s = [''] * batches[0].shape[0] # batch个 ''
   for b in batches:
     s = [''.join(x) for x in zip(s, characters(b))]
-  return s
+  return s # 相邻batch之间，相同位置上的字符是连续的,即一个单词的不同字母分散在前后几个batch中
 
-
+print("batch size: ",batch_size)
 train_batches = BatchGenerator(train_text, batch_size, num_unrollings)
 valid_batches = BatchGenerator(valid_text, 1, 1)
 
-print("train_batches:",batches2string(train_batches.next()))
-#print(batches2string(train_batches.next()))
-print("valid_batches:",batches2string(valid_batches.next()))
-#print(batches2string(valid_batches.next()))
-
+print("train_batches: ",batches2string(train_batches.next_batch_list()))
+print("train_batches: ",batches2string(train_batches.next_batch_list()))
+print("valid_batches: ",batches2string(valid_batches.next_batch_list()))
+print("valid_batches: ",batches2string(valid_batches.next_batch_list()))
 
 def logprob(predictions, labels):
   """Log-probability of the true labels in a predicted batch."""
@@ -141,7 +141,7 @@ def logprob(predictions, labels):
   return np.sum(np.multiply(labels, -np.log(predictions))) / labels.shape[0]
 
 """
-此处的 distribution 为概率分布
+此处的 distribution 为概率分布, 其和为1
 """
 def sample_distribution(distribution):
   """Sample one element from a distribution assumed to be an array of normalized probabilities.
@@ -154,6 +154,7 @@ def sample_distribution(distribution):
       return i
   return len(distribution) - 1
 
+# prediction: [vocab, 1]
 def sample(prediction):
   """Turn a (column) prediction into 1-hot encoded samples."""
   p = np.zeros(shape=[1, vocabulary_size], dtype=np.float)
@@ -162,87 +163,90 @@ def sample(prediction):
 
 def random_distribution():
   """Generate a random column of probabilities."""
-  b = np.random.uniform(0.0, 1.0, size=[1, vocabulary_size])
-  return b/np.sum(b, 1)[:,None]
+  b = np.random.uniform(0.0, 1.0, size=[1, vocabulary_size]) # 注意：此处b的概率之和为1
+  return b/np.sum(b, 1)[:,None] # [vocab,1]
 
 hidden_nodes = 80 # num_nodes = hidden_size
 graph = tf.Graph()
 with graph.as_default():
   # Parameters:这4个变量可以统一成一个大矩阵
   # Input gate: input(xt), previous output(h(t-1)), and bias.
-  ix = tf.Variable(tf.truncated_normal([vocabulary_size, hidden_nodes], -0.1, 0.1)) # Wix*Xt,ix:Wix
-  im = tf.Variable(tf.truncated_normal([hidden_nodes, hidden_nodes], -0.1, 0.1)) # Wh(t)*h(t-1),im:Wh(t)
-  ib = tf.Variable(tf.zeros([1, hidden_nodes])) # bias
+  Wix = tf.Variable(tf.truncated_normal([vocabulary_size, hidden_nodes], -0.1, 0.1)) # Wix*Xt,ix:Wix
+  Wih = tf.Variable(tf.truncated_normal([hidden_nodes, hidden_nodes], -0.1, 0.1)) # Wh*h(t-1),im:Wh
+  Wib = tf.Variable(tf.zeros([1, hidden_nodes])) # bias
   # Forget gate: input, previous output, and bias.
-  fx = tf.Variable(tf.truncated_normal([vocabulary_size, hidden_nodes], -0.1, 0.1))
-  fm = tf.Variable(tf.truncated_normal([hidden_nodes, hidden_nodes], -0.1, 0.1))
-  fb = tf.Variable(tf.zeros([1, hidden_nodes]))
+  Wfx = tf.Variable(tf.truncated_normal([vocabulary_size, hidden_nodes], -0.1, 0.1))
+  Wfh = tf.Variable(tf.truncated_normal([hidden_nodes, hidden_nodes], -0.1, 0.1))
+  Wfb = tf.Variable(tf.zeros([1, hidden_nodes]))
   # Memory cell: input, state and bias.
-  cx = tf.Variable(tf.truncated_normal([vocabulary_size, hidden_nodes], -0.1, 0.1))
-  cm = tf.Variable(tf.truncated_normal([hidden_nodes, hidden_nodes], -0.1, 0.1))
-  cb = tf.Variable(tf.zeros([1, hidden_nodes]))
+  Wcx = tf.Variable(tf.truncated_normal([vocabulary_size, hidden_nodes], -0.1, 0.1))
+  Wcm = tf.Variable(tf.truncated_normal([hidden_nodes, hidden_nodes], -0.1, 0.1))
+  Wcb = tf.Variable(tf.zeros([1, hidden_nodes]))
   # Output gate: input, previous output, and bias.
-  ox = tf.Variable(tf.truncated_normal([vocabulary_size, hidden_nodes], -0.1, 0.1))
-  om = tf.Variable(tf.truncated_normal([hidden_nodes, hidden_nodes], -0.1, 0.1))
-  ob = tf.Variable(tf.zeros([1, hidden_nodes]))
-  # Variables saving state across unrollings.
+  Wox = tf.Variable(tf.truncated_normal([vocabulary_size, hidden_nodes], -0.1, 0.1))
+  Woh = tf.Variable(tf.truncated_normal([hidden_nodes, hidden_nodes], -0.1, 0.1))
+  Wob = tf.Variable(tf.zeros([1, hidden_nodes]))
+  # Variables saving state across unrollings.初始时，上一次的状态均置为0
   saved_output = tf.Variable(tf.zeros([batch_size, hidden_nodes]), trainable=False)
   saved_state = tf.Variable(tf.zeros([batch_size, hidden_nodes]), trainable=False)
   # Classifier weights and biases.
-  w = tf.Variable(tf.truncated_normal([hidden_nodes, vocabulary_size], -0.1, 0.1))
-  b = tf.Variable(tf.zeros([vocabulary_size]))
+  classify_weight = tf.Variable(tf.truncated_normal([hidden_nodes, vocabulary_size], -0.1, 0.1))
+  classify_bias = tf.Variable(tf.zeros([vocabulary_size]))
 
   # Definition of the cell computation.
-  def lstm_cell(i, o, cell_state): # i: input_x, o: h(t-1)
+  # 不使用tf内置的lstm接口，而是自行定义
+  def lstm_cell(input_x, last_hidden, last_cell_state): # i: input_x, last_hidden: h(t-1)
     """Create a LSTM cell. See e.g.: http://arxiv.org/pdf/1402.1128v1.pdf
     Note that in this formulation, we omit the various connections between the
     previous state and the gates."""
-    input_gate = tf.sigmoid(tf.matmul(i, ix) + tf.matmul(o, im) + ib) # [batch,hidden]
-    print("input_gate:",input_gate) # shape:[64,80] = [batch,hidden]
-    forget_gate = tf.sigmoid(tf.matmul(i, fx) + tf.matmul(o, fm) + fb) # [batch,hidden]
-    output_gate = tf.sigmoid(tf.matmul(i, ox) + tf.matmul(o, om) + ob) # [batch,hidden]
-    update = tf.matmul(i, cx) + tf.matmul(o, cm) + cb # cell_state_candidate
-    cell_state = forget_gate * cell_state + input_gate * tf.tanh(update) # cell_state
-    hidden_state = output_gate * tf.tanh(cell_state) # hidden_state,shape:[batch*hidden]
-    print("input_state:",input_gate," hidden_state:",hidden_state)
-    return hidden_state, cell_state # [batch,hidden]
+    # input_x:[batch,vocab_size] Wix:[vocab_size,hidden] last_hidden:[batch,hidden] Wih:[hidden,hidden] Wib:[1,hidden]
+    input_gate = tf.sigmoid(tf.matmul(input_x, Wix) + tf.matmul(last_hidden, Wih) + Wib) # [batch,hidden]
+    forget_gate = tf.sigmoid(tf.matmul(input_x, Wfx) + tf.matmul(last_hidden, Wfh) + Wfb) # [batch,hidden]
+    output_gate = tf.sigmoid(tf.matmul(input_x, Wox) + tf.matmul(last_hidden, Woh) + Wob) # [batch,hidden]
+    cell_state_candidate = tf.matmul(input_x, Wcx) + tf.matmul(last_hidden, Wcm) + Wcb # cell_state_candidate
+    last_cell_state = forget_gate * last_cell_state + input_gate * tf.tanh(cell_state_candidate) # cell_state
+    hidden_state = output_gate * tf.tanh(last_cell_state) # hidden_state,shape:[batch*hidden],[batch,hidden]
+    #print("input_state:",input_gate," hidden_state:",hidden_state)
+    return hidden_state, last_cell_state # [batch,hidden]
 
   # Input data.
   train_data = list()
-  for _ in range(num_unrollings + 1): # 为什么要定义这么多个placeholder
+  for _ in range(num_unrollings + 1): # 定义多个placeholder,每个ploceholder作为一个batch的输入
     train_data.append(tf.placeholder(tf.float32, shape=[batch_size, vocabulary_size]))
   # 从数据可以看出，明显是训练字符级别的语言模型
-  train_inputs = train_data[:num_unrollings] # list:长度time_step-1,每个里面都是 [batch*vocab_size]
-  train_labels = train_data[1:]  # labels are inputs shifted by one time step.
+  train_inputs = train_data[:num_unrollings] # list:长度time_step,每个里面都是 [batch*vocab_size]
+  train_labels = train_data[1:]  # list:长度也为time_step, labels are inputs shifted by one time step.
 
   # Unrolled LSTM loop.
   outputs = list()
-  output = saved_output
-  state = saved_state
-  for i in train_inputs:
-    output, state = lstm_cell(i, output, state) # output:[batch,hidden]
-    outputs.append(output) # 将time_step个ouput连接起来
+  last_hidden = saved_output # [batch, hidden]
+  last_cell_state = saved_state # [batch, hidden]
+  for input_index in train_inputs:# num_unrollings个[batch,vocab]，将train_inputs里的每个place_holder作为一个time_step的输入,同时将上一次的输出也作为输入
+    last_hidden, last_cell_state = lstm_cell(input_index, last_hidden, last_cell_state) # input_x:[batch,vocab_size] last_hidden:[batch,hidden] last_cell_state:[batch,hidden]
+    outputs.append(last_hidden) # 将time_step个output连接起来, last_hidden:[batch,hidden]
 
   # State saving across unrollings.
-  with tf.control_dependencies([saved_output.assign(output), saved_state.assign(state)]):
+  # tf.control_dependencies()设计是用来控制计算流图的，给图中的某些计算指定顺序
+  with tf.control_dependencies([saved_output.assign(last_hidden), saved_state.assign(last_cell_state)]):
     # Classifier.
     # 将时间展开后的隐层hidden_state连接起来,然后进行分类
-    logits = tf.nn.xw_plus_b(tf.concat(outputs, axis=0), w, b) # 此处并未取log，因此我在项目中的代码有误
-    print("logits:",logits) # 640*27,即 [batch*time_step, vocab_size]
-    loss = tf.reduce_mean(
-      tf.nn.softmax_cross_entropy_with_logits(
-        labels=tf.concat(train_labels, 0), logits=logits))
+    # outputs: 共num_unrollings个[batch,hidden], time_step: num_unrollings
+    lstm_hidden_seq = tf.concat(outputs, axis=0) # [batch*time_step,hidden],启示我们list也是可以 concat
+    label_seq = tf.concat(train_labels, axis=0)
+    logits = tf.nn.xw_plus_b(lstm_hidden_seq, classify_weight, classify_bias) # 此处并未取log, classify_weight:[hidden,vocab_size]
+    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=label_seq, logits=logits))
+    print("logits: ",logits, " lstm_hidden_seq: ",lstm_hidden_seq) # logits: 640*27,即 [batch*time_step, vocab_size]
 
   # Optimizer.
   global_step = tf.Variable(0)
-  learning_rate = tf.train.exponential_decay(
-    10.0, global_step, 5000, 0.1, staircase=True)
+  learning_rate = tf.train.exponential_decay(10.0, global_step, 5000, 0.1, staircase=True)
   optimizer = tf.train.GradientDescentOptimizer(learning_rate)
-  gradients, v = zip(*optimizer.compute_gradients(loss))
+  gradients, vars = zip(*optimizer.compute_gradients(loss)) # 优化loss
   gradients, _ = tf.clip_by_global_norm(gradients,clip_norm= 1.25)
-  optimizer = optimizer.apply_gradients(zip(gradients, v), global_step=global_step)
+  optimizer = optimizer.apply_gradients(zip(gradients, vars), global_step=global_step)
+
   # Predictions.
-  train_prediction = tf.nn.softmax(logits)
+  train_prediction = tf.nn.softmax(logits) # [batch*time_step, vocab_size]
   # Sampling and validation eval: batch 1, no unrolling.
   sample_input = tf.placeholder(tf.float32, shape=[1, vocabulary_size])
   saved_sample_output = tf.Variable(tf.zeros([1, hidden_nodes]))
@@ -250,12 +254,12 @@ with graph.as_default():
   reset_sample_state = tf.group(
     saved_sample_output.assign(tf.zeros([1, hidden_nodes])),
     saved_sample_state.assign(tf.zeros([1, hidden_nodes])))
-  sample_output, sample_state = lstm_cell(
-    sample_input, saved_sample_output, saved_sample_state)
+  sample_output, sample_state = lstm_cell(sample_input, saved_sample_output, saved_sample_state)
   with tf.control_dependencies([saved_sample_output.assign(sample_output),
                                 saved_sample_state.assign(sample_state)]):
-    sample_prediction = tf.nn.softmax(tf.nn.xw_plus_b(sample_output, w, b))
+    sample_prediction = tf.nn.softmax(tf.nn.xw_plus_b(sample_output, classify_weight, classify_bias))
 
+# -------------------------
 num_steps = 7001
 summary_frequency = 100
 
@@ -264,42 +268,39 @@ with tf.Session(graph=graph) as session:
   print('Initialized')
   mean_loss = 0
   for step in range(num_steps):
-    batches = train_batches.next()
+    train_batches_data = train_batches.next_batch_list() # num_unrollings个 [batch,vocab]
     feed_dict = dict()
-    for i in range(num_unrollings + 1): # 10+1=11
-      feed_dict[train_data[i]] = batches[i]
-    _, l, predictions, lr = session.run(
-      [optimizer, loss, train_prediction, learning_rate], feed_dict=feed_dict)
-    mean_loss += l
+    for input_index in range(num_unrollings + 1): # 10+1=11
+      feed_dict[train_data[input_index]] = train_batches_data[input_index] #将数据填充到place_holder
+    _, batch_loss, predictions, lr = session.run([optimizer, loss, train_prediction, learning_rate], feed_dict=feed_dict)
+    mean_loss += batch_loss
     if step % summary_frequency == 0:
-      if step > 0:
-        mean_loss = mean_loss / summary_frequency
+      if step > 0: mean_loss = mean_loss / summary_frequency
       # The mean loss is an estimate of the loss over the last few batches.
       print('Average loss at step %d: %f learning rate: %f' % (step, mean_loss, lr))
       mean_loss = 0
-      labels = np.concatenate(list(batches)[1:])
-      print('Minibatch perplexity: %.2f' % float(
-        np.exp(logprob(predictions, labels))))
+      labels = np.concatenate(list(train_batches_data)[1:]) # train_batches_data本来就是list
+      # perdictions: [batch*time_step, vocab_size] labels:[batch*time_step, vocab_size]
+      print('Minibatch perplexity: %.2f' % float(np.exp(logprob(predictions, labels)))) # exp(entropy)
       if step % (summary_frequency * 10) == 0:
         # Generate some samples.
         print('=' * 80)
         for _ in range(5):
-          feed = sample(random_distribution())
-          sentence = characters(feed)[0]
+          sample_one_hot = sample(random_distribution())
+          sentence = characters(sample_one_hot)[0] # 只返回一个字母
           reset_sample_state.run()
           for _ in range(79):
-            prediction = sample_prediction.eval({sample_input: feed})
-            feed = sample(prediction)
-            sentence += characters(feed)[0]
-          print(sentence)
+            prediction = sample_prediction.eval({sample_input: sample_one_hot})
+            sample_one_hot = sample(prediction) # 利用预测的概率来输出下一个字母
+            sentence += characters(sample_one_hot)[0]
+          print("sentence: ",sentence)
         print('=' * 80)
+
       # Measure validation set perplexity.
-      reset_sample_state.run()
+      reset_sample_state.run() # 清空上一次的hidden_state
       valid_logprob = 0
       for _ in range(valid_size):
-        b = valid_batches.next()
-        predictions = sample_prediction.eval({sample_input: b[0]})
-        valid_logprob = valid_logprob + logprob(predictions, b[1])
-      print('Validation set perplexity: %.2f' % float(np.exp(
-        valid_logprob / valid_size)))
-
+        validate_batch = valid_batches.next_batch_list() # 每次会产生 unrollings+1个batch
+        predictions = sample_prediction.eval({sample_input: validate_batch[0]})
+        valid_logprob += logprob(predictions, validate_batch[1]) # 交叉熵
+      print('Validation set perplexity: %.2f' % float(np.exp(valid_logprob / valid_size))) # 混杂度
