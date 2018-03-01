@@ -138,7 +138,7 @@ print("valid_batches: ",batches2string(valid_batches.next_batch_list()))
 def logprob(predictions, labels):
   """Log-probability of the true labels in a predicted batch."""
   predictions[predictions < 1e-10] = 1e-10
-  return np.sum(np.multiply(labels, -np.log(predictions))) / labels.shape[0]
+  return np.sum(np.multiply(labels, -np.log(predictions))) / labels.shape[0] # 点乘
 
 """
 此处的 distribution 为概率分布, 其和为1
@@ -203,9 +203,9 @@ with graph.as_default():
     input_gate = tf.sigmoid(tf.matmul(input_x, Wix) + tf.matmul(last_hidden, Wih) + Wib) # [batch,hidden]
     forget_gate = tf.sigmoid(tf.matmul(input_x, Wfx) + tf.matmul(last_hidden, Wfh) + Wfb) # [batch,hidden]
     output_gate = tf.sigmoid(tf.matmul(input_x, Wox) + tf.matmul(last_hidden, Woh) + Wob) # [batch,hidden]
-    cell_state_candidate = tf.matmul(input_x, Wcx) + tf.matmul(last_hidden, Wcm) + Wcb # cell_state_candidate
-    last_cell_state = forget_gate * last_cell_state + input_gate * tf.tanh(cell_state_candidate) # cell_state
-    hidden_state = output_gate * tf.tanh(last_cell_state) # hidden_state,shape:[batch*hidden],[batch,hidden]
+    cell_state_candidate = tf.matmul(input_x, Wcx) + tf.matmul(last_hidden, Wcm) + Wcb # cell_state_candidate, [batch,hidden]
+    last_cell_state = forget_gate * last_cell_state + input_gate * tf.tanh(cell_state_candidate) # cell_state, [batch,hidden]
+    hidden_state = output_gate * tf.tanh(last_cell_state) # hidden_state,shape:[batch*hidden], [batch,hidden]
     #print("input_state:",input_gate," hidden_state:",hidden_state)
     return hidden_state, last_cell_state # [batch,hidden]
 
@@ -227,6 +227,8 @@ with graph.as_default():
 
   # State saving across unrollings.
   # tf.control_dependencies()设计是用来控制计算流图的，给图中的某些计算指定顺序
+  # 将last_hidden的值赋给saved_output, last_cell_state 赋给 saved_state
+  # saved_output的值最初为0，现在再将更新后的last_hidden的值赋给saved_output(但个人觉得这个值目前好像并没有什么用处)
   with tf.control_dependencies([saved_output.assign(last_hidden), saved_state.assign(last_cell_state)]):
     # Classifier.
     # 将时间展开后的隐层hidden_state连接起来,然后进行分类
@@ -251,12 +253,12 @@ with graph.as_default():
   sample_input = tf.placeholder(tf.float32, shape=[1, vocabulary_size])
   saved_sample_output = tf.Variable(tf.zeros([1, hidden_nodes]))
   saved_sample_state = tf.Variable(tf.zeros([1, hidden_nodes]))
-  reset_sample_state = tf.group(
+  reset_sample_state = tf.group( # 将上一次的状态重置
     saved_sample_output.assign(tf.zeros([1, hidden_nodes])),
     saved_sample_state.assign(tf.zeros([1, hidden_nodes])))
   sample_output, sample_state = lstm_cell(sample_input, saved_sample_output, saved_sample_state)
-  with tf.control_dependencies([saved_sample_output.assign(sample_output),
-                                saved_sample_state.assign(sample_state)]):
+  with tf.control_dependencies([saved_sample_output.assign(sample_output), # sample_output -> saved_sample_output
+                                saved_sample_state.assign(sample_state)]): # sample_state -> saved_sample_state
     sample_prediction = tf.nn.softmax(tf.nn.xw_plus_b(sample_output, classify_weight, classify_bias))
 
 # -------------------------
@@ -286,12 +288,13 @@ with tf.Session(graph=graph) as session:
         # Generate some samples.
         print('=' * 80)
         for _ in range(5):
+          # 第一次随机采样一个字母
           sample_one_hot = sample(random_distribution())
           sentence = characters(sample_one_hot)[0] # 只返回一个字母
-          reset_sample_state.run()
+          reset_sample_state.run() #  重置上一次的状态
           for _ in range(79):
             prediction = sample_prediction.eval({sample_input: sample_one_hot})
-            sample_one_hot = sample(prediction) # 利用预测的概率来输出下一个字母
+            sample_one_hot = sample(prediction) # 利用lstm预测的概率来输出下一个字母
             sentence += characters(sample_one_hot)[0]
           print("sentence: ",sentence)
         print('=' * 80)

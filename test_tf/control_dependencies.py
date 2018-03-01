@@ -7,7 +7,7 @@ def f1():
     ema = tf.train.ExponentialMovingAverage(0.9)
     update = tf.assign_add(w, 1.0)
 
-    ema_op = ema.apply([update])
+    ema_op = ema.apply([update]) # update all shadow variables
     with tf.control_dependencies([ema_op]):
         ema_val = ema.average(update)
 

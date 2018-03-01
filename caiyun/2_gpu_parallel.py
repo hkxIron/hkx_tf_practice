@@ -61,14 +61,20 @@ def get_loss(x, y_, regularizer, scope, reuse_variables=None):
     return loss
 
 # 计算每一个变量梯度的平均值。
-# 二维list,[ 第1个gpu: [(g1, v1),(g2,v2),(g3,v3),(g4,v4)], 第2个gpu: [(g1, v1),(g2,v2),(g3,v3),(g4,v4)],...,第4个gpu]
+# tower_grads 二维list: [
+# 第1个gpu: [(grad1, var1),(grad2,var2),(grad3,var3),(grad4,var4)],
+# 第2个gpu: [(grad1, var1),(grad2,var2),(grad3,var3),(grad4,var4)],
+# 第3个gpu: [(grad1, var1),(grad2,var2),(grad3,var3),(grad4,var4)],
+# 第4个gpu: [(grad1, var1),(grad2,var2),(grad3,var3),(grad4,var4)]
+# ]
+# Note that each grad_and_vars looks like the following:
 def average_gradients(tower_grads): #
     average_grads = []
     print("tower_grads:",tower_grads)
     print("zip_tower_grads:",zip(*tower_grads))
     # 枚举所有的变量和变量在不同GPU上计算得出的梯度。
     for grad_and_vars in zip(*tower_grads):
-        print("grad_and_vars:",grad_and_vars) # 长度为4的元组 (gpu1 (g1,v1),gpu2 (g1,v1), gpu3:(g1,v1), gpu4:(g1,v1))
+        print("grad_and_vars:",grad_and_vars) # 长度为4的元组 (gpu1 (grad1,var1),gpu2 (grad1,var1), gpu3:(grad1,var1), gpu4:(grad1,var1))
         # 计算所有GPU上的梯度平均值。
         grads = []
         for g, _ in grad_and_vars:
@@ -77,13 +83,13 @@ def average_gradients(tower_grads): #
             grads.append(expanded_g)
         #
         grad = tf.concat(grads, 0)
-        print("grads:",grads," grad:",grad) # (4, 784, 500),即 N* widht*height
+        print("grads:",grads," grad:",grad) # gard:(4, 784, 500),即 N* widht*height
         grad = tf.reduce_mean(grad, 0) # 将N个梯度进行平均
 
-        v = grad_and_vars[0][1] # 得到g对应的变量
+        v = grad_and_vars[0][1] # 得到g对应的变量,4个gpu中取一个变量即可
         grad_and_var = (grad, v)
         # 将变量和它的平均梯度对应起来。
-        average_grads.append(grad_and_var)
+        average_grads.append(grad_and_var) # [(avg_grad1,var1),(avg_grad2,var2),...,(avg_grad4,var4)]
     # 返回所有变量的平均梯度，这个将被用于变量的更新。
     return average_grads
 
@@ -108,10 +114,10 @@ def main(argv=None):
         for i in range(N_GPU):
             with tf.device('/gpu:%d' % i):
                 with tf.name_scope('GPU_%d' % i) as scope: # name_scope并不会影响get_variable的命名空间
-                    cur_loss = get_loss(x, y_, regularizer, scope, reuse_variables)
+                    cur_loss = get_loss(x, y_, regularizer, scope, reuse_variables) # 总共有4个变量，2个weight以及2个bias
                     reuse_variables = True
-                    grads = opt.compute_gradients(cur_loss) # A list of (gradient, variable) pairs. [(g1, v1),(g2,v2),(g3,v3),(g4,v4)]
-                    # 之所以有4个梯度，是因为有4个变量，weight1, bias1, weight2,bias2
+                    grads = opt.compute_gradients(cur_loss) # A list of (gradient, variable) pairs. [(grad1, var1),(grad2,var2),(grad3,var3),(grad4,var4)]
+                    # 之所以有4个梯度，是因为有4个变量，weight1, bias1, weight2,bias2,注意此处与gpu 的个数无关
                     tower_grads.append(grads)
         
         # 计算变量的平均梯度。
