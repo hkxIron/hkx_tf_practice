@@ -273,6 +273,7 @@ with tf.Session(graph=graph) as session:
     train_batches_data = train_batches.next_batch_list() # num_unrollings个 [batch,vocab]
     feed_dict = dict()
     for input_index in range(num_unrollings + 1): # 10+1=11
+      # train_data[input_index]是place_holder
       feed_dict[train_data[input_index]] = train_batches_data[input_index] #将数据填充到place_holder
     _, batch_loss, predictions, lr = session.run([optimizer, loss, train_prediction, learning_rate], feed_dict=feed_dict)
     mean_loss += batch_loss
