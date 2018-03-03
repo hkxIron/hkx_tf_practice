@@ -1,5 +1,5 @@
 # coding:utf-8
-# 用lstm训练一个语言模型(language model)
+# 用lstm训练一个word单词级别的语言模型(language model)
 # 来源于tensorflow官网
 # 网上教程：http://blog.csdn.net/u014595019/article/details/52759104
 # Copyright 2015 The TensorFlow Authors. All Rights Reserved.
@@ -139,11 +139,13 @@ class PTBModel(object):
       inputs = tf.nn.dropout(inputs, config.keep_prob) #在lookup后立即就开始dropout,随机将某些embedding置为0,但维持原来的维度不变
       print("inputs after drop out: ",inputs) # 维度： [batch_size, num_steps, hidden_size],
     # cell_output:[batch_size*num_step,hidden_size], hidden_state:[batch_size,hidden_size]
-    cell_output, hidden_state = self._build_rnn_graph(inputs, config, is_training) #  将所有time_step的细胞状态层连成一个向量,用它拿去作分类
+    # 此处cell_output就是hidden_state: [batch_size*num_step,hidden_size], state = ((cell_state=[batch,hidden],hidden_state=[batch,hidden]),(cell_state=[batch,hidden],hidden_state=[batch,hidden]))
+    cell_output, state = self._build_rnn_graph(inputs, config, is_training) #  将所有time_step的最后一层的细胞隐层连成一个向量,然后用它们拿去作分类
 
     softmax_w = tf.get_variable(
         "softmax_w", [hidden_size, vocab_size], dtype=data_type())
     softmax_b = tf.get_variable("softmax_b", [vocab_size], dtype=data_type())
+    # cell_output:[batch*num_step,hidden] softmax_w:[hidden,vocab] softmax_b:[vocab_size]
     logits = tf.nn.xw_plus_b(cell_output, softmax_w, softmax_b) # logits:[batch_size*num_step,vocab_size]
      # Reshape logits to be a 3-D tensor for sequence loss
     logits = tf.reshape(logits, [self.batch_size, self.num_steps, vocab_size])
@@ -153,15 +155,15 @@ class PTBModel(object):
         logits, # logits:[batch_size,num_steps,vocab_size]
         input_.targets, # targets:[batch_size,num_steps]
         tf.ones([self.batch_size, self.num_steps], dtype=data_type()), # weights
-        average_across_timesteps=False, #各time_step求和
+        average_across_timesteps=False, #是否各time_step求和
         average_across_batch=True) # 各batch求平均
 
-    print("loss: ",loss) # loss:[20],20个num_steps
+    print("loss: ",loss) # loss:[num_steps]
     #sys.exit(-1)
 
     # Update the cost
     self._cost = tf.reduce_sum(loss)
-    self._final_state = hidden_state
+    self._final_state = state
 
     if not is_training:
       return
@@ -200,12 +202,10 @@ class PTBModel(object):
         initializer=tf.random_uniform(
             [params_size_t], -config.init_scale, config.init_scale),
         validate_shape=False)
-    c = tf.zeros([config.num_layers, self.batch_size, config.hidden_size],
-                 tf.float32)
-    h = tf.zeros([config.num_layers, self.batch_size, config.hidden_size],
-                 tf.float32)
+    c = tf.zeros([config.num_layers, self.batch_size, config.hidden_size], tf.float32)
+    h = tf.zeros([config.num_layers, self.batch_size, config.hidden_size], tf.float32)
     self._initial_state = (tf.contrib.rnn.LSTMStateTuple(h=h, c=c),) # hidden_state
-    outputs, h, c = self._cell(inputs, h, c, self._rnn_params, is_training)
+    outputs, h, c = self._cell(inputs, h, c, self._rnn_params, is_training) # 调用 __call__函数,此处的output实际上就是每次的hidden_state,而此处的h与outputs相同
     outputs = tf.transpose(outputs, [1, 0, 2])
     outputs = tf.reshape(outputs, [-1, config.hidden_size])
     return outputs, (tf.contrib.rnn.LSTMStateTuple(h=h, c=c),)
@@ -254,12 +254,13 @@ class PTBModel(object):
       for time_step in range(self.num_steps):
         if time_step > 0: tf.get_variable_scope().reuse_variables()
         # inputs: [batch, num_steps, hidden_size], 20*20*200
-        (cell_output, state) = cell(inputs[:, time_step, :], state) # state:(cell_state, hidden_state),这里在调用带有括号的方法，会返回细胞的当前状态以及隐藏状态
+        # cell_output:hidden_state, state:((cell_state, hidden_state),(cell_state,hidden_state)),因为有2层，所以有2个state,每个state里都包含(h,c),这里在调用带有括号的方法，会返回细胞的当前状态以及隐藏状态
+        (cell_output, state) = cell(inputs[:, time_step, :], state)
         if time_step==0: print("inputs[:,time_step,:] : ",inputs[:,time_step,:]," cell_output: " ,cell_output," state:",state) # inputs[:,time_step,:] : [batch,hidden_size], cell_output :[batch,hidden_size]
         outputs.append(cell_output) # cell_output就是hidden_state
     output = tf.reshape(tf.concat(outputs, 1), [-1, config.hidden_size]) # 将各时间内的time_step的hidden_state连成一个向量，作为output
     print("output size: ",output) # cell_output: [batch_size*num_step,hidden_size], (20*20)*200
-    return output, state # cell_output: [batch_size*num_step,hidden_size], state = (cell_state=[batch_size,hidden_size],hidden_state=[batch,hidden])
+    return output, state # 此处cell_output就是hidden_state: [batch_size*num_step,hidden_size], state = ((cell_state=[batch,hidden],hidden_state=[batch,hidden]),(cell_state=[batch,hidden],hidden_state=[batch,hidden]))
 
   def assign_lr(self, session, lr_value):
     session.run(self._lr_update, feed_dict={self._new_lr: lr_value})
@@ -342,7 +343,7 @@ class SmallConfig(object):
   learning_rate = 1.0 # 学习率
   max_grad_norm = 5 # 用于控制梯度膨胀
   num_layers = 2 # lstm层数
-  num_steps = 20 # 单个数据中，序列的长度
+  num_steps = 30 # 单个数据中，序列的长度
   hidden_size = 200 # 隐藏层大小
   max_epoch = 4 # epoch<max_epoch时，lr_decay值=1,epoch>max_epoch时,lr_decay逐渐减小
   max_max_epoch = 13 # 指的是整个文本循环13遍
@@ -414,6 +415,8 @@ def run_epoch(session, model, eval_op=None, verbose=False):
   fetches = {
       "cost": model.cost,
       "final_state": model.final_state,
+     # "x":model._input.input_data,
+     # "y":model._input.input_data
   }
   # 要注意传入的eval_op。在训练阶段，会往其中传入train_op，这样模型就会自动进行优化；
   # 而在交叉检验和测试阶段，传入的是tf.no_op，此时模型就不会优化。
@@ -429,13 +432,16 @@ def run_epoch(session, model, eval_op=None, verbose=False):
     vals = session.run(fetches, feed_dict) # 运行session,获取cost和state
     cost = vals["cost"]
     state = vals["final_state"]
+    #train_x = vals["x"]
+    #train_y = vals["y"]
+    #print("train_x:",train_x)
 
     costs += cost # 将cost累积
     iters += model.input.num_steps
 
     if verbose and step % (model.input.epoch_size // 10) == 10: # 也就是每个epoch要输出10个perplexity值
       print("%.3f perplexity: %.3f speed: %.0f wps" %
-            (step * 1.0 / model.input.epoch_size, np.exp(costs / iters),
+            (step * 1.0 / model.input.epoch_size, np.exp(costs / iters), # exp(entropy) 即为熵
              iters * model.input.batch_size * max(1, FLAGS.num_gpus) /
              (time.time() - start_time)))
 

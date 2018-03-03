@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+用蒙特卡洛方法来解密文本
+"""
 import math
 import random
 
@@ -50,7 +53,7 @@ def create_scoring_params_dict(longtext_path):
     return scoring_params
 
 
-# 统计解密文本的bigram
+# 统计解密文本的bigram count, 即看它们的bigram概率分布是否相同
 # 例如 {'AB':234,'TH':2343,'CD':23 ..}
 def score_params_on_cipher(text):
     scoring_params = {}
@@ -73,6 +76,7 @@ def score_params_on_cipher(text):
 
 # 根据公式计算密钥的评分
 def get_cipher_score(text, cipher, scoring_params):
+    # scoring_params:他们为二元字母组合在真实文本中的统计频数
     # 将密文用当前密钥解密
     decrypted_text = apply_cipher_on_text(text, cipher)
     # 当前密钥解出的密文的 k-count字典
@@ -82,6 +86,15 @@ def get_cipher_score(text, cipher, scoring_params):
     #for k, v in scored_f.iteritems():
     # 如果他们有共同的key，那么计算共同的value的指数值
     for k, v in scored_f.items():
+        """
+        评分函数：这里我们使用n-gram，为了简单起见只考虑两个字母(bigram)。对任意两个字母A和 B，
+        定义R(A,B) 为字母对AB(即TH)在参考语料中出现的次数。定义F(A,B) 为用密钥x解密后解密文本中字母对AB出现的次数。
+        那么密钥 的评分为:
+        score(x) = \Pi{ R(A,B)^F(A,B) }  ,这是就是连乘,因为有多个字母对要统计频率
+        log(score(x)) = \sum { F(A,B)log(R(A,B)) }
+        
+        当bigram在参考语料和解密后文本中出现的频率越相近，score(x)的值越大，为了方便计算，我们使用log(Score(x)) 进行计算
+        """
         if k in scoring_params:
             cipher_score += v * math.log(scoring_params[k]) # y log p ,有点像交叉熵，不过这里是频数, 其中y与p来自不同的分布，一个是参考样本的，一个是密文的
     return cipher_score
@@ -104,7 +117,7 @@ def generate_cipher(cipher):
 
 # 抛一枚出现正面概率为p的硬币，出现正面返回True，出现反面返回False
 # 以概率p接受转移
-def random_coin(p):
+def accept_by_p(p):
     unif = random.uniform(0, 1)
     if unif >= p:
         return False
@@ -116,7 +129,7 @@ def random_coin(p):
 def MCMC_decrypt(n_iter, cipher_text, scoring_params):
     current_cipher = alphabet  # 以随机密钥开始
     state_keeper = set()
-    best_state = ''
+    #best_state = ''
     score = 0
     for i in range(n_iter):
         state_keeper.add(current_cipher)
@@ -126,17 +139,17 @@ def MCMC_decrypt(n_iter, cipher_text, scoring_params):
         score_proposed_cipher = get_cipher_score(cipher_text, proposed_cipher, scoring_params)
         score_diff = score_proposed_cipher - score_current_cipher
         if i==10: print("score_current_cipher:",score_current_cipher," score_proposed_cipher:",score_proposed_cipher) # 4918
-        # 如果新分比较高，肯定要转移，但如果分较低，以一定概率转移，exp(x-y)=exp(x)/exp(y)
-        # 否则以概率ScoreP/ScoreC进行转移
-        acceptance_probability = min(1, math.exp(score_diff))
-        # if score_current_cipher > score:
-        #     best_state = current_cipher
-        if random_coin(acceptance_probability):
-            print("Trans!iter:",i," p:",acceptance_probability," score:",score_current_cipher,"score_diff:",score_diff)
+        transfer_prob = math.exp(score_diff)
+        # 如果新分比较高，肯定要转移，但如果分较低，以一定概率转移，exp(x-y)=exp(x)/exp(y),即按照P(b)/P(a)的概率转移
+        acceptance_probability = min(1, transfer_prob)
+        #if score_current_cipher > score:
+        #    best_state = current_cipher
+        if accept_by_p(acceptance_probability):
+            #print("Trans!iter:",i," p:",acceptance_probability," score:",score_current_cipher,"score_diff:",score_diff)
             current_cipher = proposed_cipher
             #score =  score_proposed_cipher
-        if i % 500 == 0:
-            print("iter", i," score:",score_current_cipher,"score_diff:",score_diff, " accpet_p:",acceptance_probability," ->", apply_cipher_on_text(cipher_text, current_cipher)[0:99])
+        if i % 1000 == 0:
+            print("iter", i," score:",score_current_cipher,"score_diff:",score_diff, " accpet_p:",acceptance_probability," ->", apply_cipher_on_text(cipher_text, current_cipher)[0:99].lower())
     return state_keeper, current_cipher
 
 
@@ -167,15 +180,15 @@ was aware of these facts when he introduced the singular value decomposition in 
 """
 
 # 缩短文本长度,发现不能解析出文本，因为没有统计意义
-plain_text3="""
+plain_text_short= """
 Every teacher of linear algebra should be familiar with the matrix singular value decomposition.
 """
 
 # 使用密钥对文本进行加密
 encryption_key = "XEBPROHYAUFTIDSJLKZMWVNGQC"
-cipher_text = apply_cipher_on_text(plain_text2, encryption_key)
+#cipher_text = apply_cipher_on_text(plain_text_short, encryption_key)
 #cipher_text = apply_cipher_on_text(plain_text2, encryption_key)
-#cipher_text = apply_cipher_on_text(plain_text, encryption_key)
+cipher_text = apply_cipher_on_text(plain_text, encryption_key)
 decryption_key = "ICZNBKXGMPRQTWFDYEOLJVUAHS"
 
 print("Text To Decode:", cipher_text,"\n")

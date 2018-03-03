@@ -11,7 +11,7 @@ def input_producer():
     #array =[int(x.strip()) for x in array]
     array = [i for i in range(1,36)]
     print("array:",array)
-    i = tf.train.range_input_producer(EXPOCH_SIZE, num_epochs=1, shuffle=False).dequeue()
+    i = tf.train.range_input_producer(EXPOCH_SIZE, num_epochs=1, shuffle=False).dequeue() # Produces the integers from 0 to limit-1 in a queue. # 每次只出队队列里的一个元素，就是普通的遍历而已
     inputs = tf.slice(array, begin=[i * BATCH_SIZE], size=[BATCH_SIZE]) # 注意 后面是size而不是end
     return inputs
 

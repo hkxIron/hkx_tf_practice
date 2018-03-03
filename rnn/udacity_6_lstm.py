@@ -87,18 +87,18 @@ class BatchGenerator(object):
     self._text_size = len(text)
     self._batch_size = batch_size
     self._num_unrollings = num_unrollings
-    segment = self._text_size // batch_size # 每个batch是一段，为一个segment
-    print("segment:",segment)
-    self._cursor = [offset * segment for offset in range(batch_size)] # 每个batch的开始指针,有batch_size 个开始指针
+    segment_len = self._text_size // batch_size # 每个batch是一段，为一个segment
+    print("segment_len:",segment_len)
+    self._cursor = [offset * segment_len for offset in range(batch_size)] # 每个batch的开始指针,有batch_size 个开始指针
     self._last_batch = self._next_batch()
 
   def _next_batch(self):
     """Generate a single batch from the current cursor position in the data."""
     batch = np.zeros(shape=(self._batch_size, vocabulary_size), dtype=np.float) # batch:[batch, vocab_size]
-    for b in range(self._batch_size): # 64
-      batch[b, char2id(self._text[self._cursor[b]])] = 1.0
-      self._cursor[b] = (self._cursor[b] + 1) % self._text_size
-    return batch # [batch,vocab_size],即一个batch 里的各个字母其实并不相邻
+    for batch_index in range(self._batch_size): # 64
+      batch[batch_index, char2id(self._text[self._cursor[batch_index]])] = 1.0
+      self._cursor[batch_index] = (self._cursor[batch_index] + 1) % self._text_size # 其实这里有一定问题，那就是指针都到了末尾，然后都从0开始，这样是有问题的
+    return batch # [batch,vocab_size],即一个batch 里的各个字母其实并不相邻, 而相邻两个batch在同一位置上的两个字母才是相邻的
 
   def next_batch_list(self):
     """Generate the next array of batches from the data. The array consists of

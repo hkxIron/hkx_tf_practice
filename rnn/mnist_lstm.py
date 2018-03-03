@@ -77,7 +77,7 @@ with tf.variable_scope('RNN'):
             tf.get_variable_scope().reuse_variables()
         # 这里的state保存了每一层 LSTM 的状态
         # X[:,timestep,:]: [batch,hidden] state:(cell_state=[batch,hidden],hidden_state=[batch,hidden]) cell_output:[batch,hidden], 其值为hidden_state
-        (cell_output, state) = mlstm_cell(X[:, timestep, :],state) # 调用 __call__函数,此处的cell_output实际上就是每次的hidden_state
+        (cell_output, state) = mlstm_cell(X[:, timestep, :],state) # 调用 __call__函数,此处的cell_output实际上就是每次的hidden_state,而此处的state 包含(cell_state,hidden_state)
         if timestep==0: print("state:",state, " cell_output:",cell_output)
         outputs.append(cell_output)
 h_state = outputs[-1] # 最后一个timestep的 hidden_state, shape为:[batch,hidden]

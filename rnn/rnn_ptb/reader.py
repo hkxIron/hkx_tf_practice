@@ -112,14 +112,14 @@ def ptb_producer(raw_data, batch_size, num_steps, name=None):
     print("after convert:",type(raw_data))
 
     data_len = tf.size(raw_data) # 95w
-    batch_len = data_len // batch_size # 95w/20 =4.5w个batch
+    segment_len = data_len // batch_size # 95w/20 =4.5w个batch
 
 
     # 不满足一个batch的全都扔掉,每列数据为一个batch, 与以前的不同的是，这些batch并没有重合，也就是说窗口并不是连续滑动的
-    data = tf.reshape(raw_data[0 : batch_size * batch_len],
-                      [batch_size, batch_len])
-    print("data:",data) # 20 * 4.5w
-    epoch_size = (batch_len - 1) // num_steps # 4.5w/20 = 2200 个 num_steps, 整除
+    data = tf.reshape(raw_data[0 : batch_size * segment_len],
+                      [batch_size, segment_len])
+    print("data:",data) # 20 * 4.5w,[batch,segment_len]
+    epoch_size = (segment_len - 1) // num_steps # 4.5w/30 = 1500 个 num_steps, 整除,即每个segment里有多少个完整的num_step(即time_step)
     assertion = tf.assert_positive(
         epoch_size,
         message="epoch_size == 0, decrease batch_size or num_steps")
@@ -128,15 +128,20 @@ def ptb_producer(raw_data, batch_size, num_steps, name=None):
       epoch_size = tf.identity(epoch_size, name="epoch_size") # indenity是完全复制一个与输入相同的tensor，而不是单位矩阵
       print("after convert:",epoch_size) # scalar
 
-    i = tf.train.range_input_producer(epoch_size, shuffle=False).dequeue()
-    # data:[20,4.5w], x: 连续num_steps的batch数据 [batch_size,num_steps]
-    x = tf.strided_slice(data, begin=[0, i * num_steps],
-                         end=[batch_size, (i + 1) * num_steps]) # end 是开区间，即获取一个batch*num_steps的数据
+    range_input = tf.train.range_input_producer(limit = epoch_size, shuffle=False).dequeue() # Produces the integers from 0 to limit-1 in a queue. # 每次只出队队列里的一个元素，就是普通的遍历而已
+    print("range_input:",range_input) # shape=()
+    # data:[20,4.5w],shape:[batch,segment_len],  x: 连续num_steps的batch数据 [batch_size,num_steps]
+    x = tf.strided_slice(data, begin=[0, range_input * num_steps],
+                         end=[batch_size, (range_input + 1) * num_steps]) # end 是开区间，即获取一个batch*num_steps的数据
     print("before convert x:",x) # shape=(?,?)
     x.set_shape([batch_size, num_steps])
     # y:[batch_size,num_steps], 即用前一个word来预测后一个word，左边的词在前，右边的词在后，即用左边的词预测右边的词
-    y = tf.strided_slice(data, [0, i * num_steps + 1], # 注意，这里平移了一个元素
-                         [batch_size, (i + 1) * num_steps + 1])
+    y = tf.strided_slice(data, [0, range_input * num_steps + 1],  # 注意，这里平移了一个元素
+                         [batch_size, (range_input + 1) * num_steps + 1])
     y.set_shape([batch_size, num_steps])
-    print("x:",x,"y:",y)  # x:[20,20] y:[20,20]
+    # text: I like nlp and tensorflow.
+    # x: I like nlp and tensorflow
+    # y: like nlp and tensorflow .
+    print("x:",x,"y:",y)  # x:[batch,num_step] y:[batch,num_step]
     return x, y
+
