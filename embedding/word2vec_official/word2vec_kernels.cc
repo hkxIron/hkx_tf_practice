@@ -326,7 +326,7 @@ class NegTrainWord2vecOp : public OpKernel {
 
       // Positive: example predicts label.
       //   forward: x = v_in' * v_out
-      //            l = log(sigmoid(x)) = p(log(sigmoid(x)))
+      //            l = log(sigmoid(x))
       //   backward: dl/dx = g = sigmoid(-x) =1-sigmoid(x) = 1/(1+exp(x))
       //             dl/d(v_in) =dl/dx*dx/d(v_in)= g * v_out'
       //             dl/d(v_out) = v_in' * g
@@ -344,7 +344,7 @@ class NegTrainWord2vecOp : public OpKernel {
       //   backward: dl/dx = g = -sigmoid(x)
       //             dl/d(v_in) = g * v_out'
       //             dl/d(v_out) = v_in' * g
-      for (int j = 0; j < num_samples_; ++j) {
+      for (int j = 0; j < num_samples_; ++j) { // 有多个负样本
         const int sample = sampler_->Sample(&srnd);
         if (sample == label) continue;  // Skip.
         auto v_sample = Tw_out.chip<0>(sample);
