@@ -324,12 +324,16 @@ class NegTrainWord2vecOp : public OpKernel {
       DCHECK(0 <= label && label < vocab_size) << label;
       auto v_in = Tw_in.chip<0>(example); // 从第0维选择下标为example的矩阵行，相当于lookup_embedding
 
+      // 由于softmax计算需要所Vocab中所有词计算，较为耗时，此处改为计算nce_loss:
+      //  1. 改softmax为sigmoid
+      //  2. 随机采样负样本
+      // x -> v_in -> hidden -> v_out -> log(sigmoid(x))
       // Positive: example predicts label.
       //   forward: x = v_in' * v_out
       //            l = log(sigmoid(x))
-      //   backward: dl/dx = g = sigmoid(-x) =1-sigmoid(x) = 1/(1+exp(x))
+      //   backward: dl/dx = g = sigmoid(-x) = 1-sigmoid(x) = 1/(1+exp(x))
       //             dl/d(v_in) =dl/dx*dx/d(v_in)= g * v_out'
-      //             dl/d(v_out) = v_in' * g
+      //             dl/d(v_out) =dl/dx*dx/d(v_out)= v_in' * g
       {
         auto v_out = Tw_out.chip<0>(label); //  从第0维选择下标为label的矩阵行
         auto dot = (v_in * v_out).sum(); // 两个向量点乘，然后相加，是一个标量

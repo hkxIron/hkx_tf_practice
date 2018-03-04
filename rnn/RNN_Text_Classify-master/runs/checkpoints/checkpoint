@@ -1,0 +1,2 @@
+model_checkpoint_path: "D:\\public_code\\hkx_tf_practice\\rnn\\RNN_Text_Classify-master\\runs\\checkpoints\\model-127"
+all_model_checkpoint_paths: "D:\\public_code\\hkx_tf_practice\\rnn\\RNN_Text_Classify-master\\runs\\checkpoints\\model-127"
