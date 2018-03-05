@@ -1,10 +1,7 @@
-
 import tensorflow as tf
 import numpy as np
 
 class RNN_Model(object):
-
-
 
     def __init__(self,config,is_training=True):
 

@@ -22,22 +22,41 @@ class GBDT(object):
         :param residual:梯度残差值
         :return:总体的残差值
         """
-
         mean = np.mean(residual)
         sumError = np.sum([(value-mean)**2 for value in residual])
         return sumError
 
+    def caculate_split_loss(self,train_data,residual_gradient,cur_dim,split_value):
+        """
+        计算某种切分下的loss
+        :param train_data: [N*dim]
+        :param cur_dim:
+        :return: 切分loss
+        """
+        leftSubTree=[]
+        rightSubTree=[]
+        for k in range(len(train_data)):
+            tmpNum=train_data[k, cur_dim]
+            if tmpNum<=split_value:
+                leftSubTree.append(residual_gradient[k])
+            else:
+                rightSubTree.append(residual_gradient[k])
+        # 分别计算左右子树的loss
+        sumLoss=0.0
+        sumLoss+=self.calculateSquareLoss(np.array(leftSubTree))
+        sumLoss+=self.calculateSquareLoss(np.array(rightSubTree))
+        return sumLoss
+
     def splitTree(self,x_train,residualGradient,treeHeight):
         """
-
         :param x_train:训练数据
         :param residualGradient:当前需要拟合的梯度残差值
-        :param treeHeight:树的高度
-        :return:建好的GBDT树
+        :param treeHeight 树的高度
+        :return 建好的GBDT树
         """
-        size = len(x_train)
-        dim = len(x_train[0])
-        #约定：左子树是小于等于，右子树是大于
+        data_size = len(x_train)
+        feature_dim = len(x_train[0])
+        # 约定：左子树是小于等于，右子树是大于
         bestSplitPointDim=-1
         bestSplitPointValue=-1
         curLoss = self.calculateSquareLoss(residualGradient)
@@ -45,39 +64,34 @@ class GBDT(object):
         if treeHeight==self.maxTreeLength:
             return curLoss
         tree=dict([])
-        for i in range(dim):
-            for j in range(size):
-                splitNum = x_train[j,i]
+        # 寻找最优切分点:遍历每个特征维度下的所有样本
+        for cur_dim in range(feature_dim):
+            for best_split_index in range(data_size):
+                split_value = x_train[best_split_index, cur_dim]
                 leftSubTree=[]
                 rightSubTree=[]
-                for k in range(size):
-                    tmpNum=x_train[k,i]
-                    if tmpNum<=splitNum:
-                        leftSubTree.append(residualGradient[k])
-                    else:
-                        rightSubTree.append(residualGradient[k])
-                sumLoss=0.0
-
-                sumLoss+=self.calculateSquareLoss(np.array(leftSubTree))
-                sumLoss+=self.calculateSquareLoss(np.array(rightSubTree))
+                # 假设以cur_dim作为最优切分特征维，best_split_index作为最优切分数据下标
+                # 计算如此切分时的loss
+                sumLoss = self.caculate_split_loss(x_train,residualGradient,cur_dim,split_value)
                 if sumLoss<minLossValue:
-                    bestSplitPointDim=i
-                    bestSplitPointValue=splitNum
+                    bestSplitPointDim=cur_dim
+                    bestSplitPointValue=split_value
                     minLossValue=sumLoss
-        #如果损失值没有变小，则不作任何改变，也就是下面的归位一个Node
+        # 如果损失值没有变小，则不作任何改变，也就是下面的归位一个Node
         if minLossValue==curLoss:
             return np.mean(residualGradient)
         else:
-
-            leftSplit=[(x_train[i],residualGradient[i]) for i in range(size) if x_train[i,bestSplitPointDim]<=bestSplitPointValue ]
-            rightSplit=[(x_train[i],residualGradient[i]) for i in range(size) if x_train[i,bestSplitPointDim]>bestSplitPointValue ]
+            leftSplit=[(x_train[i],residualGradient[i]) for i in range(data_size) if x_train[i, bestSplitPointDim] <= bestSplitPointValue]
+            rightSplit=[(x_train[i],residualGradient[i]) for i in range(data_size) if x_train[i, bestSplitPointDim] > bestSplitPointValue]
 
             newLeftSubTree = zip(*leftSplit)[0]
             newLeftResidual = zip(*leftSplit)[1]
+            # 递归分裂左子树
             leftTree = self.splitTree(np.array(newLeftSubTree),newLeftResidual,treeHeight+1)
 
             newRightSubTree = zip(*rightSplit)[0]
             newRightResidual =zip(*rightSplit)[1]
+            # 递归分裂右子树
             rightTree = self.splitTree(np.array(newRightSubTree),newRightResidual,treeHeight+1)
 
             tree[(bestSplitPointDim,bestSplitPointValue)]=[leftTree,rightTree]
@@ -142,7 +156,7 @@ class GBDT(object):
     #建立GBDT树
     def buildGbdt(self,x_train,y_train):
         size = len(x_train)
-        dim = len(x_train[0])
+        feature_dim = len(x_train[0])
         x_train=np.array(x_train)
         y_train=np.array(y_train)
         x_train_feature=[]
@@ -156,11 +170,12 @@ class GBDT(object):
         dataFeatures=[]
         for i in range(self.maxTreeNum):
             print("the tree %i-th"%i)
+            # 计算每个样本的梯度
             residualGradient = -1*self.learningRate*(curValue-y_train)
+            # 建立一颗树
             curTree = self.splitTree(x_train,residualGradient,1)
             self.tree.append(curTree)
-            print curTree
-            #更新梯度残差值
+            print(curTree)
             curTreeLeafNodeNum = self.getTreeLeafNodeNum(curTree)
             curTreeValue=[]
             for singleX in x_train:
@@ -169,9 +184,9 @@ class GBDT(object):
 
             treePreviousValue=np.array(curTreeValue)+treePreviousValue
             curValue=self.sigmoid(treePreviousValue)
-            print y_train
+            print(y_train)
             print("curValue")
-            print curValue
+            print(curValue)
 
     #根据建成的树构建输入数据的特征向量
     def generateFeatures(self,x_train):
@@ -190,11 +205,3 @@ class GBDT(object):
                 dataFeatures=np.concatenate([dataFeatures,curFeatures],axis=1)
 
         return dataFeatures
-
-
-
-
-
-
-
-

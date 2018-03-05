@@ -72,7 +72,6 @@ def t2():
             )
         )
         return example.SerializeToString()
-
     filename = "tmp.tfrecords"
     if os.path.exists(filename):
         os.remove(filename)
@@ -93,6 +92,9 @@ def t2():
         "length": tf.FixedLenFeature([], dtype=tf.int64)
     }
     sequence_features = {
+        #  The entries in the `batch` from different `Examples` will be padded with
+        # `default_value` to the maximum length present in the `batch`.
+        #  FixedLenSequenceFeature会与样本中最长的样本对齐，其它的全都padding成0
         "index": tf.FixedLenSequenceFeature([], dtype=tf.int64)
     }
 

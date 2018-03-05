@@ -13,12 +13,16 @@ class Config(object):
     maxTreeNum=500
 
 def test():
-    x=[[0.5,0.6,0.7],[0.4,0.5,0.5],[1.2,1.3,1.0],[1.4,1.5,0.8],[1.5,1.3,1.3]]
+    x=[[0.5,0.6,0.7],
+       [0.4,0.5,0.5],
+       [1.2,1.3,1.0],
+       [1.4,1.5,0.8],
+       [1.5,1.3,1.3]]
     y=[0,0,1,1,1]
     c=Config()
     gbdt=GBDT(config=c)
     gbdt.buildGbdt(x,y)
     data_features=gbdt.generateFeatures(x)
-    print len(data_features[0])
+    print(len(data_features[0]))
 
 test()
