@@ -81,6 +81,7 @@ class GBDT(object):
         if minLossValue==curLoss:
             return np.mean(residualGradient)
         else:
+            # 将上一次的残差梯度直接分配过去,并没有重新计算
             leftSplit=[(x_train[i],residualGradient[i]) for i in range(data_size) if x_train[i, bestSplitPointDim] <= bestSplitPointValue]
             rightSplit=[(x_train[i],residualGradient[i]) for i in range(data_size) if x_train[i, bestSplitPointDim] > bestSplitPointValue]
 

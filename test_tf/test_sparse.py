@@ -5,6 +5,47 @@ from __future__ import print_function
 import tensorflow as tf
 import numpy as np
 
+def test_var3():
+    a = tf.Variable(np.arange(8).reshape(4,2))
+    print("a:",a)
+    b = tf.reshape(a,[4,2,1,1])
+    print("b:",b)
+    c = tf.expand_dims(tf.expand_dims(a,axis=-1),axis=-1) # expand与reshape效果相同
+    print("c:",c)
+    equals = tf.equal(b,c)
+    init = tf.global_variables_initializer()
+    sess = tf.Session()
+    sess.run(init)
+    print("a",sess.run(a))
+    print("b",sess.run(b))
+    print("c",sess.run(c))
+    print("equals:",sess.run(equals))
+
+def test_var2():
+    a = tf.Variable(np.arange(8).reshape(2,2,2))
+    b = tf.Variable(np.arange(8))
+    print("before reshape:",tf.shape(b))
+    b = tf.reshape(b,tf.shape(a))
+    print("before reshape:",tf.shape(a))
+    init = tf.global_variables_initializer()
+    sess = tf.Session()
+    sess.run(init)
+    print("a",sess.run([a]))
+    print("b",sess.run([b]))
+
+
+def test_variable():
+    a = tf.Variable(np.arange(8).reshape(4,2))
+    print("before reshape:",tf.shape(a))
+    #a = tf.reshape(a,[4,2,1,1])
+    #print("after reshape:",tf.shape(a))
+    a = tf.expand_dims(a,axis = -1)
+    print("after expand:",a)
+    init = tf.global_variables_initializer()
+    sess = tf.Session()
+    sess.run(init)
+    print(sess.run([a]))
+
 def test_embedding_lookup():
     a = np.arange(8).reshape(2,4)
     b = np.arange(8,12).reshape(1,4)
@@ -273,7 +314,8 @@ def test_sparse_map_fn():
 """
 
 def main(_):
-    test_embedding_lookup()
+    #test_variable()
+    #test_embedding_lookup()
     #test_lookup_sparse()
     #test_all()
     #test_sparse_map_fn()
@@ -281,6 +323,8 @@ def main(_):
     #test_idx()
     #test_sparse_count()
     #test_t1()
+    #test_var2()
+    test_var3()
 
 if __name__ == '__main__':
     tf.app.run(main=main)

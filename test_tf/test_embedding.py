@@ -12,8 +12,10 @@ def embeddingPad(w, input, padding=False, sum=False, name=None):
         y = tf.gather(w, input, name=name)
     else:
         mask = tf.cast(tf.cast(input, tf.bool), w.dtype) # 由于tf里会将0当成false,其余非0当作true
-        y = tf.gather(w, input)
-        y = tf.multiply(y, tf.expand_dims(mask, -1), name=name) #这个是向量逐元素相乘
+        y_gather = tf.gather(w, input)
+        mask_expand = tf.expand_dims(mask, -1)
+        y = tf.multiply(y_gather, mask_expand, name=name) #这个是向量逐元素相乘,y_gather:[3,3,3] mask:(3,3) mask_expand:(3,3,1), 相乘时会自动广播
+        print("y_gather:",y_gather, "mask:",mask, "mask_expand:",mask_expand)
     return y
 
 class EmbeddingTest(test.TestCase):
@@ -61,11 +63,57 @@ class EmbeddingTest(test.TestCase):
                 [7, 8, 9]
             ], dtype=tf.int32)
             ids=np.array([0, 2, 1, 0])
-            result_no_pad=embeddingPad(embedding,ids).eval()
+            result_no_pad=embeddingPad(embedding,ids,padding=False).eval()
             print("no pad:",result_no_pad)
 
-            result_pad=embeddingPad(embedding,ids).eval()
+            result_pad=embeddingPad(embedding,ids,padding=True).eval()
             print("pad:",result_pad) # 并没有发现二者有什么区别
+
+    def testEmbeddingDetail(self):
+        super(EmbeddingTest,self).setUp()
+        with self.test_session(use_gpu=False):
+            embedding = constant_op.constant([
+                [1, 2, 3],
+                [4, 5, 6],
+                [7, 8, 9],
+                [10,11,12]
+            ], dtype=tf.int32)
+            ids=np.array([[0,2,0],
+                         [1,2,0],
+                         [3,2,1]
+                        ])
+            result = embeddingPad(embedding,ids,padding=False).eval()
+            print("result:",result)
+            """
+            由于输入ids是2d，所以result是3d,即总的维数是embedding的维数加上ids的维数
+            result: [[[ 0  0  0]
+                      [ 7  8  9]
+                      [ 0  0  0]]
+
+                     [[ 4  5  6]
+                      [ 7  8  9]
+                      [ 0  0  0]]
+
+                     [[10 11 12]
+                      [ 7  8  9]
+                      [ 4  5  6]]]
+            """
+            result = embeddingPad(embedding,ids,padding=True).eval()
+            print("result:",result)
+            """
+            由于输入ids是2d，所以result是3d,即总的维数是embedding的维数加上ids的维数
+            result: [[[ 1  2  3]
+                      [ 7  8  9]
+                      [ 1  2  3]]
+
+                     [[ 4  5  6]
+                      [ 7  8  9]
+                      [ 1  2  3]]
+
+                     [[10 11 12]
+                      [ 7  8  9]
+                      [ 4  5  6]]]
+            """
 
     def testEmbedding(self):
         super(EmbeddingTest,self).setUp()
@@ -87,6 +135,7 @@ class EmbeddingTest(test.TestCase):
             self.assertAllEqual(result,expect_result)
 
             """
+            下面的例子中：
             由于输入ids是2d，所以result是3d,即总的维数是embedding的维数加上ids的维数
             ids的每个元素均代码embedding里的一行，即embedding[i,:],
             [
@@ -95,7 +144,8 @@ class EmbeddingTest(test.TestCase):
             ]
             
             """
-            ids=np.array([[0, 2],[ 1, 0]])
+            ids=np.array([[0, 2],
+                          [ 1, 0]])
             print("ids in 2D array: ",ids)
             result = tf.nn.embedding_lookup(embedding,ids).eval()
             #result = tf.gather(embedding,ids).eval() 与embedding_lookup是一样的功能

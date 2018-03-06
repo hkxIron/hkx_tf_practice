@@ -31,9 +31,6 @@ def generate_data():
     X_train, X_train_lr, y_train, y_train_lr = train_test_split(X_train, y_train, test_size=0.5)
     return X_train, X_train_lr, y_train, y_train_lr,X_test, y_test
 
-
-
-
 def main():
     X_train, X_train_lr, y_train, y_train_lr,X_test, y_test=generate_data()
     config=Config()
