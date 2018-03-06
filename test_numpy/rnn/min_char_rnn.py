@@ -9,7 +9,7 @@ import numpy as np
 data = open('input1.txt', 'r').read() # should be simple plain text file
 chars = list(set(data))
 data_size, vocab_size = len(data), len(chars)
-print 'data has %d characters, %d unique.' % (data_size, vocab_size) #64,20
+print('data has %d characters, %d unique.' % (data_size, vocab_size)) #64,20
 char_to_ix = { ch:i for i,ch in enumerate(chars) }
 ix_to_char = { i:ch for i,ch in enumerate(chars) }
 
@@ -72,7 +72,7 @@ def gradCheck(inputs, target, hprev):
     s0 = dparam.shape
     s1 = param.shape
     assert s0 == s1, 'Error dims dont match: %s and %s.' % (`s0`, `s1`)
-    print name
+    print(name)
     for i in xrange(num_checks):
       ri = int(uniform(0,param.size))
       # evaluate cost at [x + delta] and [x - delta]
