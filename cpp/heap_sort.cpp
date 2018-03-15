@@ -9,7 +9,7 @@ void adjustHeap(int arr[],int i,int length){
     // 向下查找它的位置
     for(int child=i*2+1;child<length;child=child*2+1){//从i结点的左子结点开始，也就是2i+1处开始
         if(child+1<length && arr[child]<arr[child+1]) child++;  //如果左子结点小于右子结点，child指向右子结点
-        if(arr[child] > temp){//如果子节点大于父节点，将子节点值赋给父节点（不用进行交换）
+        if(arr[child] > temp){ //如果子节点大于父节点，将子节点值赋给父节点（不用进行交换）
             arr[i] = arr[child];
             i = child;
         }else{ // 若子结点小于父节点,找到当前元素的位置，停止
