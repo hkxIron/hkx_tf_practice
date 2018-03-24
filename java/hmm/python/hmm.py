@@ -44,6 +44,7 @@ def viterbi(obs, states, start_p, trans_p, emit_p):
                     V[t][st] = {"prob": max_prob, "prev": prev_st}
                     break
     for line in dptable(V): print(line)
+    # 计算状态序列
     opt = []
     # The highest probability
     max_prob = max(value["prob"] for value in V[-1].values())
