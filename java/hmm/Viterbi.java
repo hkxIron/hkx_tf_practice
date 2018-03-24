@@ -59,18 +59,19 @@ public class Viterbi
             // 对于当前的每个状态，计算一个最大的概率
             for (int cur_state : states)
             {
-                double max_prob_cur_state = -1;
+                double max_trainsfer_prob = -1.0;
                 int max_prob_pre_state;
                 // 当前每个状态的概率，依赖于前一个状态的概率
                 for (int pre_state : states)
                 {
-                    double prob = V[t - 1][pre_state] * trans_p[pre_state][cur_state] * emit_p[cur_state][obs[t]];
-                    if (prob > max_prob_cur_state)
+                    // 计算最大的转移概率
+                    double trainsfer_prob = V[t - 1][pre_state] * trans_p[pre_state][cur_state];
+                    if (trainsfer_prob > max_trainsfer_prob)
                     {
-                        max_prob_cur_state = prob;
+                        max_trainsfer_prob = trainsfer_prob;
                         max_prob_pre_state = pre_state;
-                        // 记录最大概率
-                        V[t][cur_state] = max_prob_cur_state;
+                        // 记录最大概率 = 转移*发射
+                        V[t][cur_state] = max_trainsfer_prob* emit_p[cur_state][obs[t]];
                         // 记录路径
                         System.arraycopy(path[max_prob_pre_state], 0, newpath[cur_state], 0, t); // 将path[a]这一行的值拷到path[b]中
                         newpath[cur_state][t] = cur_state;
@@ -91,7 +92,7 @@ public class Viterbi
                 state = y;
             }
         }
-
+        System.out.println(String.format("prob:%.8f",max_prob));
         return path[state];
     }
 }

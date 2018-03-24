@@ -16,7 +16,8 @@ public class DoctorExample
     }
 
     static int[] states = new int[]{Status.Healthy.ordinal(), Status.Fever.ordinal()};
-    static int[] observations = new int[]{Feel.normal.ordinal(), Feel.cold.ordinal(), Feel.dizzy.ordinal(),Feel.dizzy.ordinal()};
+    static int[] observations = new int[]{Feel.normal.ordinal(), Feel.cold.ordinal(),
+            Feel.dizzy.ordinal(),Feel.dizzy.ordinal(),Feel.normal.cold.ordinal()};
     static double[] start_probability = new double[]{0.6, 0.4};
     static double[][] transititon_probability = new double[][]{
             {0.7, 0.3},
