@@ -78,10 +78,26 @@ def t3():
     dist_run,pred_value_run,pred_idx_run = sess.run([dist,pred_value,pred_idx])
     print("dist_run: ",dist_run," pred_value_run: ",pred_value_run, " pred_idx_run: ",pred_idx_run)
 
+def f3():
+    sess =tf.Session()
+    xx=[[2,3],[4,6]]
+    yy = tf.tile(xx,multiples=[2,1])
+    print(sess.run(yy))
+    tf.expand_dims(axis=-1)
+
+def f4():
+    xx=-1
+    sess =tf.Session()
+    yy = tf.maximum(xx,0)
+    print(sess.run(yy))
+
+
 def main():
     # t1()
     # t2()
-    t3()
+   # t3()
+   #f3()
+   f4()
 
 if __name__ == "__main__":
    main()

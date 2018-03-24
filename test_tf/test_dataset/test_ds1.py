@@ -365,6 +365,20 @@ def input_fn():
         features, labels = iterator.get_next()
         return features, labels
 
+def t14():
+    dataset = tf.data.Dataset.range(100).map(lambda x: x+1).batch(10)
+    iterator = dataset.make_initializable_iterator()
+    next_element = iterator.get_next()
+    # Typically `result` will be the output of a model, or an optimizer's
+    # training operation.
+    sess.run(iterator.initializer)
+    while True:
+        try:
+            print(sess.run(next_element))  # ==> "0"
+        except tf.errors.OutOfRangeError:
+            print("End of dataset")  # ==> "End of dataset"
+            break
+
 if __name__ == "__main__":
     # t3()
     # t4()
@@ -372,6 +386,6 @@ if __name__ == "__main__":
     # t6()
     #t7()
     #test_batch()
-    test_padded_batch()
-
+    #test_padded_batch()
+    t14()
     sess.close()

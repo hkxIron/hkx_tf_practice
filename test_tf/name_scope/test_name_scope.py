@@ -35,5 +35,43 @@ def t2():
     print(Weights2.name) # v_scope/Weights:0
     print(bias2.name)    # v_scope_1/bias:0
 
-t1()
+def t3():
+    import tensorflow as tf
+    import numpy as np
+    # 注意， bias1 的定义方式
+    weight = np.random.random((3,2)).transpose()
+    sess =tf.Session()
+    print("weight:",weight)
+    with tf.variable_scope('v_scope') as scope1:
+        weight_var = tf.get_variable('Weights',initializer=weight)
+        #tf.transpose(weight_var)
+    #    bias1 = tf.Variable([0.52], name='bias')
+    init = tf.global_variables_initializer()
+    sess.run(init)
+    print("weight",sess.run(weight_var))
+    sess.close()
+
+def test_var2():
+    import tensorflow as tf
+    import numpy as np
+    a = tf.Variable(np.arange(8).reshape(2, 2, 2))
+    b = tf.Variable(np.arange(8))
+    print("before reshape:", tf.shape(b))
+    b = tf.reshape(b, tf.shape(a))
+    print("before reshape:", tf.shape(a))
+    init = tf.global_variables_initializer()
+    sess = tf.Session()
+    sess.run(init)
+    print("a", sess.run([a]))
+    print("b", sess.run([b]))
+
+def t4():
+    import numpy as np
+    a = np.arange(8).reshape(2, 2, 2)
+    b = np.arange(8).reshape(2, 2, 2)
+    res= np.equal(a,b)
+    print(np.alltrue(res))
+    np.savetxt()
 #t2()
+#t3()
+t4()

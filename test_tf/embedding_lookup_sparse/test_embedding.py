@@ -86,13 +86,13 @@ class EmbeddingTest(test.TestCase):
             print("result:",result)
             """
             由于输入ids是2d，所以result是3d,即总的维数是embedding的维数加上ids的维数
-            result: [[[ 0  0  0]
+            result: [[[ 1  2  3]
                       [ 7  8  9]
-                      [ 0  0  0]]
+                      [ 1  2  3]]
 
                      [[ 4  5  6]
                       [ 7  8  9]
-                      [ 0  0  0]]
+                      [ 1  2  3]]
 
                      [[10 11 12]
                       [ 7  8  9]
