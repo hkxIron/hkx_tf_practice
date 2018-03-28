@@ -20,7 +20,7 @@ int partition(int a[], int low, int high){
 
 void quickSort(int a[], int low,int high){
     if(low<high){
-       int pivotIndex = partition(a,low,high);
+       int pivotIndex = partition(a,low,high);// 一次划分后，左边的都比它小，右边的都比它大
        quickSort(a,low,pivotIndex-1);
        quickSort(a,pivotIndex+1,high);
     }
