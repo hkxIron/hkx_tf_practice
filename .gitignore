@@ -12,6 +12,9 @@ __pycache__/
 
 # C extensions
 *.so
+*.exe
+*.bin
+*.class
 
 # Distribution / packaging
 .Python
