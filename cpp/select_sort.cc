@@ -35,7 +35,7 @@ int main(){
 
     cout<<"\nbefore sort:"<<endl;
     std::copy(b, b+n, std::ostream_iterator<int>(std::cout, " ")); // algorithm,iterator
-    sort(b,b+n,[=](int a,int b){ return a<=b; }); // 调用c++默认的排序函数进行排序
+    sort(b,b+n,[](int a,int b){ return a<=b; }); // 调用c++默认的排序函数进行排序
     std::cout<<"\nafter sort:"<<endl;
     std::copy(b, b+n, std::ostream_iterator<int>(std::cout, " ")); // algorithm,iterator
 }

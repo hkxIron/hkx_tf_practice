@@ -1,4 +1,5 @@
 // g++ -std=c++11 -o tree binary_tree.cc &&./tree.exe
+// blog:https://github.com/hkxIron/algorithm/blob/master/sword_offer/src/023.cpp
 
 #include<algorithm>
 #include<iostream>
@@ -63,13 +64,9 @@ void in_order_visit(tree* root,void(*fun)(tree*)){
 // 前序非递归遍历
 /*
 　根据前序遍历访问的顺序，优先访问根结点，然后再分别访问左孩子和右孩子。即对于任一结点，其可看做是根结点，因此可以直接访问，访问完之后，若其左孩子不为空，按相同规则访问它的左子树；当访问其左子树时，再访问它的右子树。因此其处理过程如下：
-
 　　对于任一结点P：
-
      1)访问结点P，并将结点P入栈;
-
      2)判断结点P的左孩子是否为空，若为空，则取栈顶结点并进行出栈操作，并将栈顶结点的右孩子置为当前的结点P，循环至1);若不为空，则将P的左孩子置为当前的结点P;
-
      3)直到P为NULL并且栈为空，则遍历结束。
 
 */
@@ -82,7 +79,7 @@ void pre_order_non_recursive(tree* root){ // 该程序与 in_order_non_recursive
             s.push(p);
             p=p->left;
         }
-        // p遇到了空指针
+        // p遇到了空指针,弹出元素，并转向他的右孩子
         if(!s.empty()) {
             p=s.top();
             s.pop();
@@ -96,14 +93,11 @@ void pre_order_non_recursive(tree* root){ // 该程序与 in_order_non_recursive
 　根据中序遍历的顺序，对于任一结点，优先访问其左孩子，而左孩子结点又可以看做一根结点，然后继续访问其左孩子结点，直到遇到左孩子结点为空的结点才进行访问，然后按相同的规则访问其右子树。因此其处理过程如下：
 
 　　对于任一结点P，
-
   　1)若其左孩子不为空，则将P入栈并将P的左孩子置为当前的P，然后对当前结点P再进行相同的处理；
-
  　 2)若其左孩子为空，则取栈顶元素并进行出栈操作，访问该栈顶结点，然后将当前的P置为栈顶结点的右孩子；
-
   　3)直到P为NULL并且栈为空则遍历结束。
-
 */
+// 推荐此种中序遍历
 void in_order_non_recursive2(tree *root){
     stack<tree*> s;
     tree *p=root;
@@ -113,7 +107,7 @@ void in_order_non_recursive2(tree *root){
             s.push(p);
             p=p->left; // 向左走到底
         }
-        if(!s.empty()) { //取出栈顶并访问
+        if(!s.empty()) { //取出栈顶并访问后，再转向右孩子，（即只在出栈时才访问）
             p=s.top();
             visit(p);
             s.pop();
@@ -153,12 +147,13 @@ void in_order_non_recursive(tree *root){
 void post_order_non_recursive(tree*root){
     stack<tree*> s;
     tree *cur;                      //当前结点
-    tree *pre=NULL;                 //前一次访问的结点
+    tree *pre=NULL;                 //需要存储前一次访问的结点
     s.push(root); // 只有后序非递归遍历需要入栈
     while(!s.empty()) {
         cur=s.top(); // 只取元素，但并未出栈
         if((cur->left==NULL&&cur->right==NULL)|| // P不存在左孩子和右孩子，则可以直接访问它
-           (pre!=NULL&&(pre==cur->left||pre==cur->right))) // P存在左孩子或者右孩子，但是其左孩子和右孩子都已被访问过了
+           (pre!=NULL&&pre==cur->right)) //（前一次访问的是它的左右孩子）或 P存在左孩子或者右孩子，但是其左孩子和右孩子都已被访问过了
+           //(pre!=NULL&&(pre==cur->left||pre==cur->right))) //（前一次访问的是它的左右孩子）或 P存在左孩子或者右孩子，但是其左孩子和右孩子都已被访问过了
         {
             visit(cur);  //如果当前结点没有孩子结点或者孩子节点都已被访问过
             s.pop(); // 出栈只有一个地方
@@ -209,28 +204,45 @@ tree* lowest_common_ancestor(tree* root, tree* p, tree* q) {
     if(root==NULL||root==p||root==q) return root;
     tree* left = lowest_common_ancestor(root->left,p,q);
     tree* right =lowest_common_ancestor(root->right,p,q);
-    if(left!=NULL&&right!=NULL) return root; // 当前节点为公共,两边的子节点里包含p和q
-    return left?left:right;
+    if(left!=NULL&&right!=NULL) return root; // 当前节点为公共,因为两边的子节点里包含p和q
+    return left?left:right;// 否则，返回两边非空的那边
 }
 
-void display(tree *root)        //显示树形结构
- {
-     if(root!=NULL)
-     {
-         cout<<root->data;
-         if(root->left!=NULL)
-         {
-             cout<<'(';
-             display(root->right);
-         }
-         if(root->right!=NULL)
-         {
-             cout<<',';
-             display(root->right);
-             cout<<')';
-         }
-     }
- }
+/*
+	[对称的二叉树]
+
+    [题目]
+	请实现一个函数，用来判断一颗二叉树是不是对称的。注意，如果一个二叉树同此二叉树的镜像是同样的，定义其为对称的。
+    [解析]
+    可以做图抽象便于理解。注意边界条件。
+
+    思路：
+想一下打印输出某二叉树的镜像，实现的思路是：采用层序遍历的思路对每一个遍历的节点，如果其有孩子节点，
+那么就交换两者。直到遍历的节点没有孩子节点为止，然而此题是对二叉树木镜像的判断，
+明显是更简单的，只需要进行两个判断：对节点的左孩子与其兄弟节点右孩子的判断以及对节点右孩子与其兄弟节点左孩子的判断。
+这样就完成对对一棵二叉树是否对称的判断.
+
+         8
+       /  \
+      6    6
+     / \  / \
+    5  7 7   5
+
+
+*/
+
+bool is_symmetrical(tree* root){
+    if(root==NULL) return true;
+    return is_symmetrical(root->left,root->right);
+}
+
+bool is_symmetrical(tree* p_left,tree* p_right){
+    if(p_left==NULL&&p_right==NULL) return true;// 都为空，肯定是对称的
+    if(p_left==NULL||p_right==NULL) return false; // 有一个不为空，肯定不对称
+    if(p_left->data!=p_right->data) return false; // 数据不相等，也不对称
+    return is_symmetrical(p_left->left,p_right->right) // 左边的左边与右边的右边对称
+        &&is_symmetrical(p_left->right,p_right->left); // 左边的右边与右边的左边对称
+}
 
 int main(){
     // 利用完全二叉树的数组表示，#代表空结点

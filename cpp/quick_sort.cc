@@ -15,7 +15,7 @@ int partition(int a[], int low, int high){
         a[high] = a[low];
     }
     a[low] = pivot;
-    return low; // 此时low与high相等
+    return low; // pivotIndex, 此时low=high相等, 且值为pivot所在的index
 }
 
 void quickSort(int a[], int low,int high){

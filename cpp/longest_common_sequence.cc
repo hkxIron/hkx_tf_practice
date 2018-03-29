@@ -74,7 +74,7 @@ void PrintLCS(int **b, char *str1, int i, int j)
         PrintLCS(b, str1, i, j-1); // 左边
 }
 
-// 最长公共子串
+// 最长公共子串(注意，不是子序列)
 int max_sub_seq(char* str1, char* str2, int& last_index) {
     int len1 = strlen(str1);
     int len2 = strlen(str2);
