@@ -152,8 +152,8 @@ void post_order_non_recursive(tree*root){
     while(!s.empty()) {
         cur=s.top(); // 只取元素，但并未出栈
         if((cur->left==NULL&&cur->right==NULL)|| // P不存在左孩子和右孩子，则可以直接访问它
-           (pre!=NULL&&pre==cur->right)) //（前一次访问的是它的左右孩子）或 P存在左孩子或者右孩子，但是其左孩子和右孩子都已被访问过了
-           //(pre!=NULL&&(pre==cur->left||pre==cur->right))) //（前一次访问的是它的左右孩子）或 P存在左孩子或者右孩子，但是其左孩子和右孩子都已被访问过了
+           //(pre!=NULL&&pre==cur->right)) //（前一次访问的是它的左右孩子）或 P存在左孩子或者右孩子，但是其左孩子和右孩子都已被访问过了
+           (pre!=NULL&&(pre==cur->left||pre==cur->right))) //（前一次访问的是它的左右孩子）或 P存在左孩子或者右孩子，但是其左孩子和右孩子都已被访问过了
         {
             visit(cur);  //如果当前结点没有孩子结点或者孩子节点都已被访问过
             s.pop(); // 出栈只有一个地方
@@ -231,11 +231,6 @@ tree* lowest_common_ancestor(tree* root, tree* p, tree* q) {
 
 */
 
-bool is_symmetrical(tree* root){
-    if(root==NULL) return true;
-    return is_symmetrical(root->left,root->right);
-}
-
 bool is_symmetrical(tree* p_left,tree* p_right){
     if(p_left==NULL&&p_right==NULL) return true;// 都为空，肯定是对称的
     if(p_left==NULL||p_right==NULL) return false; // 有一个不为空，肯定不对称
@@ -243,6 +238,12 @@ bool is_symmetrical(tree* p_left,tree* p_right){
     return is_symmetrical(p_left->left,p_right->right) // 左边的左边与右边的右边对称
         &&is_symmetrical(p_left->right,p_right->left); // 左边的右边与右边的左边对称
 }
+
+bool is_symmetrical(tree* root){
+    if(root==NULL) return true;
+    return is_symmetrical(root->left,root->right);
+}
+
 
 int main(){
     // 利用完全二叉树的数组表示，#代表空结点
@@ -324,8 +325,6 @@ int main(){
     cout<<"\npost order non recursive visit:"<<endl;
     post_order_non_recursive(root);
     //--------------------------
-    cout<<"\ndisplay:"<<endl;
-    display(root);
     cout<<"\ndelete tree:"<<endl;
     post_order_visit(root,delete_tree);
     return 0;
