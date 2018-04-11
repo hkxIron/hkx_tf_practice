@@ -9,6 +9,9 @@ __pycache__/
 .project
 .pydevproject
 .settings
+*.pb
+*.index
+
 
 # C extensions
 *.so
