@@ -43,7 +43,7 @@ class GBDT(object):
                 rightSubTree.append(residual_gradient[k])
         # 分别计算左右子树的loss
         sumLoss=0.0
-        sumLoss+=self.calculateSquareLoss(np.array(leftSubTree))
+        sumLoss+=self.calculateSquareLoss(np.array(leftSubTree)) # 对于分类loss，在分裂结点时，叶子结点的值应该用newton-Raphson估计，而不是平均法
         sumLoss+=self.calculateSquareLoss(np.array(rightSubTree))
         return sumLoss
 
@@ -59,6 +59,7 @@ class GBDT(object):
         # 约定：左子树是小于等于，右子树是大于
         bestSplitPointDim=-1
         bestSplitPointValue=-1
+        # 计算如果不分裂时的整体loss，(xi-mean)^2
         curLoss = self.calculateSquareLoss(residualGradient)
         minLossValue=curLoss
         if treeHeight==self.maxTreeLength:
@@ -77,11 +78,11 @@ class GBDT(object):
                     bestSplitPointDim=cur_dim
                     bestSplitPointValue=split_value
                     minLossValue=sumLoss
-        # 如果损失值没有变小，则不作任何改变，也就是下面的归位一个Node
+        # 如果损失值没有变小，则不作任何改变，即并不需要分裂
         if minLossValue==curLoss:
             return np.mean(residualGradient)
         else:
-            # 将上一次的残差梯度直接分配过去,并没有重新计算
+            # 将上一次的残差梯度直接分配过去,并没有重新计算,即同一颗树里的残差并不需要再次计算
             leftSplit=[(x_train[i],residualGradient[i]) for i in range(data_size) if x_train[i, bestSplitPointDim] <= bestSplitPointValue]
             rightSplit=[(x_train[i],residualGradient[i]) for i in range(data_size) if x_train[i, bestSplitPointDim] > bestSplitPointValue]
 
@@ -171,7 +172,7 @@ class GBDT(object):
         dataFeatures=[]
         for i in range(self.maxTreeNum):
             print("the tree %i-th"%i)
-            # 计算每个样本的梯度
+            # 计算每个样本的梯度,只有当分裂一颗新树时，才需要计算残差并拟合
             residualGradient = -1*self.learningRate*(curValue-y_train)
             # 建立一颗树
             curTree = self.splitTree(x_train,residualGradient,1)

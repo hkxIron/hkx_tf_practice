@@ -1,7 +1,7 @@
 import tensorflow as tf
+import numpy as np
 #import tensorflow.contrib.eager as tfe
 #tfe.enable_eager_execution()
-
 
 def f1():
     print("version:",tf.VERSION)
@@ -35,6 +35,8 @@ def f_1d():
     score =     tf.constant([0.1, 0.7, 0.2, 0.6, 0.3, 0.8])
     threshold = tf.constant([0.5, 0.6, 0.2, 0.8, 0.2, 0.9])
     bags = tf.constant([1001, 1002, 1003, 1004, 1005, 1006])
+    contain_seed = tf.constant([0, 1, 0, 0, 1, 1])
+    random_select_num = 2
     sess = tf.Session()
 
     bag_len = tf.shape(score)[0]
@@ -51,8 +53,25 @@ def f_1d():
     selected_bags = tf.nn.embedding_lookup(bags, valid_indices)
     print("selected bags:",sess.run(selected_bags))
 
+    selected_contain_seed = tf.nn.embedding_lookup(contain_seed, valid_indices)
+    print("selected seed:",sess.run(selected_contain_seed))
+
+    # 如果将bag与contain flag组合在一起，然后random，那么可以保持二者一一对应
+    bag_contain_flag = tf.stack(values = [bags,contain_seed], axis=1)
+    print("bag contain flag:", tf.shape(bag_contain_flag))
+    print("bag contain flag:", sess.run(bag_contain_flag))
+    tf.set_random_seed(0)
+    random_bag_contain = tf.random_shuffle(bag_contain_flag,seed=0)
+    print("random_bag_contain:",sess.run(random_bag_contain))
+    rand_select_bag_contain = random_bag_contain[:random_select_num,:]
+    r_bag = rand_select_bag_contain[:,0]
+    r_contain = rand_select_bag_contain[:,1]
+    print("rand_select_bag_contain:",sess.run(rand_select_bag_contain))
+    print("rand_select_bag:",sess.run(r_bag))
+    print("rand_select_contain:",sess.run(r_contain))
+    print("res:",sess.run([rand_select_bag_contain,r_bag,r_contain]))
+
     # random bags
-    random_select_num = 2
     random_bags = tf.random_shuffle(selected_bags)[:random_select_num]
     print("random bags:",sess.run(random_bags))
 
@@ -95,4 +114,41 @@ def f_2d():
     #random_bags = tf.random_shuffle(selected_bags)[:random_select_num]
     #print(sess.run(random_bags))
 
-f_1d()
+def f_1d_new():
+    print("version:",tf.VERSION)
+    #                        0    1    2    3    4    5
+    score =     tf.constant([0.1, 0.7, 0.2, 0.6, 0.3, 0.8])
+    threshold = tf.constant([0.5, 0.6, 0.2, 0.8, 0.2, 0.9])
+    bags = tf.constant([1001, 1002, 1003, 1004, 1005, 1006])
+    contain_seed = tf.constant([0, 1, 0, 0, 1, 1])
+    bag_contain_flag = tf.stack(values = [bags,contain_seed], axis=1)
+    random_select_num = 2
+    sess = tf.Session()
+
+    bag_len = tf.shape(score)[0]
+    indices = tf.range(bag_len)
+    mask = tf.greater_equal(score-threshold,0)
+
+    print("greater_mask = ", sess.run(mask))
+    score_after = tf.boolean_mask(score, mask)
+    valid_indices = tf.boolean_mask(indices, mask)
+
+    print("after mask score = ", sess.run(score_after))
+    print("after valid indices = ", sess.run(valid_indices))
+
+    selected_bag_contain_seed = tf.nn.embedding_lookup(bag_contain_flag, valid_indices)
+    print("selected bag_index_contain_seed:",sess.run(selected_bag_contain_seed))
+
+    # 如果将bag与contain flag组合在一起，然后random，那么可以保持二者一一对应
+    random_bag_contain = tf.random_shuffle(bag_contain_flag,seed=0)
+    print("random_bag_contain:",sess.run(random_bag_contain))
+    rand_select_bag_contain = random_bag_contain[:random_select_num,:]
+    r_bag = rand_select_bag_contain[:,0]
+    r_contain = rand_select_bag_contain[:,1]
+    print("rand_select_bag_contain:",sess.run(rand_select_bag_contain))
+    print("rand_select_bag:",sess.run(r_bag))
+    print("rand_select_contain:",sess.run(r_contain))
+    print("res:",sess.run([rand_select_bag_contain,r_bag,r_contain]))
+
+f_1d_new()
+#f_1d()

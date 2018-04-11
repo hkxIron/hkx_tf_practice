@@ -35,7 +35,7 @@ def viterbi(obs, states, start_p, trans_p, emit_p):
     # Run Viterbi when t > 0
     for t in range(1, len(obs)):
         V.append({})
-        for st in states:
+        for st in states: # 在t时间，每个状态都需要计算一次它的最大的概率
             # 计算最大的状态转移概率
             max_tr_prob = max(V[t-1][prev_st]["prob"]*trans_p[prev_st][st] for prev_st in states)
             for prev_st in states:

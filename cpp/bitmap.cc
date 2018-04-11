@@ -12,7 +12,7 @@ int a[1 + N/BITSPERWORD];//申请内存的大小
 //test 测试所在的bit为是否为1
 
 void set(int i) {
-   a[i>>SHIFT] |=  (1<<(i & MASK));
+   a[i>>SHIFT] |=  (1<<(i & MASK)); // 32位一起设置的
 }
 void clear(int i) {
    a[i>>SHIFT] &= ~(1<<(i & MASK));

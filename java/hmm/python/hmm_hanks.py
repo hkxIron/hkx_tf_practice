@@ -45,7 +45,9 @@ def viterbi(obs, states, start_p, trans_p, emit_p):
     :return:
     """
     # 路径概率表 V[时间][隐状态] = 概率
-    # V [{'Rainy': 0.06, 'Sunny': 0.24}, {'Rainy': 0.0384, 'Sunny': 0.043}, {'Rainy': 0.01344, 'Sunny': 0.002}]
+    # V: [{'Rainy': 0.06, 'Sunny': 0.24},     # t=0
+    #     {'Rainy': 0.0384, 'Sunny': 0.043},  # t=1
+    #     {'Rainy': 0.01344, 'Sunny': 0.002}] # t=2
     V = [{}]
     # 一个中间变量，代表当前状态是哪个隐状态
     path = {} # key代表最新的隐状态
@@ -61,9 +63,12 @@ def viterbi(obs, states, start_p, trans_p, emit_p):
         newpath = {}
 
         for cur_state in states:
-            # 概率 隐状态 =    前状态是pre_state的概率 * pre_state转移到state的概率 * state发射为当前状态的概率
-            (prob, state) = max([(V[t - 1][pre_state] * trans_p[pre_state][cur_state] * emit_p[cur_state][obs[t]], pre_state) \
-                                 for pre_state in states])
+            # 概率 隐状态 =  前状态是pre_state的概率 * pre_state转移到state的概率 * state发射为当前状态的概率
+            # 此处可以将最大状态与概率一起返回
+            (prob, state) = max([(V[t - 1][pre_state] \
+                                  * trans_p[pre_state][cur_state] \
+                                  * emit_p[cur_state][obs[t]], pre_state) \
+                                        for pre_state in states])
             # 记录最大概率
             V[t][cur_state] = prob
             # 记录路径

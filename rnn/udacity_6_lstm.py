@@ -203,8 +203,8 @@ with graph.as_default():
     input_gate = tf.sigmoid(tf.matmul(input_x, Wix) + tf.matmul(last_hidden, Wih) + Wib) # [batch,hidden]
     forget_gate = tf.sigmoid(tf.matmul(input_x, Wfx) + tf.matmul(last_hidden, Wfh) + Wfb) # [batch,hidden]
     output_gate = tf.sigmoid(tf.matmul(input_x, Wox) + tf.matmul(last_hidden, Woh) + Wob) # [batch,hidden]
-    cell_state_candidate = tf.matmul(input_x, Wcx) + tf.matmul(last_hidden, Wcm) + Wcb # cell_state_candidate, [batch,hidden]
-    last_cell_state = forget_gate * last_cell_state + input_gate * tf.tanh(cell_state_candidate) # cell_state, [batch,hidden]
+    cell_state_candidate = tf.tanh(tf.matmul(input_x, Wcx) + tf.matmul(last_hidden, Wcm) + Wcb) # cell_state_candidate, [batch,hidden]
+    last_cell_state = forget_gate * last_cell_state + input_gate * cell_state_candidate # cell_state, [batch,hidden]
     hidden_state = output_gate * tf.tanh(last_cell_state) # hidden_state,shape:[batch*hidden], [batch,hidden]
     #print("input_state:",input_gate," hidden_state:",hidden_state)
     return hidden_state, last_cell_state # [batch,hidden]

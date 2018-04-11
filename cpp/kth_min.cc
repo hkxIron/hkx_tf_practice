@@ -64,7 +64,7 @@ public:
             a[high] = a[low];
         }
         a[low] = pivot;
-        return low; // 此时low与high相等
+        return low; // 此时low与high相等,也即是pivot的索引值
     }
 
     // 这个是本程序原始的划分
