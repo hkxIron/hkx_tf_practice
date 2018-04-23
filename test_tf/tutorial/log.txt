@@ -1,0 +1,15 @@
+2018-04-19 20:21:12,967 tf_logging.py:82 [INFO] begin to train
+2018-04-19 20:21:13,155 tf_logging.py:90 [WARNING] From D:\ProgramData\Anaconda3\lib\site-packages\tensorflow\python\util\tf_should_use.py:107: initialize_all_variables (from tensorflow.python.ops.variables) is deprecated and will be removed after 2017-03-02.
+Instructions for updating:
+Use `tf.global_variables_initializer` instead.
+2018-04-19 20:21:13,222 tf_logging.py:82 [INFO] Epoch: 1, w: -0.9421442151069641, b: 9.727601051330566
+2018-04-19 20:21:13,253 tf_logging.py:82 [INFO] Epoch: 2, w: 0.17526298761367798, b: 10.513777732849121
+2018-04-19 20:21:13,280 tf_logging.py:82 [INFO] Epoch: 3, w: 0.9505578279495239, b: 10.373872756958008
+2018-04-19 20:21:13,310 tf_logging.py:82 [INFO] Epoch: 4, w: 1.3716583251953125, b: 10.232722282409668
+2018-04-19 20:21:13,339 tf_logging.py:82 [INFO] Epoch: 5, w: 1.5892705917358398, b: 10.15186882019043
+2018-04-19 20:21:13,378 tf_logging.py:82 [INFO] Epoch: 6, w: 1.7003780603408813, b: 10.109576225280762
+2018-04-19 20:21:13,407 tf_logging.py:82 [INFO] Epoch: 7, w: 1.7569350004196167, b: 10.087915420532227
+2018-04-19 20:21:13,441 tf_logging.py:82 [INFO] Epoch: 8, w: 1.7857013940811157, b: 10.076881408691406
+2018-04-19 20:21:13,473 tf_logging.py:82 [INFO] Epoch: 9, w: 1.800329327583313, b: 10.071270942687988
+2018-04-19 20:21:13,503 tf_logging.py:82 [INFO] Epoch: 10, w: 1.8077685832977295, b: 10.068413734436035
+2018-04-19 20:21:13,503 tf_logging.py:82 [INFO] Train end!

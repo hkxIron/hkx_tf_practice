@@ -67,7 +67,7 @@ class EmbeddingTest(test.TestCase):
             print("no pad:",result_no_pad)
 
             result_pad=embeddingPad(embedding,ids,padding=True).eval()
-            print("pad:",result_pad) # 并没有发现二者有什么区别
+            print("pad:",result_pad)
 
     def testEmbeddingDetail(self):
         super(EmbeddingTest,self).setUp()
@@ -78,14 +78,26 @@ class EmbeddingTest(test.TestCase):
                 [7, 8, 9],
                 [10,11,12]
             ], dtype=tf.int32)
-            ids=np.array([[0,2,0],
+            """
+            ids为 tf.tf.FixedLenSequenceFeature([], tf.int64, True),tf会将一个batch里的所有的样本个数补齐，
+            比如原始样本为：[[2],
+                            [1,2],
+                            [3,2,1]]
+            那么将会补齐成3*3的矩阵, dim: batch*K
+            
+            """
+            input_ids=np.array([
+                         [0,2,0], # 每行的元素看成是行下标
                          [1,2,0],
                          [3,2,1]
                         ])
-            result = embeddingPad(embedding,ids,padding=False).eval()
-            print("result:",result)
+            result = embeddingPad(embedding, input_ids, padding=False).eval()
+            print("result no padding:", result)
             """
             由于输入ids是2d，所以result是3d,即总的维数是embedding的维数加上ids的维数
+            输入样本维度：batch*k, k: max feature instance number in batch
+            embedding_w维度：vocab*embedding
+            输出维度：batch*k*embedding
             result: [[[ 1  2  3]
                       [ 7  8  9]
                       [ 1  2  3]]
@@ -98,17 +110,17 @@ class EmbeddingTest(test.TestCase):
                       [ 7  8  9]
                       [ 4  5  6]]]
             """
-            result = embeddingPad(embedding,ids,padding=True).eval()
-            print("result:",result)
+            result = embeddingPad(embedding, input_ids, padding=True).eval()
+            print("result with padding:", result)
             """
             由于输入ids是2d，所以result是3d,即总的维数是embedding的维数加上ids的维数
-            result: [[[ 1  2  3]
+            result: [[[ 0  0  0]  # padding会将无效值置0
                       [ 7  8  9]
-                      [ 1  2  3]]
+                      [ 0  0  0]]
 
                      [[ 4  5  6]
                       [ 7  8  9]
-                      [ 1  2  3]]
+                      [ 0  0  0]]
 
                      [[10 11 12]
                       [ 7  8  9]
