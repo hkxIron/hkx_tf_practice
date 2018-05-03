@@ -7,3 +7,6 @@ def f2(arg):
 
 def f3(arg):
     print("function f3:",arg)
+
+dt ={1:-1,2:-2}
+print("default key:",dt.get(10,-1))

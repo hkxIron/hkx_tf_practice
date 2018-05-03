@@ -42,3 +42,5 @@ tt=get_number()
 print(tt)
 f1(*tt,d)
 
+
+tf.stack()

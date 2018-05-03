@@ -3,7 +3,6 @@ import numpy as np
 
 sess = tf.Session()
 
-
 def t1():
     dataset = tf.data.Dataset.range(100)
     iterator = dataset.make_one_shot_iterator()
