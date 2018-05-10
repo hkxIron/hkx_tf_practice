@@ -1,4 +1,5 @@
 """
+python3
 paper: https://arxiv.org/abs/1703.04247
 deepFM, using TensorFlow.
 """
@@ -8,7 +9,8 @@ from __future__ import division, print_function
 import os
 import sys
 import argparse
-import urllib
+from six.moves.urllib.request import urlretrieve
+#import urllib3 as urllib
 
 import numpy as np
 import pandas as pd
@@ -70,16 +72,16 @@ class DeepFM(object):
         return (1/(1+tf.exp(-logits)))
 
 
-    def load_data(self, train_dfn="adult.data", test_dfn="adult.test"):
+    def load_data(self, train_dfn="data/adult.data", test_dfn="data/adult.test"):
         '''
         Load data (use files offered in the Tensorflow wide_n_deep_tutorial)
         '''
         if not os.path.exists(train_dfn):
-            urllib.urlretrieve("https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data", train_dfn)
+            urlretrieve("https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data", train_dfn)
             print("Training data is downloaded to %s" % train_dfn)
 
         if not os.path.exists(test_dfn):
-            urllib.urlretrieve("https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.test", test_dfn)
+            urlretrieve("https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.test", test_dfn)
             print("Test data is downloaded to %s" % test_dfn)
 
         self.train_data = pd.read_csv(train_dfn, names=COLUMNS, skipinitialspace=True)
@@ -264,4 +266,3 @@ def CommandLine(args=None):
 
 if __name__=="__main__":
     CommandLine()
-    None
