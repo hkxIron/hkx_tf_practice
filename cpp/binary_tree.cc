@@ -15,6 +15,7 @@ struct tree{
 };
 
 // 从先序序列（含有#）中建立二叉树
+// str = "abc##de#g##f###";
 tree* create_tree(char *& p_str ){
     if(*p_str=='#'||*p_str=='\0') {
         return NULL;
@@ -22,7 +23,7 @@ tree* create_tree(char *& p_str ){
     else{
         //tree* root = (tree*)malloc(sizeof(tree));
         tree* root = new tree();
-        root->data=*(p_str);
+        root->data=*(p_str); // 将原来字符串的值赋给data
         root->left=create_tree(++p_str);
         root->right=create_tree(++p_str); // 右子树时，指针必须要再次移动
         return root;
@@ -90,14 +91,15 @@ void pre_order_non_recursive(tree* root){ // 该程序与 in_order_non_recursive
 
 // 中序非递归遍历
 /*
-　根据中序遍历的顺序，对于任一结点，优先访问其左孩子，而左孩子结点又可以看做一根结点，然后继续访问其左孩子结点，直到遇到左孩子结点为空的结点才进行访问，然后按相同的规则访问其右子树。因此其处理过程如下：
+　根据中序遍历的顺序，对于任一结点，优先访问其左孩子，而左孩子结点又可以看成根结点，然后继续访问其左孩子结点，
+  直到遇到左孩子结点为空的结点才进行访问，然后按相同的规则访问其右子树。因此其处理过程如下：
 
 　　对于任一结点P，
   　1)若其左孩子不为空，则将P入栈并将P的左孩子置为当前的P，然后对当前结点P再进行相同的处理；
  　 2)若其左孩子为空，则取栈顶元素并进行出栈操作，访问该栈顶结点，然后将当前的P置为栈顶结点的右孩子；
   　3)直到P为NULL并且栈为空则遍历结束。
 */
-// 推荐此种中序遍历
+// 推荐此种中序遍历: 左根右
 void in_order_non_recursive2(tree *root){
     stack<tree*> s;
     tree *p=root;
@@ -107,8 +109,8 @@ void in_order_non_recursive2(tree *root){
             s.push(p);
             p=p->left; // 向左走到底
         }
-        if(!s.empty()) { //取出栈顶并访问后，再转向右孩子，（即只在出栈时才访问）
-            p=s.top();
+        if (!s.empty()) { // 取出栈顶并访问后，再转向右孩子，（即只在出栈时才访问）
+            p=s.top(); // 只取出栈顶元素，但并不出栈该元素
             visit(p);
             s.pop();
             p=p->right;
@@ -143,16 +145,17 @@ void in_order_non_recursive(tree *root){
 
 若非上述两种情况，则将P的右孩子和左孩子依次入栈，这样就保证了 每次取栈顶元素的时候，
 左孩子在右孩子前面被访问，左孩子和右孩子都在根结点前面被访问。
+
+[[ 注意：后序遍历时，栈中存储的都是当前节点的祖先。即递归遍历时，栈中存储的是祖先节点。]]
 */
 void post_order_non_recursive(tree*root){
     stack<tree*> s;
-    tree *cur;                      //当前结点
-    tree *pre=NULL;                 //需要存储前一次访问的结点
-    s.push(root); // 只有后序非递归遍历需要入栈
+    tree *cur;                      // 当前结点
+    tree *pre=NULL;                 // 需要存储前一次访问的结点
+    s.push(root); // 只有后序非递归遍历需要事先入栈
     while(!s.empty()) {
         cur=s.top(); // 只取元素，但并未出栈
         if((cur->left==NULL&&cur->right==NULL)|| // P不存在左孩子和右孩子，则可以直接访问它
-           //(pre!=NULL&&pre==cur->right)) //（前一次访问的是它的左右孩子）或 P存在左孩子或者右孩子，但是其左孩子和右孩子都已被访问过了
            (pre!=NULL&&(pre==cur->left||pre==cur->right))) //（前一次访问的是它的左右孩子）或 P存在左孩子或者右孩子，但是其左孩子和右孩子都已被访问过了
         {
             visit(cur);  //如果当前结点没有孩子结点或者孩子节点都已被访问过
@@ -161,7 +164,7 @@ void post_order_non_recursive(tree*root){
         }
         else {
             //注意，二者顺序不可改变
-            // P的右孩子和左孩子依次入栈，这样就保证了 每次取栈顶元素的时候，左孩子在右孩子前面被访问，左孩子和右孩子都在根结点前面被访问
+            //P的右孩子和左孩子依次入栈，这样就保证了每次取栈顶元素的时候，左孩子在右孩子前面被访问，左孩子和右孩子都在根结点前面被访问
             if(cur->right!=NULL) s.push(cur->right);
             if(cur->left!=NULL) s.push(cur->left);
         }
@@ -184,6 +187,7 @@ void post_mirror(tree* root){
     std::swap(root->left,root->right);
 }
 
+// 二叉树镜像(前序遍历)
 void pre_mirror(tree* root){
     if(root==NULL) return;
     std::swap(root->left,root->right);
@@ -196,16 +200,18 @@ int depth(tree* root){
     if(root==NULL) return 0;
     int left_depth=depth(root->left);
     int right_depth = depth(root->right);
-    return std::max(left_depth,right_depth)+1;
+    // 因为当前结点不为空，那么 深度是子树 + 1
+    return std::max(left_depth, right_depth) + 1;
 }
 
-// 最近公共祖先
+// 求p,q的最近公共祖先
+// root:为根节点， p,q为两个输入的最近公共祖先
 tree* lowest_common_ancestor(tree* root, tree* p, tree* q) {
     if(root==NULL||root==p||root==q) return root;
-    tree* left = lowest_common_ancestor(root->left,p,q);
+    tree* left = lowest_common_ancestor(root->left,p,q); // 它们返回时，返回的是输入的p或者q
     tree* right =lowest_common_ancestor(root->right,p,q);
-    if(left!=NULL&&right!=NULL) return root; // 当前节点为公共,因为两边的子节点里包含p和q
-    return left?left:right;// 否则，返回两边非空的那边
+    if(left!=NULL&&right!=NULL) return root; // 当前节点为公共,因为两边的子节点里包含p和q, 只有当左右孩子都不为空时，才返回当前结点
+    return left?left:right; // 否则，返回两边非空的那边
 }
 
 /*
@@ -218,7 +224,7 @@ tree* lowest_common_ancestor(tree* root, tree* p, tree* q) {
 
     思路：
 想一下打印输出某二叉树的镜像，实现的思路是：采用层序遍历的思路对每一个遍历的节点，如果其有孩子节点，
-那么就交换两者。直到遍历的节点没有孩子节点为止，然而此题是对二叉树木镜像的判断，
+那么就交换两者。直到遍历的节点没有孩子节点为止，然而此题是对二叉树镜像的判断，
 明显是更简单的，只需要进行两个判断：对节点的左孩子与其兄弟节点右孩子的判断以及对节点右孩子与其兄弟节点左孩子的判断。
 这样就完成对对一棵二叉树是否对称的判断.
 
@@ -235,8 +241,8 @@ bool is_symmetrical(tree* p_left,tree* p_right){
     if(p_left==NULL&&p_right==NULL) return true;// 都为空，肯定是对称的
     if(p_left==NULL||p_right==NULL) return false; // 有一个不为空，肯定不对称
     if(p_left->data!=p_right->data) return false; // 数据不相等，也不对称
-    return is_symmetrical(p_left->left,p_right->right) // 左边的左边与右边的右边对称
-        &&is_symmetrical(p_left->right,p_right->left); // 左边的右边与右边的左边对称
+    return is_symmetrical(p_left->left,p_right->right) // 左边的左孩子与右边的右孩子对称
+        &&is_symmetrical(p_left->right,p_right->left); // 左边的右孩子与右边的左孩子对称
 }
 
 bool is_symmetrical(tree* root){
@@ -324,6 +330,22 @@ int main(){
     // 后序非递归
     cout<<"\npost order non recursive visit:"<<endl;
     post_order_non_recursive(root);
+    //最近公共祖先
+   /*
+          a
+         /
+        b
+       / \
+      c   d
+         / \
+        e   f
+         \
+          g
+    */
+    tree* p_c = root->left->left;
+    tree* p_g = root->left->right->left->right;
+    tree * p_common = lowest_common_ancestor(root, p_c, p_g);
+    cout<<"\ncommon ancesor:"<<p_common->data<<endl;
     //--------------------------
     cout<<"\ndelete tree:"<<endl;
     post_order_visit(root,delete_tree);
