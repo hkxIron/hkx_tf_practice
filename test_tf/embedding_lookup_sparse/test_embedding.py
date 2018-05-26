@@ -166,3 +166,25 @@ class EmbeddingTest(test.TestCase):
                                                  [[ 4,  5,  6], [ 1,  2, 3]]]).eval()
             self.assertAllEqual(result,expect_result)
 
+    def testCountZero(self):
+        super(EmbeddingTest,self).setUp()
+        with self.test_session(use_gpu=False):
+            features = constant_op.constant([
+                [0, 1, 3],
+                [4, 0, 6],
+                [7, 0, 0],
+                [0, 0, 0]
+            ], dtype=tf.int32)
+            feat_sum = tf.reduce_sum(features, axis=1)
+            nonzero = tf.maximum(tf.count_nonzero(features,axis=1,dtype=features.dtype),1)
+            feat_mean = feat_sum/nonzero
+            print("nonzero:", nonzero.eval())
+            print("feat_sum:", feat_sum.eval())
+            print("feat_mean:", feat_mean.eval())
+            """
+            nonzero: [2 2 1 1]
+            feat_sum: [ 4 10  7  0]
+            feat_mean: [ 2.  5.  7.  0.]
+            """
+
+

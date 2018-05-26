@@ -82,7 +82,7 @@ def t2():
     writer.close()
 
     reader = tf.TFRecordReader()
-    filename_queue = tf.train.string_input_producer(["tmp.tfrecords"], num_epochs=1)
+    filename_queue = tf.train.string_input_producer([filename], num_epochs=1)
     _, serialized_example = reader.read(filename_queue)
 
     # coord = tf.train.Coordinator()
