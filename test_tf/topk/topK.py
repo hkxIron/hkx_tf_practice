@@ -116,14 +116,15 @@ def f_2d():
 
 def f_1d_new():
     print("version:",tf.VERSION)
+    random_select_num = 2
+    sess = tf.Session()
     #                        0    1    2    3    4    5
     score =     tf.constant([0.1, 0.7, 0.2, 0.6, 0.3, 0.8])
     threshold = tf.constant([0.5, 0.6, 0.2, 0.8, 0.2, 0.9])
     bags = tf.constant([1001, 1002, 1003, 1004, 1005, 1006])
     contain_seed = tf.constant([0, 1, 0, 0, 1, 1])
-    bag_contain_flag = tf.stack(values = [bags,contain_seed], axis=1)
-    random_select_num = 2
-    sess = tf.Session()
+    bag_contain_flag = tf.stack(values = [bags,contain_seed], axis=1) # 第一列是bag_id, 第二列是 contain_seed
+    print("bag_contain_flag:\n", sess.run(bag_contain_flag))
 
     bag_len = tf.shape(score)[0]
     indices = tf.range(bag_len)

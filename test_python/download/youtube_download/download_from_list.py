@@ -12,8 +12,9 @@ D:\lunaWorkspace\old_bak\youtube_downloadProj>D:\lunaWorkspace\old_bak\youtube_d
 ownloadProj\youtube-dl.exe https://www.youtube.com/watch?v=NfnWJUyUJYU  --proxy "dev-proxy.oa.com:8080" 
   -o %(title).%(ext)  --write-auto-sub --verbose
 """
-downloader=r"D:\public_code\hkx_tf_practice\test_python\youtube_download\youtube-dl.exe "
-proxy = ' --proxy "dev-proxy.oa.com:8080" '
+#downloader=r"D:\public_code\hkx_tf_practice\test_python\youtube_download\youtube-dl.exe "
+downloader=r"youtube-dl.exe "  # 由于是在当前路径下，所以不需要写全路径
+proxy = ' --proxy "dev-proxy.oa.com:8080" ' # 在公司，代理很好用
 format = "_%(title)s_%(resolution)s.%(ext)s  --write-auto-sub --verbose "
 
 def download(link_list, output_dir):
