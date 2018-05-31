@@ -135,6 +135,7 @@ print("train_batches: ",batches2string(train_batches.next_batch_list()))
 print("valid_batches: ",batches2string(valid_batches.next_batch_list()))
 print("valid_batches: ",batches2string(valid_batches.next_batch_list()))
 
+# predictions:[batch*time_step, vocab_size] labels:[batch*time_step, vocab_size]
 def logprob(predictions, labels):
   """Log-probability of the true labels in a predicted batch."""
   predictions[predictions < 1e-10] = 1e-10
@@ -169,10 +170,11 @@ def random_distribution():
 hidden_nodes = 80 # num_nodes = hidden_size
 graph = tf.Graph()
 with graph.as_default():
+  # 手动实现LSTM
   # Parameters:这4个变量可以统一成一个大矩阵
   # Input gate: input(xt), previous output(h(t-1)), and bias.
-  Wix = tf.Variable(tf.truncated_normal([vocabulary_size, hidden_nodes], -0.1, 0.1)) # Wix*Xt,ix:Wix
-  Wih = tf.Variable(tf.truncated_normal([hidden_nodes, hidden_nodes], -0.1, 0.1)) # Wh*h(t-1),im:Wh
+  Wix = tf.Variable(tf.truncated_normal([vocabulary_size, hidden_nodes], -0.1, 0.1)) # Wix*Xt
+  Wih = tf.Variable(tf.truncated_normal([hidden_nodes, hidden_nodes], -0.1, 0.1)) # Wh*h(t-1)
   Wib = tf.Variable(tf.zeros([1, hidden_nodes])) # bias
   # Forget gate: input, previous output, and bias.
   Wfx = tf.Variable(tf.truncated_normal([vocabulary_size, hidden_nodes], -0.1, 0.1))
@@ -199,6 +201,7 @@ with graph.as_default():
     """Create a LSTM cell. See e.g.: http://arxiv.org/pdf/1402.1128v1.pdf
     Note that in this formulation, we omit the various connections between the
     previous state and the gates."""
+    # input_gate = X*Wix + h(t-1)*Wih + W_bias
     # input_x:[batch,vocab_size] Wix:[vocab_size,hidden] last_hidden:[batch,hidden] Wih:[hidden,hidden] Wib:[1,hidden]
     input_gate = tf.sigmoid(tf.matmul(input_x, Wix) + tf.matmul(last_hidden, Wih) + Wib) # [batch,hidden]
     forget_gate = tf.sigmoid(tf.matmul(input_x, Wfx) + tf.matmul(last_hidden, Wfh) + Wfb) # [batch,hidden]
@@ -207,7 +210,7 @@ with graph.as_default():
     last_cell_state = forget_gate * last_cell_state + input_gate * cell_state_candidate # cell_state, [batch,hidden]
     hidden_state = output_gate * tf.tanh(last_cell_state) # hidden_state,shape:[batch*hidden], [batch,hidden]
     #print("input_state:",input_gate," hidden_state:",hidden_state)
-    return hidden_state, last_cell_state # [batch,hidden]
+    return hidden_state, last_cell_state # hidden_state:[batch,hidden], last_cell_state:[batch,hidden]
 
   # Input data.
   train_data = list()
@@ -218,12 +221,12 @@ with graph.as_default():
   train_labels = train_data[1:]  # list:长度也为time_step, labels are inputs shifted by one time step.
 
   # Unrolled LSTM loop.
-  outputs = list()
+  last_hidden_outputs = list()
   last_hidden = saved_output # [batch, hidden]
   last_cell_state = saved_state # [batch, hidden]
   for input_index in train_inputs:# num_unrollings个[batch,vocab]，将train_inputs里的每个place_holder作为一个time_step的输入,同时将上一次的输出也作为输入
     last_hidden, last_cell_state = lstm_cell(input_index, last_hidden, last_cell_state) # input_x:[batch,vocab_size] last_hidden:[batch,hidden] last_cell_state:[batch,hidden]
-    outputs.append(last_hidden) # 将time_step个output连接起来, last_hidden:[batch,hidden]
+    last_hidden_outputs.append(last_hidden) # 将time_step个output连接起来, last_hidden:[batch,hidden]
 
   # State saving across unrollings.
   # tf.control_dependencies()设计是用来控制计算流图的，给图中的某些计算指定顺序
@@ -233,7 +236,7 @@ with graph.as_default():
     # Classifier.
     # 将时间展开后的隐层hidden_state连接起来,然后进行分类
     # outputs: 共num_unrollings个[batch,hidden], time_step: num_unrollings
-    lstm_hidden_seq = tf.concat(outputs, axis=0) # [batch*time_step,hidden],启示我们list也是可以 concat
+    lstm_hidden_seq = tf.concat(last_hidden_outputs, axis=0) # [batch*time_step,hidden],启示我们list也是可以 concat
     label_seq = tf.concat(train_labels, axis=0)
     logits = tf.nn.xw_plus_b(lstm_hidden_seq, classify_weight, classify_bias) # 此处并未取log, classify_weight:[hidden,vocab_size]
     loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=label_seq, logits=logits))
