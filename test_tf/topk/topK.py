@@ -141,15 +141,78 @@ def f_1d_new():
     print("selected bag_index_contain_seed:",sess.run(selected_bag_contain_seed))
 
     # 如果将bag与contain flag组合在一起，然后random，那么可以保持二者一一对应
-    random_bag_contain = tf.random_shuffle(bag_contain_flag,seed=0)
-    print("random_bag_contain:",sess.run(random_bag_contain))
+    random_bag_contain = sess.run(tf.random_shuffle(bag_contain_flag,seed=0))
+    print("random_bag_contain:",random_bag_contain)
     rand_select_bag_contain = random_bag_contain[:random_select_num,:]
     r_bag = rand_select_bag_contain[:,0]
     r_contain = rand_select_bag_contain[:,1]
-    print("rand_select_bag_contain:",sess.run(rand_select_bag_contain))
-    print("rand_select_bag:",sess.run(r_bag))
-    print("rand_select_contain:",sess.run(r_contain))
-    print("res:",sess.run([rand_select_bag_contain,r_bag,r_contain]))
+    print("rand_select_bag_contain:",rand_select_bag_contain)
+    print("rand_select_bag:",r_bag)
+    print("rand_select_contain:",r_contain)
 
-f_1d_new()
+def get_bits(num_list):
+    arr=0x0
+    mask=2**64-1
+    for x in num_list:
+        arr|=(mask&(1<<x))
+    return arr&mask
+
+def f_1d_site_set():
+    print("version:",tf.VERSION)
+    input_site_set=25
+    random_select_num = 2
+    sess = tf.Session()
+    #                        0    1    2    3    4    5
+    score =     tf.constant([0.1, 0.7, 0.2, 0.6, 0.3, 0.8])
+    threshold = tf.constant([0.5, 0.6, 0.2, 0.8, 0.2, 0.9])
+    bags = tf.constant([1001, 1002, 1003, 1004, 1005, 1006])
+    #分站点，每个号码包包含的站点列表
+    bag_site_set_list = [
+        [15,21,25,28],
+        [15,21,25],
+        [21,25,28],
+        [21,25],
+        [],
+        [25]
+    ]
+    bag_set_list_bits=[get_bits(x) for x in bag_site_set_list]
+    # 测试bit测试是否有效
+    print("test result:",bag_set_list_bits[0]&get_bits([25,21,15])>0)
+    print("test result:",bag_set_list_bits[0]&get_bits([25,21,14])==0)
+    contain_list = [ x&get_bits([input_site_set])>0 for x in bag_set_list_bits]
+    print("contain list:", contain_list)
+
+    contain_list_tensor = tf.constant(contain_list,dtype=tf.bool)
+    contain_seed = tf.constant([0, 1, 0, 0, 1, 1])
+    bag_contain_flag = tf.stack(values = [bags,contain_seed], axis=1) # 第一列是bag_id, 第二列是 contain_seed
+    print("bag_contain_flag:\n", sess.run(bag_contain_flag))
+
+    bag_len = tf.shape(score)[0]
+    indices = tf.range(bag_len)
+    threshold_mask = tf.greater_equal(score-threshold,0)
+    mask = tf.logical_and(threshold_mask, contain_list_tensor)
+    print("threshold_mask:",sess.run(threshold_mask), "\ncontain_list_tensor:",sess.run(contain_list_tensor), "\nmask:",sess.run(mask))
+
+    print("greater_mask = ", sess.run(mask))
+    score_after = tf.boolean_mask(score, mask)
+    valid_indices = tf.boolean_mask(indices, mask)
+
+    print("after mask score = ", sess.run(score_after))
+    print("after valid indices = ", sess.run(valid_indices))
+
+    selected_bag_contain_seed = tf.nn.embedding_lookup(bag_contain_flag, valid_indices)
+    print("selected bag_index_contain_seed:",sess.run(selected_bag_contain_seed))
+
+    # 如果将bag与contain flag组合在一起，然后random，那么可以保持二者一一对应
+    random_bag_contain = sess.run(tf.random_shuffle(selected_bag_contain_seed,seed=0))
+    print("random_bag_contain:",random_bag_contain)
+    rand_select_bag_contain = random_bag_contain[:random_select_num,:]
+    r_bag = rand_select_bag_contain[:,0]
+    r_contain = rand_select_bag_contain[:,1]
+    print("rand_select_bag_contain:",rand_select_bag_contain)
+    print("rand_select_bag:",r_bag)
+    print("rand_select_contain:",r_contain)
+
+#f_1d_new()
 #f_1d()
+f_1d_site_set()
