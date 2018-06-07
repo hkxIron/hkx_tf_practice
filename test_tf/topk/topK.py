@@ -210,8 +210,8 @@ def f_1d_site_set():
     r_bag = rand_select_bag_contain[:,0]
     r_contain = rand_select_bag_contain[:,1]
     print("rand_select_bag_contain:",rand_select_bag_contain)
-    print("rand_select_bag:",r_bag)
-    print("rand_select_contain:",r_contain)
+    print("rand_select_bag:", r_bag)
+    print("rand_select_contain:", r_contain)
 
 #f_1d_new()
 #f_1d()
