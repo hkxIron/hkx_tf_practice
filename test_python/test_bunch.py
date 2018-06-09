@@ -16,4 +16,3 @@ print(x.age)
 # 或者import bunch
 # from bunch import Bunch
 
-open
