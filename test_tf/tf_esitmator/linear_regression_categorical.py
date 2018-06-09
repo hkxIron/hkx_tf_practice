@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Linear regression using the LinearRegressor Estimator."""
+"""Linear regression with categorical features."""
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
 import tensorflow as tf
 
 import imports85  # pylint: disable=g-bad-import-order
@@ -33,11 +32,11 @@ def main(argv):
   (train, test) = imports85.dataset()
 
   # Switch the labels to units of thousands for better convergence.
-  def to_thousands(features, labels):
+  def normalize_price(features, labels):
     return features, labels / PRICE_NORM_FACTOR
 
-  train = train.map(to_thousands)
-  test = test.map(to_thousands)
+  train = train.map(normalize_price)
+  test = test.map(normalize_price)
 
   # Build the training input_fn.
   def input_train():
@@ -45,7 +44,7 @@ def main(argv):
         # Shuffling with a buffer larger than the data set ensures
         # that the examples are well mixed.
         train.shuffle(1000).batch(128)
-        # Repeat forever ,一直重复数据，直到训练终止
+        # Repeat forever
         .repeat().make_one_shot_iterator().get_next())
 
   # Build the validation input_fn.
@@ -53,23 +52,46 @@ def main(argv):
     return (test.shuffle(1000).batch(128)
             .make_one_shot_iterator().get_next())
 
+  # The following code demonstrates two of the ways that `feature_columns` can
+  # be used to build a model with categorical inputs.
+
+  # The first way assigns a unique weight to each category. To do this, you must
+  # specify the category's vocabulary (values outside this specification will
+  # receive a weight of zero).
+  # Alternatively, you can define the vocabulary in a file (by calling
+  # `categorical_column_with_vocabulary_file`) or as a range of positive
+  # integers (by calling `categorical_column_with_identity`)
+  body_style_vocab = ["hardtop", "wagon", "sedan", "hatchback", "convertible"] # 第一种方式是给定一个词汇表
+  body_style_column = tf.feature_column.categorical_column_with_vocabulary_list(
+      key="body-style", vocabulary_list=body_style_vocab)
+
+  # 第二种方式是利用hash来取index,可能会有冲突
+  # The second way, appropriate for an unspecified vocabulary, is to create a
+  # hashed column. It will create a fixed length list of weights, and
+  # automatically assign each input category to a weight. Due to the
+  # pseudo-randomness of the process, some weights may be shared between
+  # categories, while others will remain unused.
+  make_column = tf.feature_column.categorical_column_with_hash_bucket(
+      key="make", hash_bucket_size=50)
+
   feature_columns = [
-      # "curb-weight" and "highway-mpg" are numeric columns.
+      # This model uses the same two numeric features as `linear_regressor.py`
       tf.feature_column.numeric_column(key="curb-weight"),
       tf.feature_column.numeric_column(key="highway-mpg"),
+      # This model adds two categorical colums that will adjust the price based
+      # on "make" and "body-style".
+      body_style_column,
+      make_column,
   ]
 
   # Build the Estimator.
-  model = tf.estimator.LinearRegressor(feature_columns=feature_columns) # 原来预测时只用了两个特征
+  model = tf.estimator.LinearRegressor(feature_columns=feature_columns)
 
   # Train the model.
   # By default, the Estimators log output every 100 steps.
-  print("begin to train")
   model.train(input_fn=input_train, steps=STEPS)
 
   # Evaluate how the model performs on data it has not yet seen.
-  print("begin to evaluate")
-  model.train(input_fn=input_train, steps=STEPS)
   eval_result = model.evaluate(input_fn=input_test)
 
   # The evaluation returns a Python dictionary. The "average_loss" key holds the
@@ -81,26 +103,6 @@ def main(argv):
   print("\nRMS error for the test set: ${:.0f}"
         .format(PRICE_NORM_FACTOR * average_loss**0.5))
 
-  # Run the model in prediction mode.
-  input_dict = {
-      "curb-weight": np.array([2000, 3000]),
-      "highway-mpg": np.array([30, 40])
-  }
-  predict_input_fn = tf.estimator.inputs.numpy_input_fn(
-      input_dict, shuffle=False)
-  print("begin to predict")
-  predict_results = model.predict(input_fn=predict_input_fn)
-
-  # Print the prediction results.
-  print("\nPrediction results:")
-  for i, prediction in enumerate(predict_results):
-    msg = ("Curb weight: {: 4d}lbs, "
-           "Highway: {: 0d}mpg, "
-           "Prediction: ${: 9.2f}")
-    msg = msg.format(input_dict["curb-weight"][i], input_dict["highway-mpg"][i],
-                     PRICE_NORM_FACTOR * prediction["predictions"][0])
-
-    print("    " + msg)
   print()
 
 
