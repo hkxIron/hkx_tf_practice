@@ -289,8 +289,6 @@ def test_t1():
     #init = tf.global_variables_initializer()
     #print(sess.run([sp_value_ids,value,result]))
 
-
-
 """
 def test_sparse_map_fn():
     feat_num = 5

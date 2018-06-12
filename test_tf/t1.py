@@ -57,9 +57,8 @@ def t2():
     fixW = tf.assign(W, [-1.])
     fixb = tf.assign(b, [1.])
     # sess.run([fixW, fixb])
-    print(sess.run([loss, fixW, fixb], {x: [1, 2, 3, 4], y: [0, -1, -2, -3]}))
+    print(sess.run([loss, fixW, fixb], {x: [1, 2, 3, 4], y: [0, -1, -2, -3]})) # 记住 ，一定要run之后，assign才会生效
     # print(sess.run(loss, {x: [1, 2, 3, 4], y: [0, -1, -2, -3]}))
-
 
     optimizer = tf.train.GradientDescentOptimizer(0.01)
     train = optimizer.minimize(loss)
