@@ -6,6 +6,7 @@ import tensorflow as tf
 import numpy as np
 
 def test_var3():
+    print("="*50)
     a = tf.Variable(np.arange(8).reshape(4,2))
     print("a:",a)
     b = tf.reshape(a,[4,2,1,1])
@@ -271,17 +272,22 @@ def is_non_neg(x):
     else: return 0
 
 def test_t1():
-    sp_value_ids = tf.SparseTensor(indices=[[0, 0], [0, 1], [1, 0]], values=[1, 2, 1], dense_shape=(2, 2))  #
+    print("="*50)
+    sess = tf.Session()
+    #dense[tuple(indices[i])] = values[i]
+    # 在SparseTensor中，必须要保证indices与values的第0维长度相等，即index与值的个数相等,一个萝卜一个坑
+    sp_value_ids = tf.SparseTensor(indices=[[0, 0], [0, 1], [1, 0]], values=[1, 2, -1], dense_shape=(2, 2))  #
+    print("sparse tensor: ", sess.run(sp_value_ids))
     #dense = tf.sparse_to_dense()
     dense = tf.sparse_tensor_to_dense(sp_value_ids)
+    print("dense matrix: ", sess.run(dense))
     zeros = tf.zeros_like(dense)
     value = tf.cast(tf.greater(dense,zeros),dtype=tf.float32)
     result = tf.reduce_sum(value,axis=1)
     #dense_non_neg = tf.map_fn(is_non_neg,dense)
     #indicater= tf.sparse_to_indicator(sp_value_ids)
-    init = tf.global_variables_initializer()
-    sess = tf.Session()
-    print(sess.run([sp_value_ids,value,result]))
+    #init = tf.global_variables_initializer()
+    #print(sess.run([sp_value_ids,value,result]))
 
 
 
@@ -322,7 +328,7 @@ def main(_):
     #test_tensor()
     #test_idx()
     #test_sparse_count()
-    #test_t1()
+    test_t1()
     #test_var2()
     test_var3()
 

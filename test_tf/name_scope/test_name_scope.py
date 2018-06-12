@@ -39,6 +39,7 @@ def t3():
     import tensorflow as tf
     import numpy as np
     # 注意， bias1 的定义方式
+    np.random.seed(0)
     weight = np.random.random((3,2)).transpose()
     sess =tf.Session()
     print("weight:",weight)
@@ -48,7 +49,7 @@ def t3():
     #    bias1 = tf.Variable([0.52], name='bias')
     init = tf.global_variables_initializer()
     sess.run(init)
-    print("weight",sess.run(weight_var))
+    print("weight:",sess.run(weight_var))
     sess.close()
 
 def test_var2():
@@ -73,5 +74,5 @@ def t4():
     print(np.alltrue(res))
     np.savetxt()
 #t2()
-#t3()
-t4()
+t3()
+#t4()
