@@ -1,5 +1,5 @@
 # coding: utf-8
-
+import tensorflow as tf
 def t1():
     import tensorflow as tf
     # 注意， bias1 的定义方式
@@ -73,6 +73,32 @@ def t4():
     res= np.equal(a,b)
     print(np.alltrue(res))
     np.savetxt()
+
+def test_abs_name_scope():
+    with tf.Graph().as_default() as g:
+        with g.name_scope("nested") as scope:
+            nested_c = tf.constant(10.0, name="c")
+            print("nested_c: ", nested_c.op.name)
+
+            assert nested_c.op.name == "nested/c"
+            # Create a nested scope called "inner".
+            with g.name_scope("inner"):
+                nested_inner_c = tf.constant(30.0, name="c")
+                print("nested_inner_c name: ", nested_inner_c)
+                assert nested_inner_c.op.name == "nested/inner/c"
+
+                # Treats `scope` as an absolute name scope,
+                # and switches to the "nested/" scope.
+                with g.name_scope(scope):
+                    nested_d = tf.constant(40.0, name="d")
+                    assert nested_d.op.name == "nested/d"
+
+                    # reset name scope
+                    with g.name_scope(""):
+                        e = tf.constant(50.0, name="e")
+                    assert e.op.name == "e"
 #t2()
 t3()
 #t4()
+
+test_abs_name_scope()
