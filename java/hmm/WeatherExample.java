@@ -17,14 +17,16 @@ public class WeatherExample
         clean,
     }
     // 观测到的序列下标
-    static int[] observations = new int[]{Activity.walk.ordinal(), 
+    static int[] observations = new int[]{
+        Activity.walk.ordinal(), 
         Activity.shop.ordinal(), 
         Activity.clean.ordinal(), 
         Activity.shop.ordinal(),
         Activity.walk.ordinal()};
 
     // 初始隐式状态
-    static int[] states = new int[]{Weather.Rainy.ordinal(), 
+    static int[] states = new int[]{
+        Weather.Rainy.ordinal(), 
         Weather.Sunny.ordinal()
     }; // ordinal:为enum的下标
 
@@ -45,7 +47,11 @@ public class WeatherExample
     {
         // 用维特比算法，解码隐状态序列，根据观测到的序列，来推断其最可能的隐状态序列
         // 在已经知晓其活动的序列后，我们去推断当地的天气
-        int[] result = Viterbi.compute(observations, states, start_probability, transititon_probability, emission_probability);
+        int[] result = Viterbi.compute(observations, 
+            states, 
+            start_probability, 
+            transititon_probability, 
+            emission_probability);
         for (int r : result)
         {
             System.out.print(Weather.values()[r] + " "); // 通过下标获取原始string
