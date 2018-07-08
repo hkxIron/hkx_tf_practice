@@ -22,7 +22,7 @@ for i in range(2):
 # 用装饰器来实现对类成员的约束
 # decorator with arguments
 def hkx_deco(*args, **kwargs):
-    def wrapper(cls):
+    def wrapper(cls): # class为class
         for k, v in kwargs.items():
             print('key: %s, value: %s' % (k, v))
         return cls
