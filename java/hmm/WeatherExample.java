@@ -3,25 +3,34 @@ import com.hankcs.algorithm.Viterbi;
 
 public class WeatherExample
 {
+    // 隐式状态概率
     enum Weather
     {
         Rainy,
         Sunny,
     }
+    // 显式状态
     enum Activity
     {
         walk,
         shop,
         clean,
     }
-    // 观测到的序列
-    static int[] observations = new int[]{Activity.walk.ordinal(), Activity.shop.ordinal(), Activity.clean.ordinal(), Activity.shop.ordinal(),Activity.walk.ordinal()};
+    // 观测到的序列下标
+    static int[] observations = new int[]{Activity.walk.ordinal(), 
+        Activity.shop.ordinal(), 
+        Activity.clean.ordinal(), 
+        Activity.shop.ordinal(),
+        Activity.walk.ordinal()};
 
-    static int[] states = new int[]{Weather.Rainy.ordinal(), Weather.Sunny.ordinal()}; // ordinal:为enum的下标
+    // 初始隐式状态
+    static int[] states = new int[]{Weather.Rainy.ordinal(), 
+        Weather.Sunny.ordinal()
+    }; // ordinal:为enum的下标
 
-    // 初始状态概率
+    // 初始隐式状态概率
     static double[] start_probability = new double[]{0.6, 0.4};
-    // 隐状态转移概率
+    // 隐式状态转移概率
     static double[][] transititon_probability = new double[][]{
             {0.7, 0.3},
             {0.4, 0.6},
@@ -39,7 +48,7 @@ public class WeatherExample
         int[] result = Viterbi.compute(observations, states, start_probability, transititon_probability, emission_probability);
         for (int r : result)
         {
-            System.out.print(Weather.values()[r] + " ");
+            System.out.print(Weather.values()[r] + " "); // 通过下标获取原始string
         }
         System.out.println();
     }

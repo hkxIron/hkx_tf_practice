@@ -31,7 +31,7 @@ package com.hankcs.algorithm;
 public class Viterbi
 {
     /**
-     * 求解HMM模型
+     * 解码HMM序列:通过显式序列推测其隐式序列,前提是:HMM模型已知,即转移概率与发射概率已知
      * @param obs 观测序列
      * @param states 隐状态
      * @param start_p 初始概率（隐状态）
@@ -42,38 +42,33 @@ public class Viterbi
     public static int[] compute(int[] obs, int[] states, double[] start_p, double[][] trans_p, double[][] emit_p)
     {
         // 观测到此序列的概率矩阵
-        double[][] V = new double[obs.length][states.length]; // 5*2, 观测序列矩阵的概率
+        double[][] V = new double[obs.length][states.length]; // 5*2, 观测序列矩阵的概率,即每行表示,对于该次显状态,它的各个隐状态的概率分别是多少.
         int[][] path = new int[states.length][obs.length]; // 2*5
 
-        for (int state : states)
-        {
-            // 初始状态概率*在此状态下的发射概率
+        for (int state : states) {
+            // 初始状态概率*在此状态下的发射显状态obs[0]的概率
             V[0][state] = start_p[state] * emit_p[state][obs[0]];
             path[state][0] = state;
         }
 
         // 从下一个状态（index=1）开始
-        for (int t = 1; t < obs.length; ++t)
-        {
+        for (int t = 1; t < obs.length; ++t) {
             int[][] newpath = new int[states.length][obs.length]; // 2*5
-            // 对于当前的每个状态，计算一个最大的概率
-            for (int cur_state : states)
-            {
+            // 对于当前的每个隐状态，计算一个产生此显状态的最大的概率
+            for (int cur_state : states) {
                 double max_trainsfer_prob = -1.0;
                 int max_prob_pre_state;
                 // 当前每个状态的概率，依赖于前一个状态的概率
-                for (int pre_state : states)
-                {
-                    // 计算最大的转移概率
+                for (int pre_state : states) {
+                    // 计算最大的转移概率(由于发射概率相同,所以发射概率不用比)
                     double trainsfer_prob = V[t - 1][pre_state] * trans_p[pre_state][cur_state];
-                    if (trainsfer_prob > max_trainsfer_prob)
-                    {
+                    if (trainsfer_prob > max_trainsfer_prob) {
                         max_trainsfer_prob = trainsfer_prob;
                         max_prob_pre_state = pre_state;
-                        // 记录最大概率 = 转移*发射
+                        // 记录最大概率 = 转移 * 发射
                         V[t][cur_state] = max_trainsfer_prob* emit_p[cur_state][obs[t]];
                         // 记录路径
-                        System.arraycopy(path[max_prob_pre_state], 0, newpath[cur_state], 0, t); // 将path[a]这一行的值拷到path[b]中
+                        System.arraycopy(path[max_prob_pre_state], 0, newpath[cur_state], 0, t); // 将path[a]这一行的值拷到path[b]中,元素个数为t
                         newpath[cur_state][t] = cur_state;
                     }
                 }
@@ -81,18 +76,16 @@ public class Viterbi
             path = newpath;
         }
 
-        // 找出最后一天里，概率最大的状态即为最终结果
+        // 找出最后一天里，概率最大的隐状态
         double max_prob = -1;
         int state = 0;
-        for (int y : states)
-        {
-            if (V[obs.length - 1][y] > max_prob)
-            {
+        for (int y : states) {
+            if (V[obs.length - 1][y] > max_prob) {
                 max_prob = V[obs.length - 1][y];
                 state = y;
             }
         }
         System.out.println(String.format("prob:%.8f",max_prob));
-        return path[state];
+        return path[state]; // 产生此显式序列的最优隐式序列
     }
 }

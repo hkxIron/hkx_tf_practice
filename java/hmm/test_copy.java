@@ -26,7 +26,7 @@ public class test_copy
         print_arr(a);
 
         int[][] b = new int[2][3];
-        System.arraycopy(a[0], 0, b[0], 0, 3); // 将a[0]这一行拷到b[0]那一行去
+        System.arraycopy(a[0], 0, b[0], 0, 3); // 将a[0]这一行拷到b[0]那一行去,长度为3
 
         print_arr(b);
     }
