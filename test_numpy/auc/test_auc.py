@@ -95,10 +95,7 @@ def plotROC3(predScore, labels):
     fig = plt.figure()
     fig.clf()
     ax = plt.subplot(111)
-    tpr_list = []
-    fpr_list = []
     for index in sortedIndex:
-        threshold = predScore[index]
         # 此时坐标(fpr,tpr)即为roc曲线中的点
         # ------------
         if labels[index] == 1.0: #如果正样本各入加1，则x不走动，y往下走动一步
