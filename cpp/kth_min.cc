@@ -41,7 +41,8 @@ public:
         //int pos = partition(input, left, right);
         if(pos == k-1){
             return;
-        }else if (pos < k-1){ // 它与快排的区别是,它只会使某一边的部分有序
+        }else if (pos < k-1){ // 它与快排的区别是,它只会找到第k个后停止
+            // 注意,此法虽然找到前k个元素,但这k个元素之间并不一定有序
             GetLeastNumbersPartition(input, pos+1, right, k); // 第k大在右边
         }else{
             GetLeastNumbersPartition(input, left, pos-1, k); // 第k大在左边
@@ -57,17 +58,18 @@ public:
     */
     int partition_book(vector<int> &a, int low, int high){
         int pivot = a[low] ;
+        // 一直进行交换,直到左右指针相遇
         while(low<high){
             while(low<high&&a[high]>=pivot) --high; // 将右边小于pivot的找出来
             a[low] = a[high];
             while(low<high&&a[low]<=pivot) ++low; // 将左边大于pivot的找出来
             a[high] = a[low];
         }
-        a[low] = pivot;
+        a[low] = pivot; // 找到pivot的位置
         return low; // 此时low与high相等,也即是pivot的索引值
     }
 
-    // 这个是本程序原始的划分
+    // 这个是本程序原始的划分,有点没看懂
     int partition(vector<int> &input, int left, int right){
         if(left > right)
             return -1;
