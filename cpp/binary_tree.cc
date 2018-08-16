@@ -308,7 +308,7 @@ void zig_zag_visit_tree(tree* root, void(*fun)(tree *)) {
   if(p == nullptr) return;
   vector<tree*> que;
   que.push_back(p);   
-  int level = 1;
+  int level = 0;
   while(!que.empty()){
     int count_in_level = que.size(); //本层需要遍历节点的个数
     cout<<"level count:"<<count_in_level<<endl;
@@ -316,13 +316,17 @@ void zig_zag_visit_tree(tree* root, void(*fun)(tree *)) {
         p = que.front(); // 获取队首
         fun(p); // 访问当前节点
         que.erase(que.begin(), que.begin()+1); // 弹出队首
+        int num_of_last_level = count_in_level - i - 1;
         if(level%2==0){
-            if(p->left) que.push_back(p->left); //后插
-            if(p->right) que.push_back(p->right);
-        }else{
-            int num_of_last_level = count_in_level - i - 1;
+            //if(p->left) que.push_back(p->left); //后插
+            //if(p->right) que.push_back(p->right);
+            //不管是否逆序,都需要前插,达到类似于stack的效果
             if(p->left) que.insert(que.begin()+num_of_last_level, p->left); // 前插时，要在上一层之后的元素后面开始插入
             if(p->right) que.insert(que.begin()+num_of_last_level, p->right);
+        }else{
+            // 当上一层是逆序时,本层需要从右孩子前插
+            if(p->right) que.insert(que.begin()+num_of_last_level, p->right);
+            if(p->left) que.insert(que.begin()+num_of_last_level, p->left); // 前插时，要在上一层之后的元素后面开始插入
         }
     }
     level++;
@@ -436,13 +440,13 @@ int main(){
             b   j
            / \
           c   d
-         /    / \
-         h   e   f
-        /   /  \
-       k   i    g
+         /\   / \
+         h m  e   f
+        /   /  \  \
+       k   i    g  l
         
         */
-        char a[100]="abchk####dei##g##f##j##"; //从先序序列（含有#）中建立二叉树 
+        char a[100]="abchk###m##dei##g##f#l##j##"; //从先序序列（含有#）中建立二叉树 
         char* p_str=a;
         tree* root=create_tree(p_str);
         cout<<"\n层次访问二叉树:"<<endl;
