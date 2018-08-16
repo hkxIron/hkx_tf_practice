@@ -1,11 +1,13 @@
-// g++ -std=c++11 -o tree binary_tree.cc &&./tree.exe
+// g++ -std=c++11 -o tree binary_tree.cc &&./tree
 // blog:https://github.com/hkxIron/algorithm/blob/master/sword_offer/src/023.cpp
 
 #include<algorithm>
 #include<iostream>
 #include<iterator>
-#include<stack>
 #include<string.h>
+#include<stack>
+#include<vector>
+#include<queue>
 using namespace std;
 
 struct tree{
@@ -250,6 +252,83 @@ bool is_symmetrical(tree* root){
     return is_symmetrical(root->left,root->right);
 }
 
+/* z字型遍历二叉树,如：
+         8
+       /  \
+      6    9
+      \   / \
+      7  4   5
+其序列顺序为:
+ 8 
+ 9 6 
+ 7 4 5
+思想是层次遍历，加上方向判断
+
+queue的用法：
+queue与stack模版非常类似，queue模版也需要定义两个模版参数，一个是元素类型，一个是容器类型，元素类型是必要的，容器类型是可选的，默认为dqueue类型。
+
+定义queue对象的示例代码如下：
+queue<int>q1;
+queue<double>q2;
+queue的基本操作有：
+1.入队：如q.push(x):将x元素接到队列的末端；
+2.出队：如q.pop() 弹出队列的第一个元素，并不会返回元素的值；
+3,访问队首元素：如q.front()
+4,访问队尾元素，如q.back();
+5,访问队中的元素个数，如q.size();
+
+由于需要前插，此处使用vector
+
+*/ 
+
+// 层次遍历
+void level_visit_tree(tree* root, void(*fun)(tree *)) {
+  tree*p = root;
+  if(p == nullptr) return;
+  vector<tree*> que;
+  que.push_back(p);   
+  int level = 0;
+  while(!que.empty()){
+    int count_in_level = que.size(); //本层需要遍历节点的个数
+    for(int i=0;i<count_in_level;i++){
+        p = que.front(); // 获取队首
+        fun(p); // 访问当前节点
+        que.erase(que.begin(), que.begin()+1); // 弹出队首
+        if(p->left) que.push_back(p->left); //后插
+        if(p->right) que.push_back(p->right);
+    }
+    cout<<endl;
+    level++;
+  }
+}
+
+// 好像有bug,但并未找到bug在哪里
+void zig_zag_visit_tree(tree* root, void(*fun)(tree *)) {
+  tree*p = root;
+  if(p == nullptr) return;
+  vector<tree*> que;
+  que.push_back(p);   
+  int level = 1;
+  while(!que.empty()){
+    int count_in_level = que.size(); //本层需要遍历节点的个数
+    cout<<"level count:"<<count_in_level<<endl;
+    for(int i=0;i<count_in_level;i++){
+        p = que.front(); // 获取队首
+        fun(p); // 访问当前节点
+        que.erase(que.begin(), que.begin()+1); // 弹出队首
+        if(level%2==0){
+            if(p->left) que.push_back(p->left); //后插
+            if(p->right) que.push_back(p->right);
+        }else{
+            int num_of_last_level = count_in_level - i - 1;
+            if(p->left) que.insert(que.begin()+num_of_last_level, p->left); // 前插时，要在上一层之后的元素后面开始插入
+            if(p->right) que.insert(que.begin()+num_of_last_level, p->right);
+        }
+    }
+    level++;
+    cout<<endl;
+  }
+}
 
 int main(){
     // 利用完全二叉树的数组表示，#代表空结点
@@ -264,7 +343,7 @@ int main(){
          \
           g
     */
-    char a[100]="abc##de#g##f###";
+    char a[100]="abc##de#g##f###"; //从先序序列（含有#）中建立二叉树 
     int len = strlen(a);
     cout<<"len:"<<len<<" size_of:"<<sizeof(a)<<endl;
     char* p_str=a;
@@ -345,9 +424,35 @@ int main(){
     tree* p_c = root->left->left;
     tree* p_g = root->left->right->left->right;
     tree * p_common = lowest_common_ancestor(root, p_c, p_g);
-    cout<<"\ncommon ancesor:"<<p_common->data<<endl;
+    cout<<"\ncommon ancesor:"<<p_common->data<<endl; // b
     //--------------------------
     cout<<"\ndelete tree:"<<endl;
     post_order_visit(root,delete_tree);
+    //----------------
+    {
+        /*
+              a
+             / \
+            b   j
+           / \
+          c   d
+         /    / \
+         h   e   f
+        /   /  \
+       k   i    g
+        
+        */
+        char a[100]="abchk####dei##g##f##j##"; //从先序序列（含有#）中建立二叉树 
+        char* p_str=a;
+        tree* root=create_tree(p_str);
+        cout<<"\n层次访问二叉树:"<<endl;
+        level_visit_tree(root, visit);
+        cout<<"\nzig zag访问二叉树:"<<endl;
+        zig_zag_visit_tree(root, visit);
+        cout<<"\npost order tree:"<<endl;
+        post_order_visit(root,visit);
+        cout<<"\ndelete tree:"<<endl;
+        post_order_visit(root,delete_tree);
+    }
     return 0;
 }
