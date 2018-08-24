@@ -65,21 +65,60 @@ node* reverse_link_list(node* head){
     return p;
 }
 
+// 链表反转 
+// 下面的代码必须注意一点，跳出while循环的时候，最后一个结点的next域别忘记指向前一个结点，否则就会导致“断链”。
+node* reverse_link_list2(node* pHead) {
+    node *root=pHead; 
+    node *pre=NULL;  
+    node *next=NULL;
+    if(pHead==NULL) return NULL; 
+    while(root->next){  
+        next=root->next; // 暂存下一下节点
+        root->next=pre; // 更改当前节点的next
+        pre=root; // pre指针移动
+        root=next; // 当前指针移动
+    }    
+    root->next=pre;  // 最后节点next指向pre
+    return root; 
+}
+
 int main(){
-   int arr[] = { -1,2,5,6,10,8,9,20}; 
-   int len = sizeof(arr)/sizeof(int);
-   cout<<"arr size:"<<len<<endl;
+    {
+       int arr[] = { -1,2,5,6,10,8,9,20}; 
+       int len = sizeof(arr)/sizeof(int);
+       cout<<"arr size:"<<len<<endl;
 
-   cout<<"create link list:"<<endl;
-   node* list = head_insert(arr, len);
+       cout<<"create link list:"<<endl;
+       node* list = head_insert(arr, len);
 
-   cout<<"visit link list:"<<endl;
-   link_list_visit(list, visit_node); 
+       cout<<"visit link list:"<<endl;
+       link_list_visit(list, visit_node); 
 
-   cout<<"\nreverse link list:"<<endl;
-   node* reversed_link = reverse_link_list(list);
-   link_list_visit(reversed_link, visit_node); 
+       cout<<"\nreverse link list:"<<endl;
+       node* reversed_link = reverse_link_list(list);
+       link_list_visit(reversed_link, visit_node); 
 
-   cout<<"\ndelete link list"<<endl;
-   link_list_visit(list, delete_node); 
+       cout<<"\ndelete link list"<<endl;
+       link_list_visit(list, delete_node); 
+    }
+
+    {
+       int arr[] = { -1,2,5,6,10,8,9,20}; 
+       int len = sizeof(arr)/sizeof(int);
+       cout<<"arr size:"<<len<<endl;
+
+       cout<<"create link list:"<<endl;
+       node* list = head_insert(arr, len);
+
+       cout<<"visit link list:"<<endl;
+       link_list_visit(list, visit_node); 
+
+       cout<<"\nreverse link list2:"<<endl;
+       node* reversed_link = reverse_link_list2(list);
+       link_list_visit(reversed_link, visit_node); 
+
+       cout<<"\ndelete link list"<<endl;
+       link_list_visit(list, delete_node); 
+    }
+
 }
