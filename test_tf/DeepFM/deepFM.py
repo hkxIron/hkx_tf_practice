@@ -69,7 +69,7 @@ class DeepFM(object):
         #return _bins_to_cuts(x, bins, labels=labels, retbins=retbins, precision=precision, include_lowest=True)
 
     def sigmoid(self,logits):
-        return (1/(1+tf.exp(-logits)))
+        return (1/(1+tf.exp(-logits))) # 为啥不用tf.sigmoid()
 
 
     def load_data(self, train_dfn="data/adult.data", test_dfn="data/adult.test"):
@@ -84,9 +84,9 @@ class DeepFM(object):
             urlretrieve("https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.test", test_dfn)
             print("Test data is downloaded to %s" % test_dfn)
 
-        self.train_data = pd.read_csv(train_dfn, names=COLUMNS, skipinitialspace=True)
-        self.test_data = pd.read_csv(test_dfn, names=COLUMNS, skipinitialspace=True, skiprows=1)
-
+        self.train_data = pd.read_csv(train_dfn, names=COLUMNS, skipinitialspace=True) # dataframe
+        self.test_data = pd.read_csv(test_dfn, names=COLUMNS, skipinitialspace=True, skiprows=1) # 跳过第一行
+        #对income列进行判断,如果 >50K为正样本,否则为负样本,并转成int
         self.train_data[self.label_column] = (self.train_data["income_bracket"].apply(lambda x: ">50K" in x)).astype(int)
         self.test_data[self.label_column] = (self.test_data["income_bracket"].apply(lambda x: ">50K" in x)).astype(int)
 
@@ -111,7 +111,8 @@ class DeepFM(object):
         td.drop(['age'], axis = 1, inplace = True)
         print ("  %d age bins: age bins = %s" % (len(age_bins), age_bins))
 
-        td=td[self.continuous_columns+self.categorical_columns.keys()]
+        #td=td[self.continuous_columns+self.categorical_columns.keys()],原始python2.7
+        td=td[self.continuous_columns+list(self.categorical_columns.keys())] # python3
 
         for col in self.categorical_columns.keys():
             td[col]=td[col].astype('category')
@@ -197,7 +198,7 @@ class DeepFM(object):
         return y_output
 
 
-    def train(self, n_epoch=1000, snapshot_step=10, batch_size=1000,learning_rate=0.01):
+    def train(self, n_epoch=1000, snapshot_step=30, batch_size=1000,learning_rate=0.01):
 
         X_mat, Y_mat,X_codes_mat = self.prepare_input_data(self.train_data)
         X_test_mat, Y_test_mat,X_test_codes_mat = self.prepare_input_data(self.test_data)
