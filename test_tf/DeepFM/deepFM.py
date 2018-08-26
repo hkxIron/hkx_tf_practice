@@ -21,7 +21,7 @@ import pandas.core.algorithms as algos
 import tensorflow as tf
 
 #-----------------------------------------------------------------------------
-
+# 数据中列名
 COLUMNS = ["age", "workclass", "fnlwgt", "education", "education_num",
            "marital_status", "occupation", "relationship", "race", "gender",
            "capital_gain", "capital_loss", "hours_per_week", "native_country",
@@ -101,36 +101,40 @@ class DeepFM(object):
         #Y = Y.reshape([-1, 1])
         #Y=pd.get_dummies(td[self.label_column])
         Y=pd.DataFrame(data=td[self.label_column].values, columns=[self.label_column])
-        td.drop(self.label_column,axis=1,inplace=True)
+        td.drop(self.label_column,axis=1,inplace=True) # 将数据中label列去掉
 
 
         # bin ages (cuts off extreme values)
         age_bins = [ 0, 12, 18, 25, 30, 35, 40, 45, 50, 55, 60, 65, 80, 65535 ]
-        td['age_binned'] = pd.cut(td['age'], age_bins, labels=False)
-        td = td.replace({'age_binned': {np.nan: 0}})
-        td.drop(['age'], axis = 1, inplace = True)
+        td['age_binned'] = pd.cut(td['age'], age_bins, labels=False) # 将年龄分组
+        td = td.replace({'age_binned': {np.nan: 0}}) # 将nan替换成0
+        td.drop(['age'], axis = 1, inplace = True)  # 将原始年龄删除
         print ("  %d age bins: age bins = %s" % (len(age_bins), age_bins))
 
         #td=td[self.continuous_columns+self.categorical_columns.keys()],原始python2.7
+        # 取原始数据中的部分列进行预测
         td=td[self.continuous_columns+list(self.categorical_columns.keys())] # python3
 
+        # 类别数据离散化
         for col in self.categorical_columns.keys():
             td[col]=td[col].astype('category')
-            td['code_%s' % col]=td[col].cat.codes
+            td['code_%s' % col]=td[col].cat.codes  # 数据所处bin的下标, nan为 -1
 
+        # 连续数据离散化
         for col in self.continuous_columns:
             if not col in input_data.columns:
                 continue
             bins_count = min(self.max_bins, len(td[col].unique()) - 1)
-            bins,_=self._qcut(td[col].values, bins_count,labels=False,retbins=True)
-            td[("code_%s" % col)]= pd.Series(bins)
+            bins, _=self._qcut(td[col].values, bins_count,labels=False,retbins=True)
+            td[("code_%s" % col)]= pd.Series(bins) # 将原始连续数据离散化
             td=td.replace({("code_%s" % col): {np.nan: -1}})
 
         code_columns=[i for i in td.columns.values if i.startswith('code_')]
-        X_codes=td[code_columns].astype(np.int32)
+        X_codes=td[code_columns].astype(np.int32) #将离散值变成int32
         td.drop(code_columns,axis=1,inplace=True)
 
-        td=pd.get_dummies(td,columns=self.categorical_columns.keys())
+        # 得到indicator矩阵
+        td=pd.get_dummies(td, columns=self.categorical_columns.keys())
 
         X_mat=td.as_matrix()
         Y_mat=Y.as_matrix()
@@ -162,15 +166,19 @@ class DeepFM(object):
         n_hidden2=100
         n_output=1
 
+        # y_fm = <w*x> + sum_j1 sum_j2 <Vi,Vj> x_j1 * x_j2
         # bias and weights
-        w0 = tf.Variable(tf.zeros([1]))
-        W = tf.Variable(tf.zeros([feature_size]))
+        # FM 一阶特征部分: w*x
+        w0 = tf.Variable(tf.zeros([1])) # 1
+        W = tf.Variable(tf.zeros([feature_size])) # featured_size
 
         # interaction factors, randomly initialized
-        random_vector = np.random.rand(sample_size, embed_size ).astype(np.float32)
+        # FM二阶交互式特征部分
+        random_vector = np.random.rand(sample_size, embed_size).astype(np.float32)
         inter_vector = tf.Variable(random_vector)
 
-        V =tf.reshape(tf.nn.embedding_lookup(inter_vector, X_code),[sample_size,feature_code_size*embed_size])
+        V =tf.reshape(tf.nn.embedding_lookup(inter_vector, X_code),
+                      [sample_size,feature_code_size*embed_size])
 
 
         second_order = np.zeros([sample_size,1])
@@ -199,7 +207,7 @@ class DeepFM(object):
 
 
     def train(self, n_epoch=1000, snapshot_step=30, batch_size=1000,learning_rate=0.01):
-
+        # 将原始数据离散化成0,1
         X_mat, Y_mat,X_codes_mat = self.prepare_input_data(self.train_data)
         X_test_mat, Y_test_mat,X_test_codes_mat = self.prepare_input_data(self.test_data)
 

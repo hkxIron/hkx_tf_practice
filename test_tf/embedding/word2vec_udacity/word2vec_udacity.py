@@ -185,8 +185,13 @@ with graph.as_default(), tf.device('/cpu:0'):
     # 并且sampled_softmax仅用于训练，而在测试时使用标准的softmax
     # tf的文档上建议将partition_strategy="div"
     loss = tf.reduce_mean(
-        tf.nn.sampled_softmax_loss(weights=softmax_weights, biases=softmax_biases, inputs=embed,
-                                   labels=train_labels, num_sampled=num_sampled, num_classes=vocabulary_size,partition_strategy="div"))
+        tf.nn.sampled_softmax_loss(weights=softmax_weights,
+                                   biases=softmax_biases,
+                                   inputs=embed,
+                                   labels=train_labels,
+                                   num_sampled=num_sampled,
+                                   num_classes=vocabulary_size,
+                                   partition_strategy="div"))
 
     # Optimizer.
     # Note: The optimizer will optimize the softmax_weights AND the embeddings.
