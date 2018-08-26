@@ -137,9 +137,12 @@ class EmbeddingTest(test.TestCase):
             ],dtype=tf.int32)
             ids=np.array([0, 2, 1, 0])
             result = tf.nn.embedding_lookup(embedding,ids).eval()
-            expect_result= constant_op.constant([[ 1,  2,  3], [ 7, 8,  9], [ 4,  5,  6], [ 1,  2, 3]]).eval()
+            expect_result= constant_op.constant([[ 1,  2,  3],
+                                                 [ 7, 8,  9],
+                                                 [ 4,  5,  6],
+                                                 [ 1,  2, 3]]).eval()
             print("result: \n", result)
-            self.assertAllEqual(result,expect_result)
+            self.assertAllEqual(result,expect_result) #2+1-1=2
 
             gather_ids = np.array([0, 2, 1, 0])
             result = tf.nn.embedding_lookup(embedding,gather_ids).eval()
@@ -148,7 +151,7 @@ class EmbeddingTest(test.TestCase):
 
             """
             下面的例子中：
-            由于输入ids是2d，所以result是3d,即总的维数是embedding的维数加上ids的维数
+            由于输入ids是2d，所以result是3d,即总的维数是embedding的维数加上ids的维数 -1
             ids的每个元素均代码embedding里的一行，即embedding[i,:],
             [
               [embedding[0,:],embedding[2,:]],
@@ -157,9 +160,9 @@ class EmbeddingTest(test.TestCase):
             
             """
             ids=np.array([[0, 2],
-                          [ 1, 0]])
+                          [1, 0]])
             print("ids in 2D array: ",ids)
-            result = tf.nn.embedding_lookup(embedding,ids).eval()
+            result = tf.nn.embedding_lookup(embedding, ids).eval()
             #result = tf.gather(embedding,ids).eval() 与embedding_lookup是一样的功能
             print("result in 2D: \n", result)
             expect_result= constant_op.constant([[[ 1,  2,  3], [ 7, 8,  9]],

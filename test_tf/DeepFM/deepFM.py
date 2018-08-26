@@ -1,5 +1,7 @@
 """
 python3
+origin: https://github.com/zgw21cn/DeepFM
+并非论文作者
 paper: https://arxiv.org/abs/1703.04247
 deepFM, using TensorFlow.
 """
@@ -156,17 +158,19 @@ class DeepFM(object):
                 return z
 
 
-    def build_model(self, X,X_code):
+    def build_model(self, X, X_code):
 
-        sample_size,feature_size=X.get_shape().as_list()
-        feature_code_size=X_code.get_shape().as_list()[1]
+        sample_size, feature_size=X.get_shape().as_list() # 1000 * 118
+        feature_code_size=X_code.get_shape().as_list()[1] # 1000 * 13
+
+        # x_i为x向量中的某一维
+        # y_fm = sum_i { w_i*x_i } + sum_i sum_j { <Vi,Vj> x_i * x_j }, Vi为k维
         # number of latent factors
-        embed_size = 5
+        embed_size = 5  # k = embed_size
         n_hidden1=300
         n_hidden2=100
         n_output=1
 
-        # y_fm = <w*x> + sum_j1 sum_j2 <Vi,Vj> x_j1 * x_j2
         # bias and weights
         # FM 一阶特征部分: w*x
         w0 = tf.Variable(tf.zeros([1])) # 1
@@ -174,8 +178,9 @@ class DeepFM(object):
 
         # interaction factors, randomly initialized
         # FM二阶交互式特征部分
-        random_vector = np.random.rand(sample_size, embed_size).astype(np.float32)
-        inter_vector = tf.Variable(random_vector)
+        # 感觉实现有问题!
+        random_vector = np.random.rand(sample_size, embed_size).astype(np.float32) # batch * embed_size
+        inter_vector = tf.Variable(random_vector) # batch * embed_size, 想不明白,为何参数与batch相关,此处有误?
 
         V =tf.reshape(tf.nn.embedding_lookup(inter_vector, X_code),
                       [sample_size,feature_code_size*embed_size])
@@ -219,7 +224,7 @@ class DeepFM(object):
         X_code = tf.placeholder(tf.int32, [batch_size,feature_code_size])
         Y=tf.placeholder(tf.float32,[batch_size,1])
 
-        y_output=self.build_model(X,X_code)
+        y_output=self.build_model(X, X_code)
 
         cost=tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=y_output,labels=Y))
         optimizer=tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
