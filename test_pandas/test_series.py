@@ -1,3 +1,6 @@
+# 详细tutorial请见: https://github.com/hkxIron/pydata-notebook
+# 英文版 https://github.com/wesm/pydata-book
+
 from pandas import Series, DataFrame
 import pandas as pd
 from numpy.random import randn
