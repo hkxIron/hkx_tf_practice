@@ -54,59 +54,72 @@ class DeepFM(object):
         V = tf.Variable(tf.truncated_normal(shape=[self.feature_length, self.k], mean=0, stddev=0.01), dtype='float32')
 
         # Factorization Machine
+        # 感觉可以用 sparseTensor来实现
         with tf.variable_scope('FM'):
             b = tf.get_variable('bias', shape=[2],
                                 initializer=tf.zeros_initializer())
             w1 = tf.get_variable('w1', shape=[self.feature_length, 2], # feature_len * 2
                                  initializer=tf.truncated_normal_initializer(mean=0,stddev=1e-2))
             # shape of [None, 2]
-            # 一阶的线性部分
+            # 一阶的线性部分, 为什么是2呢
             self.linear_terms = tf.add(tf.matmul(self.X, w1), b)  # X: batch*feature_len, w1: feature_len*2
 
             # 二阶交叉部分
+            # 感觉有些问题,deepfm中的二阶项其实并未相加,而是concat起来,
+            # 成为一个 feature_group_count*(feature_group_count-1)/2的向量
             # shape of [None, 1]
-            self.interaction_terms = tf.multiply(0.5,
-                                                 tf.reduce_mean(
-                                                     tf.subtract(
-                                                         tf.pow(tf.matmul(self.X, V), 2), # X:batch*feature_len, V:feature_len*K
-                                                         tf.matmul(tf.pow(self.X, 2), tf.pow(V, 2))),
-                                                     1, keep_dims=True))
+            self.interaction_terms = tf.multiply(0.5, tf.reduce_mean( # 求平均
+                                                         tf.subtract(
+                                                             tf.pow(tf.matmul(self.X, V), 2), # X:batch*feature_len, V:feature_len*K, X*V: batch* K
+                                                             tf.matmul(tf.pow(self.X, 2), tf.pow(V, 2))), # 同上
+                                                         axis=1,
+                                                         keep_dims=True
+                                                     )
+                                                 )
             # shape of [None, 2]
+            # linear: batch * 2
+            # interaction: batch * 1
+            # 维度不一致,相加时会自动进行广播
             self.y_fm = tf.add(self.linear_terms, self.interaction_terms)
 
         # three-hidden-layer neural network, network shape of (200-200-200)
         with tf.variable_scope('DNN',reuse=False):
             # embedding layer
+            # V: feature_len*K  feature_ids: batch*feature_group_cnt
+            # y_embedding_input: batch*(feature_group_cnt*K)
             y_embedding_input = tf.reshape(tf.gather(V, self.feature_inds), [-1, self.field_cnt * self.k])
             # first hidden layer
-            w1 = tf.get_variable('w1_dnn', shape=[self.field_cnt*self.k, 200],
+            w1 = tf.get_variable('w1_dnn', shape=[self.field_cnt*self.k, 200], # (feature_group_count*K) * 200
                                  initializer=tf.truncated_normal_initializer(mean=0,stddev=1e-2))
-            b1 = tf.get_variable('b1_dnn', shape=[200],
+            b1 = tf.get_variable('b1_dnn', shape=[200], # 200
                                  initializer=tf.constant_initializer(0.001))
-            y_hidden_l1 = tf.nn.relu(tf.matmul(y_embedding_input, w1) + b1)
+            y_hidden_l1 = tf.nn.relu(tf.matmul(y_embedding_input, w1) + b1) # y_hidden_l1: batch*200
             # second hidden layer
             w2 = tf.get_variable('w2', shape=[200, 200],
                                  initializer=tf.truncated_normal_initializer(mean=0,stddev=1e-2))
             b2 = tf.get_variable('b2', shape=[200],
                                  initializer=tf.constant_initializer(0.001))
-            y_hidden_l2 = tf.nn.relu(tf.matmul(y_hidden_l1, w2) + b2)
+            y_hidden_l2 = tf.nn.relu(tf.matmul(y_hidden_l1, w2) + b2) # y_hidden_l2: batch*200
             # third hidden layer
             w3 = tf.get_variable('w1', shape=[200, 200],
                                  initializer=tf.truncated_normal_initializer(mean=0,stddev=1e-2))
             b3 = tf.get_variable('b1', shape=[200],
                                  initializer=tf.constant_initializer(0.001))
-            y_hidden_l3 = tf.nn.relu(tf.matmul(y_hidden_l2, w3) + b3)
+            y_hidden_l3 = tf.nn.relu(tf.matmul(y_hidden_l2, w3) + b3) # y_hidden_l3: batch*200
             # output layer
             w_out = tf.get_variable('w_out', shape=[200, 2],
                                  initializer=tf.truncated_normal_initializer(mean=0,stddev=1e-2))
             b_out = tf.get_variable('b_out', shape=[2],
                                  initializer=tf.constant_initializer(0.001))
-            self.y_dnn = tf.nn.relu(tf.matmul(y_hidden_l3, w_out) + b_out)
+            self.y_dnn = tf.nn.relu(tf.matmul(y_hidden_l3, w_out) + b_out) # y_dnn: batch*2
         # add FM output and DNN output
+        # y_fm: batch*2, y_dnn: batch*2
+        # y_out: batch*2
         self.y_out = tf.add(self.y_fm, self.y_dnn)
         self.y_out_prob = tf.nn.softmax(self.y_out)
 
     def add_loss(self):
+        # 其实对于二分类而言,用sigmoid就足够了
         cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.y, logits=self.y_out)
         mean_loss = tf.reduce_mean(cross_entropy)
         self.loss = mean_loss
@@ -123,7 +136,8 @@ class DeepFM(object):
         # Applies exponential decay to learning rate
         self.global_step = tf.Variable(0, trainable=False)
         # define optimizer
-        optimizer = tf.train.FtrlOptimizer(self.lr, l1_regularization_strength=self.reg_l1,
+        optimizer = tf.train.FtrlOptimizer(self.lr,
+                                           l1_regularization_strength=self.reg_l1,
                                            l2_regularization_strength=self.reg_l2)
         extra_update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(extra_update_ops):
