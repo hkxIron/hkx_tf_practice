@@ -1,3 +1,4 @@
+# 该代码是deepfm的严格实现, 只是效率可能有些低
 # coding:utf-8
 import os
 import sys
@@ -6,7 +7,7 @@ rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
 import tensorflow as tf
 import numpy as np
-from Deep_FM.utilities import *
+from .utilities import *
 import math
 import pandas as pd
 import logging
@@ -61,11 +62,10 @@ class DeepFM(object):
             w1 = tf.get_variable('w1', shape=[self.feature_length, 2], # feature_len * 2
                                  initializer=tf.truncated_normal_initializer(mean=0,stddev=1e-2))
             # shape of [None, 2]
-            # 一阶的线性部分, 为什么是2呢
+            # 一阶的线性部分, 为什么是2呢,因为后面用的是softmax分类
             self.linear_terms = tf.add(tf.matmul(self.X, w1), b)  # X: batch*feature_len, w1: feature_len*2
 
             # 二阶交叉部分
-            # 感觉有些问题,deepfm中的二阶项其实并未相加,而是concat起来,
             # 成为一个 feature_group_count*(feature_group_count-1)/2的向量
             # shape of [None, 1]
             self.interaction_terms = tf.multiply(0.5, tf.reduce_mean( # 求平均

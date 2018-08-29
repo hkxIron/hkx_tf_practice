@@ -1,7 +1,7 @@
 # origin:https://github.com/hkxIron/ML_CIA/tree/master/DeepFM/
 # 同时作者参考了实现: https://github.com/hkxIron/tensorflow-DeepFM
-# 本代码由我从DeepFM.py修改而来,是deepFM的严格实现,并没有作任何变种
-
+# 诚如作者参赛pdf所述,并非deepfm的严格实现,而是做了一定的变种
+# https://raw.githubusercontent.com/ChenglongChen/tensorflow-XNN/master/doc/Mercari_Price_Suggesion_Competition_ChenglongChen_4th_Place.pdf
 import gc
 import numpy as np
 import pandas as pd
@@ -148,6 +148,7 @@ config = Config()
 dfTrain = pd.read_csv(train_file)
 dfTest = pd.read_csv(test_file)
 
+
 ##################################
 # 3. 准备数据
 ##################################
@@ -208,11 +209,13 @@ for i in range(1, num_layer):
     weights['bias_%d' % i] = tf.Variable(initial_value=tf.random_normal(shape=[1, deep_layer_size[i]], mean=0, stddev=glorot),
                                          dtype=tf.float32)
 # Output Layer
-last_layer_size = deep_layer_size[-1] # last_layer_size
-glorot = np.sqrt(2.0 / (last_layer_size + 1)) # 输入维度是:deep_size, 输出维度是:1
-weights['concat_projection'] = tf.Variable(initial_value=tf.random_normal(shape=[last_layer_size, 1], mean=0, stddev=glorot),
+deep_size = deep_layer_size[-1]
+fm_size = config.field_group_count + config.embedding_size # feature_group_count: 来源于一阶特征,w*x, TODO(kexinhu):此处不是特别明白
+input_size = fm_size + deep_size #field_group_count+embedding_size+last_layer_size
+glorot = np.sqrt(2.0 / (input_size + 1)) # 输入维度是:input_size, 输出维度是:1
+weights['concat_projection'] = tf.Variable(initial_value=tf.random_normal(shape=[input_size,1],mean=0,stddev=glorot),
                                            dtype=tf.float32)
-weights['concat_bias'] = tf.Variable(tf.Variable(initial_value=0.01), dtype=tf.float32)
+weights['concat_bias'] = tf.Variable(tf.constant(value=0.01), dtype=tf.float32) # 不知为何设成常量
 
 
 # build_network
@@ -258,8 +261,6 @@ squared_features_emb_summed = tf.reduce_sum(input_tensor=squared_features_emb, a
 # 注意:此处的y_second_order并没有对K进行求和, 而后面中,我们可以看到 直接与 deep部分concat起来之后做全连接
 # 并没有区分 fm部分的权重是论文中所谓的weight-1, 因此我认为此代码并非严格的论文实现
 y_second_order = 0.5 * tf.subtract(summed_features_emb_square, squared_features_emb_summed)
-# y_fm: [batch*1]
-y_fm = tf.reduce_sum(y_first_order, axis=1, keep_dims= True) + tf.reduce_sum(y_second_order, axis=1, keep_dims= True)
 
 # ----------- Deep Component ------------
 y_deep = tf.reshape(embeddings_origin, shape=[-1, config.field_group_count * config.embedding_size]) # [None, field_group_count * embedding_size]
@@ -272,11 +273,11 @@ for i in range(0, len(deep_layer_size)):
 # y_second_order:[batch, embedding_size]
 # y_deep:[batch, last_layer_size]
 # concat_input:[batch, field_group_count+embedding_size+last_layer_size]
-# concat_projection: [last_layer_size,1]
-# y_dnn: [batch*1]
-y_dnn = tf.add(tf.matmul(y_deep, weights['concat_projection']), weights['concat_bias'])
-# y_fm: [batch*1]
-out = tf.nn.sigmoid(y_dnn + y_fm)
+concat_input = tf.concat([y_first_order, y_second_order, y_deep], axis=1)
+# concat_projection: [field_group_count+embedding_size+last_layer_size,1]
+# out: batch*1
+out = tf.add(tf.matmul(concat_input, weights['concat_projection']), weights['concat_bias'])
+out = tf.nn.sigmoid(out) # 此处直接用tf.nn.sigmoid_cross_entropy_with_logits效率会更高
 
 config.loss = "logloss"
 config.l2_reg = 0.1
