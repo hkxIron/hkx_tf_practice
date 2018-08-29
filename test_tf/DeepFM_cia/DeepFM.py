@@ -41,8 +41,8 @@ def FeatureDictionary(dfTrain=None, dfTest=None, numeric_cols=None, ignore_cols=
              1. feat_size: one-hot之后总的特征维度。
              2. feat_dict是一个{}， key是特征string的col_name, value可能是编号（int），可能也是一个字典。
              如果原特征是连续特征： value就是int，表示对应的特征编号；
-             如果原特征是离散特征：value就是dict，里面是根据离散特征的 实际取值 查询 该维度的特征编号。 因为离散特征one-hot之后，一个取值就是一个维度，
-             而一个维度就对应一个编号。
+             如果原特征是离散特征：value就是dict，里面是根据离散特征的 实际取值 查询 该维度的特征编号。
+             因为离散特征one-hot之后，一个取值就是一个维度， 而一个维度就对应一个编号。
     """
     assert not (dfTrain is None), "train dataset is not set"
     assert not (dfTest is None), "test dataset is not set"
@@ -55,7 +55,6 @@ def FeatureDictionary(dfTrain=None, dfTest=None, numeric_cols=None, ignore_cols=
 
     # 目前为止的下一个编号
     total_cnt = 0
-
     for col in df.columns:
         if col in ignore_cols: # 忽略的特征不参与编号
             continue
@@ -67,12 +66,12 @@ def FeatureDictionary(dfTrain=None, dfTest=None, numeric_cols=None, ignore_cols=
             continue
 
         # 离散特征，有多少个取值就有多少个编号
-        unique_vals = df[col].unique()
-        unique_cnt = df[col].nunique()
-        feat_dict[col] = dict(zip(unique_vals, range(total_cnt, total_cnt + unique_cnt)))
+        unique_vals = df[col].unique() # 离散取值,比如 2,3,4
+        unique_cnt = df[col].nunique() # 离散取值的个数: 3
+        feat_dict[col] = dict(zip(unique_vals, range(total_cnt, total_cnt + unique_cnt))) # {2:10, 3:11, 4:12}
         total_cnt += unique_cnt
 
-    feat_size = total_cnt
+    feat_size = total_cnt # 最终离散后有多少个取值
     return feat_dict, feat_size
 
 def parse(feat_dict=None, df=None, has_label=False):
@@ -82,20 +81,34 @@ def parse(feat_dict=None, df=None, has_label=False):
     :param df: 数据输入。可以是train也可以是test,不用拼接
     :param has_label:  数据中是否包含label
     :return:  Xi, Xv, y
+    比如:
+    xi: 每行一条样本, 每列代表特征的id
+    [[1,2,4,0],
+     [2,3,4,1],
+     [1,2,3,0],
+     ...
+    ]
+
+    xv: 每行一条样本, 每列代表特征的权重
+    [[1.0,2.0,3.5,0],
+     [2.9,3.0,4.0,1.0],
+     [1.0,2.0,3.0,0],
+     ...
+    ]
     """
     assert not (df is None), "df is not set"
 
     dfi = df.copy()
 
     if has_label:
-        y = df['target'].values.tolist()
+        y = df['target'].values.tolist() # label,id单独存储起来
         dfi.drop(['id','target'],axis=1, inplace=True)
     else:
         ids = dfi['id'].values.tolist() # 预测样本的ids
         dfi.drop(['id'],axis=1, inplace=True)
 
-    # dfi是Feature index,大小和dfTrain相同，但是里面的值都是特征对应的编号。
-    # dfv是Feature value, 可以是binary(0或1), 也可以是实值float，比如3.14
+    # dfi: 特征的唯一编号, 是Feature index, 大小和dfTrain相同, 但是里面的值都是特征对应的编号。
+    # dfv: 特征的对应的权重, 是Feature value, 可以是binary(0或1), 也可以是实值float, 比如3.14.
     dfv = dfi.copy()
 
     for col in dfi.columns:
@@ -108,15 +121,19 @@ def parse(feat_dict=None, df=None, has_label=False):
             dfi[col] = feat_dict[col]
         else:
             # 离散特征。不同取值对应不同的特征维度，编号也是不同的。
-            dfi[col] = dfi[col].map(feat_dict[col])
-            dfv[col] = 1.0
+            # 这种所有特征连续编号的方式有些不可取,因为增删特征比较麻烦
+            # 更好的方式有:
+            # 1.每组特征分组编号
+            # 2.全局里用特征组名与特征名的key一起hash得到id
+            dfi[col] = dfi[col].map(feat_dict[col]) # {'feat_cat_1': {1: 0, 2: 1, 0: 2}, 'feat_cat_2': {2: 3, 3: 4, 1: 5, 0: 6}, 'feat_num_1': 7, 'feat_num_2': 8}
+            dfv[col] = 1.0 #可以理解为特征权重
 
     # 取出里面的值
-    Xi = dfi.values.tolist()
-    Xv = dfv.values.tolist()
+    Xi = dfi.values.tolist() # 特征的编号id
+    Xv = dfv.values.tolist() # 特征的权重
 
     del dfi, dfv
-    gc.collect()
+    gc.collect() # 第一次见python gc
 
     if has_label:
         return Xi, Xv, y
@@ -192,10 +209,10 @@ weights['feature_bias'] = tf.Variable(initial_value=tf.random_uniform(shape=[con
                                       dtype=tf.float32)
 # Hidden Layer
 num_layer = len(deep_layer_size) # layer层数
-input_size = config.field_group_count * config.embedding_size # feature_group_count:表示 样本中 特征组的个数,比如本例中有4个特征组
-glorot = np.sqrt(2.0 / (input_size + deep_layer_size[0])) # glorot_normal: stddev = sqrt(2/(fan_in + fan_out))
+input_deep_size = config.field_group_count * config.embedding_size # feature_group_count:表示 样本中 特征组的个数,比如本例中有4个特征组
+glorot = np.sqrt(2.0 / (input_deep_size + deep_layer_size[0])) # glorot_normal: stddev = sqrt(2/(fan_in + fan_out))
 # layer_0: [feature_group_count*embed, deep_layers[0]] 对应于论文图1中的Dense Embeddings
-weights['layer_0'] = tf.Variable(initial_value=tf.random_normal(shape=[input_size, deep_layer_size[0]], mean=0, stddev=glorot),
+weights['layer_0'] = tf.Variable(initial_value=tf.random_normal(shape=[input_deep_size, deep_layer_size[0]], mean=0, stddev=glorot),
                                  dtype=tf.float32)
 weights['bias_0'] = tf.Variable(initial_value=tf.random_normal(shape=[1, deep_layer_size[0]], mean=0, stddev=glorot),
                                 dtype=tf.float32)
@@ -216,23 +233,23 @@ weights['concat_bias'] = tf.Variable(tf.Variable(initial_value=0.01), dtype=tf.f
 
 
 # build_network
-# 离散型变量
+# 特征id
 feat_index = tf.placeholder(dtype=tf.int32, shape=[None, config.field_group_count], name='feat_index') # [None, field_group_count]
-# 连续型变量(对于连续型变量,一般归一化到0~1,或者分段变成one-hot类型)
+# 特征对应的权重 ,(对于连续型变量,一般归一化到0~1,或者分段变成one-hot类型)
 feat_value = tf.placeholder(dtype=tf.float32, shape=[None, config.field_group_count], name='feat_value') # [None, field_group_size]
 label = tf.placeholder(dtype=tf.float16, shape=[None,1], name='label')
 
 # Sparse Features -> Dense Embedding
 # weights: feature_size*embedding_size
-embeddings_origin = tf.nn.embedding_lookup(weights['feature_embedding'], ids=feat_index) # [None, field_group_count, embedding_size]
 feat_value_reshape = tf.reshape(tensor=feat_value, shape=[-1, config.field_group_count, 1]) # -1 * field_group_count * 1, 即[batch, field_group_count, 1]
+embeddings_origin = tf.nn.embedding_lookup(weights['feature_embedding'], ids=feat_index) # [None, field_group_count, embedding_size]
 
 # --------- 一维特征 -----------
 # feature_bias:feature_size*1, feat_index: None*field_group_count
 # lookup的速度的确快于矩阵相乘,也可用tf.nn.embedding_lookup_sparse(), 用于处理每个样本的特征个数不一样的lookup
 y_first_order = tf.nn.embedding_lookup(weights['feature_bias'], ids=feat_index) # [None, field_group_count, 1]
 w_mul_x = tf.multiply(y_first_order, feat_value_reshape) # [None, field_group_count, 1]  Wi * Xi,对应元素点乘,相当于乘以对应的浮点数的权重
-y_first_order = tf.reduce_sum(input_tensor=w_mul_x, axis=2) # [None, field_group_count], 或者用tf.squeeze()
+y_fm_first_order = tf.reduce_sum(input_tensor=w_mul_x, axis=2) # [None, field_group_count], 或者用tf.squeeze()
 
 # --------- 二维组合特征 ----------
 # embeddings_origin: [batch, field_group_count, embedding_size]
@@ -240,16 +257,17 @@ y_first_order = tf.reduce_sum(input_tensor=w_mul_x, axis=2) # [None, field_group
 # embeddings: [batch, field_group_count, embedding_size],此处可以看出:二阶的embedding也会乘以权重
 embeddings = tf.multiply(embeddings_origin, feat_value_reshape) # [None, field_group_count, embedding_size] multiply不是矩阵相乘，而是矩阵对应位置相乘。这里应用了broadcast机制。
 
-# sum_square part 先sum，再square
-summed_features_emb = tf.reduce_sum(input_tensor=embeddings, axis=1) # [None, embedding_size]
-summed_features_emb_square = tf.square(summed_features_emb)
 
 # y_fm = sum_i { w_i*x_i } + sum_i sum_j { <Vi,Vj> x_i * x_j }, Vi为k维
 # 第二项化简为: 0.5* sum_f( (sum_i,f{ v_{i,f}*xi })^2 - sum_i{v_{i,f}^2*x_i^2} ), f代表V向量中的不同维度下标,i代表不同的特征的隐向量
 # = 0.5* sum_f{ (sum_i{v_{i,f}*xi})^2 - sum_i{ (v_{i,f}*x_i)^2} }, 可以看出二者都可以先计算乘积 (v_{i,f}*x_i),
 # 只不过第一项是乘积之后先求和再平方,第二项是乘积之后先平方再求和
 
-# square_sum part
+# 1.sum_square part 先sum，再square
+summed_features_emb = tf.reduce_sum(input_tensor=embeddings, axis=1) # [None, embedding_size]
+summed_features_emb_square = tf.square(summed_features_emb)
+
+# 2.square_sum part
 squared_features_emb = tf.square(embeddings)
 squared_features_emb_summed = tf.reduce_sum(input_tensor=squared_features_emb, axis=1) # [None, embedding_size]
 
@@ -259,7 +277,7 @@ squared_features_emb_summed = tf.reduce_sum(input_tensor=squared_features_emb, a
 # 并没有区分 fm部分的权重是论文中所谓的weight-1, 因此我认为此代码并非严格的论文实现
 y_second_order = 0.5 * tf.subtract(summed_features_emb_square, squared_features_emb_summed)
 # y_fm: [batch*1]
-y_fm = tf.reduce_sum(y_first_order, axis=1, keep_dims= True) + tf.reduce_sum(y_second_order, axis=1, keep_dims= True)
+y_fm = tf.reduce_sum(y_fm_first_order, axis=1, keep_dims= True) + tf.reduce_sum(y_second_order, axis=1, keep_dims= True)
 
 # ----------- Deep Component ------------
 y_deep = tf.reshape(embeddings_origin, shape=[-1, config.field_group_count * config.embedding_size]) # [None, field_group_count * embedding_size]
