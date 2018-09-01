@@ -1,7 +1,7 @@
 """
 python3
 origin: https://github.com/zgw21cn/DeepFM
-并非论文作者
+WARN: 并非论文作者
 此代码实现有问题,不建议参考
 paper: https://arxiv.org/abs/1703.04247
 deepFM, using TensorFlow.

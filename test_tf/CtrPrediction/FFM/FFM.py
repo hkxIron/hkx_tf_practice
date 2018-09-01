@@ -6,7 +6,7 @@ rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
 import tensorflow as tf
 import numpy as np
-from FFM.utilities import *
+from utilities import *
 import math
 import pandas as pd
 import logging
@@ -24,9 +24,9 @@ class FFM(object):
         # number of latent factors
         self.k = config['k']
         # num of fields
-        self.f = config['f']
+        self.feature_group_count = config['f']
         # num of features
-        self.p = feature_length
+        self.feature_length = feature_length
         self.lr = config['lr']
         self.batch_size = config['batch_size']
         self.reg_l1 = config['reg_l1']
@@ -34,7 +34,7 @@ class FFM(object):
         self.feature2field = config['feature2field']
 
     def add_placeholders(self):
-        self.X = tf.placeholder('float32', [self.batch_size, self.p])
+        self.X = tf.placeholder('float32', [self.batch_size, self.feature_length])
         self.y = tf.placeholder('int64', [None,])
         self.keep_prob = tf.placeholder('float32')
 
@@ -46,19 +46,19 @@ class FFM(object):
         with tf.variable_scope('linear_layer'):
             b = tf.get_variable('bias', shape=[2],
                                 initializer=tf.zeros_initializer())
-            w1 = tf.get_variable('w1', shape=[self.p, 2],
+            w1 = tf.get_variable('w1', shape=[self.feature_length, 2],
                                  initializer=tf.truncated_normal_initializer(mean=0,stddev=1e-2))
             # shape of [None, 2]
             self.linear_terms = tf.add(tf.matmul(self.X, w1), b)
 
         with tf.variable_scope('field_aware_interaction_layer'):
-            v = tf.get_variable('v', shape=[self.p, self.f, self.k], dtype='float32',
+            v = tf.get_variable('v', shape=[self.feature_length, self.feature_group_count, self.k], dtype='float32',
                                 initializer=tf.truncated_normal_initializer(mean=0, stddev=0.01))
             # shape of [None, 1]
             self.field_aware_interaction_terms = tf.constant(0, dtype='float32')
             # build dict to find f, key of feature,value of field
-            for i in range(self.p):
-                for j in range(i+1,self.p):
+            for i in range(self.feature_length):
+                for j in range(i+1, self.feature_length):
                     self.field_aware_interaction_terms += tf.multiply(
                         tf.reduce_sum(tf.multiply(v[i,self.feature2field[i]], v[j,self.feature2field[j]])),
                         tf.multiply(self.X[:,i], self.X[:,j])
