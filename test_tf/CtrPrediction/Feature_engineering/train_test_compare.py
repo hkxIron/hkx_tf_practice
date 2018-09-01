@@ -6,7 +6,7 @@ fields = ['hour', 'C1', 'C14', 'C15', 'C16', 'C17', 'C18', 'C19', 'C20', 'C21',
           'app_category', 'device_model', 'device_type',
           'device_conn_type']
 
-data = pd.read_csv('/home/johnso/PycharmProjects/News_recommendation/CTR_prediction/avazu_CTR/test.csv')
+data = pd.read_csv('../data/avazu_ctr_test_1000.csv')
 
 C1_v = set(data['C1'].values)
 

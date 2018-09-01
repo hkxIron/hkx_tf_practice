@@ -7,7 +7,7 @@ rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
 import tensorflow as tf
 import numpy as np
-from .utilities import *
+from utilities import *
 import math
 import pandas as pd
 import logging
@@ -31,13 +31,21 @@ class DeepFM(object):
         # num of features
         self.feature_length = feature_length
         # num of fields
-        self.field_cnt = field_cnt # 21个feature count,相当于feature_group的个数
+        self.field_group_count = field_group_count # 21个feature count,相当于feature_group的个数
+
+    def build_graph(self):
+        """build graph for model"""
+        self.add_placeholders()
+        self.inference()
+        self.add_loss()
+        self.add_accuracy()
+        self.train()
 
     def add_placeholders(self):
         self.X = tf.placeholder('float32', [None, self.feature_length]) # batch* feature_len
         self.y = tf.placeholder('int64', [None,]) # batch
         # index of none-zero features
-        self.feature_inds = tf.placeholder('int64', [None, field_cnt]) # batch * feature_group_count
+        self.feature_inds = tf.placeholder('int64', [None, field_group_count]) # batch * feature_group_count
         self.keep_prob = tf.placeholder('float32')
 
     def inference(self):
@@ -47,7 +55,7 @@ class DeepFM(object):
         y_fm = sum_i { w_i*x_i } + sum_i sum_j { <Vi,Vj> x_i * x_j }, Vi为k维
 
         其中第二项可以优化为:
-        1/2* sum_k { (sum_i { v_{i,f}*x_i })^2 - sum_i {v_{i,f}^2*x_i^2} }
+        1/2* sum_f { (sum_i { v_{i,f}*x_i })^2 - sum_i {v_{i,f}^2*x_i^2} }
         :return: labels for each sample
         """
         # V: feature_length * K
@@ -87,9 +95,9 @@ class DeepFM(object):
             # embedding layer
             # V: feature_len*K  feature_ids: batch*feature_group_cnt
             # y_embedding_input: batch*(feature_group_cnt*K)
-            y_embedding_input = tf.reshape(tf.gather(V, self.feature_inds), [-1, self.field_cnt * self.k])
+            y_embedding_input = tf.reshape(tf.gather(V, self.feature_inds), [-1, self.field_group_count * self.k])
             # first hidden layer
-            w1 = tf.get_variable('w1_dnn', shape=[self.field_cnt*self.k, 200], # (feature_group_count*K) * 200
+            w1 = tf.get_variable('w1_dnn', shape=[self.field_group_count * self.k, 200],  # (feature_group_count*K) * 200
                                  initializer=tf.truncated_normal_initializer(mean=0,stddev=1e-2))
             b1 = tf.get_variable('b1_dnn', shape=[200], # 200
                                  initializer=tf.constant_initializer(0.001))
@@ -143,14 +151,6 @@ class DeepFM(object):
         with tf.control_dependencies(extra_update_ops):
             self.train_op = optimizer.minimize(self.loss, global_step=self.global_step)
 
-    def build_graph(self):
-        """build graph for model"""
-        self.add_placeholders()
-        self.inference()
-        self.add_loss()
-        self.add_accuracy()
-        self.train()
-
 
 def check_restore_parameters(sess, saver):
     """ Restore the previously trained parameters if there are any. """
@@ -170,7 +170,7 @@ def train_model(sess, model, epochs=10, print_every=500):
     train_writer = tf.summary.FileWriter('train_logs', sess.graph)
     for e in range(epochs):
         # get training data, iterable
-        train_data = pd.read_csv('../avazu_CTR/train.csv',
+        train_data = pd.read_csv('../data/avazu_ctr_train_6000.csv',
                                  chunksize=model.batch_size)
         # batch_size data
         for data in train_data:
@@ -226,7 +226,7 @@ def validation_model(sess, model, print_every=50):
     merged = tf.summary.merge_all()
     test_writer = tf.summary.FileWriter('test_logs', sess.graph)
     # get testing data, iterable
-    validation_data = pd.read_csv('/home/katy/CTR_prediction/avazu_CTR/train.csv',
+    validation_data = pd.read_csv('../data/avazu_ctr_train_6000.csv',
                                   chunksize=model.batch_size)
     # testing step
     valid_step = 1
@@ -272,7 +272,7 @@ def validation_model(sess, model, print_every=50):
 def test_model(sess, model, print_every = 50):
     """training model"""
     # get testing data, iterable
-    test_data = pd.read_csv('/home/katy/CTR_prediction/avazu_CTR/test.csv',
+    test_data = pd.read_csv('../data/avazu_ctr_test_1000.csv',
                             chunksize=model.batch_size)
     test_step = 1
     # batch_size data
@@ -320,16 +320,17 @@ if __name__ == '__main__':
                    'device_conn_type']
     # loading dicts
     fields_train_dict = {}
+    dataPath="../data/"
     for field in fields_train:
-        with open('dicts/'+field+'.pkl','rb') as f:
+        with open(dataPath+'dicts/'+field+'.pkl','rb') as f:
             fields_train_dict[field] = pickle.load(f)
     fields_test_dict = {}
     for field in fields_test:
-        with open('dicts/'+field+'.pkl','rb') as f:
+        with open(dataPath+'dicts/'+field+'.pkl','rb') as f:
             fields_test_dict[field] = pickle.load(f)
 
     # length of representation
-    train_array_length = max(fields_train_dict['click'].values()) + 1
+    train_array_length = max(fields_train_dict['click'].values()) + 1 # 变成one-hot之后的特征数,1,0,0,1,...
     test_array_length = train_array_length - 2
     # initialize the model
     config = {}
@@ -341,14 +342,13 @@ if __name__ == '__main__':
     # get feature length
     feature_length = test_array_length
     # num of fields
-    field_cnt = 21
+    field_group_count = 21
 
     model = DeepFM(config)
     # build graph for model
     model.build_graph()
 
     saver = tf.train.Saver(max_to_keep=5)
-
 
     with tf.Session() as sess:
         # TODO: with every epoches, print training accuracy and validation accuracy

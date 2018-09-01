@@ -22,8 +22,8 @@ import pickle
 #     pickle.dump(device_ids_dict,f)
 
 
-with open('device_id_count.pkl', 'rb') as f:
-    device_id_count = pickle.load(f)
+with open('../data/field2count/device_id.pkl', 'rb') as f:
+    device_id_count = pickle.load(f) # {value1:value1count, value2:value2count}
     device_id_frequency = set(device_id_count.values())
     print(device_id_frequency)
     print(len(device_id_frequency))

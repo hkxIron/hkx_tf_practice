@@ -5,7 +5,7 @@ curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
 import tensorflow as tf
-from FM.utilities import *
+from utilities import *
 import logging
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',level=logging.INFO)
 import numpy as np
@@ -27,11 +27,11 @@ class FM(object):
         self.reg_l1 = config['reg_l1']
         self.reg_l2 = config['reg_l2']
         # num of features
-        self.p = feature_length
+        self.feature_length = feature_length
 
     def add_placeholders(self):
-        self.X = tf.sparse_placeholder('float32', [None, self.p])
-        self.y = tf.placeholder('int64', [None,])
+        self.X = tf.sparse_placeholder('float32', [None, self.feature_length]) # [batch, feature_length]
+        self.y = tf.placeholder('int64', [None,]) # batch
         self.keep_prob = tf.placeholder('float32')
 
     def inference(self):
@@ -42,20 +42,26 @@ class FM(object):
         with tf.variable_scope('linear_layer'):
             b = tf.get_variable('bias', shape=[2],
                                 initializer=tf.zeros_initializer())
-            w1 = tf.get_variable('w1', shape=[self.p, 2],
+            w1 = tf.get_variable('w1', shape=[self.feature_length, 2], # feature_length*2
                                  initializer=tf.truncated_normal_initializer(mean=0,stddev=1e-2))
             # shape of [None, 2]
-            self.linear_terms = tf.add(tf.sparse_tensor_dense_matmul  (self.X, w1), b)
+            self.linear_terms = tf.add(tf.sparse_tensor_dense_matmul(self.X, w1), b) # [batch, feature_length]* [feature_length,2]
 
+        # forward propagation
+        # x_i为x向量中的某一维
+        # y_fm = sum_i { w_i*x_i } + sum_i sum_j { <Vi,Vj> x_i * x_j }, Vi为k维
+        #
+        # 其中第二项可以优化为:
+        # 1/2* sum_f { (sum_i { v_{i,f}*x_i })^2 - sum_i {v_{i,f}^2*x_i^2} }, i所在的维度为特征个数
         with tf.variable_scope('interaction_layer'):
-            v = tf.get_variable('v', shape=[self.p, self.k],
+            v = tf.get_variable('v', shape=[self.feature_length, self.k], # feature_length*k
                                 initializer=tf.truncated_normal_initializer(mean=0, stddev=0.01))
             # shape of [None, 1]
             self.interaction_terms = tf.multiply(0.5,
-                                                 tf.reduce_mean(
+                                                 tf.reduce_mean( # batch内求平均
                                                      tf.subtract(
-                                                         tf.pow(tf.sparse_tensor_dense_matmul(self.X, v), 2),
-                                                         tf.sparse_tensor_dense_matmul(self.X, tf.pow(v, 2))),
+                                                         tf.pow(tf.sparse_tensor_dense_matmul(self.X, v), 2), #(X*V)^2,其实可以用embedding lookup来代替的
+                                                         tf.sparse_tensor_dense_matmul(tf.pow(self.X, 2), tf.pow(v, 2))), # X^2*V^2,原作者遗漏了X^2,但貌似sparse的平方有些问题
                                                      1, keep_dims=True))
         # shape of [None, 2]
         self.y_out = tf.add(self.linear_terms, self.interaction_terms)
@@ -183,7 +189,7 @@ if __name__ == '__main__':
     '''launching TensorBoard: tensorboard --logdir=path/to/log-directory'''
     # get mode (train or test)
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', help='train or test', type=str)
+    parser.add_argument('--mode', help='train or test', type=str, default="train")
     args = parser.parse_args()
     mode = args.mode
     # original fields
@@ -194,7 +200,7 @@ if __name__ == '__main__':
     # loading dicts
     fields_dict = {}
     for field in fields:
-        with open('dicts/'+field+'.pkl','rb') as f:
+        with open('../data/dicts/'+field+'.pkl','rb') as f:
             fields_dict[field] = pickle.load(f)
     # length of representation
     train_array_length = max(fields_dict['click'].values()) + 1

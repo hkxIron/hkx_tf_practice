@@ -2,9 +2,10 @@
 import pandas as pd
 import numpy as np
 
-ids = pd.read_csv('/home/johnso/PycharmProjects/News_recommendation/CTR_prediction/avazu_CTR/test.csv')['id'].values
+dataPath="../data/"
+ids = pd.read_csv(dataPath+'avazu_ctr_test_1000.csv')['id'].values
 
-click = pd.read_csv('/home/johnso/PycharmProjects/News_recommendation/CTR_prediction/FM_baseline/FM_FTRL_v1.csv')['click'].values
+click = pd.read_csv(dataPath+'/FM_FTRL_v1.csv')['click'].values
 
 print(len(ids))
 print(len(click))

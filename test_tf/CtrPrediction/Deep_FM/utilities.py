@@ -23,7 +23,7 @@ def one_hot_representation(sample, fields_dict, array_length):
         ind = fields_dict[field][field_value]
         array[ind] = 1
         idx.append(ind)
-    return array,idx[:21]
+    return array,idx[:21] # 我感觉用稀疏特征可能会更好, sparseTensor
 
 
 
@@ -38,19 +38,18 @@ if __name__ == '__main__':
                    'app_id', 'device_id', 'app_category', 'device_model', 'device_type',
                    'device_conn_type']
 
-    train = pd.read_csv('/home/johnso/PycharmProjects/News_recommendation/CTR_prediction/avazu_CTR/train.csv',
-                        chunksize=100)
-    test = pd.read_csv('/home/johnso/PycharmProjects/News_recommendation/CTR_prediction/avazu_CTR/test.csv',
-                        chunksize=100)
+    train = pd.read_csv('../data/avazu_ctr_train_6000.csv', chunksize=100)
+    test = pd.read_csv('../data/avazu_ctr_test_1000.csv', chunksize=100)
+    dataPath="../data/"
     # loading dicts
     fields_train_dict = {}
     for field in fields_train:
-        with open('dicts/'+field+'.pkl','rb') as f:
+        with open(dataPath+'dicts/'+field+'.pkl','rb') as f:
             fields_train_dict[field] = pickle.load(f)
 
     fields_test_dict = {}
     for field in fields_test:
-        with open('dicts/'+field+'.pkl','rb') as f:
+        with open(dataPath+'dicts/'+field+'.pkl','rb') as f:
             fields_test_dict[field] = pickle.load(f)
 
 

@@ -50,14 +50,14 @@ device_model = []
 device_ip = []
 device_id = []
 
-
-
-train = pd.read_csv('/home/johnso/PycharmProjects/News_recommendation/CTR_prediction/avazu_CTR/train.csv',chunksize=10000)
+# 将每列的取值集合放到pkl中
+dataPath = "../data/"
+train = pd.read_csv(dataPath+'/avazu_ctr_train_6000.csv',chunksize=10000) # 迭代器
 
 for data in train:
 
     click_v = set(data['click'].values)
-    click = click | click_v
+    click = click | click_v #并集
 
     C1_v = set(data['C1'].values)
     C1 = C1 | C1_v
@@ -89,43 +89,41 @@ for data in train:
     device_conn_type_v = set(data['device_conn_type'].values)
     device_conn_type = device_conn_type | device_conn_type_v
 
-
-
 # save dictionaries
-with open('sets/click.pkl','wb') as f:
+with open(dataPath+'sets/click.pkl','wb') as f:
     pickle.dump(click,f)
 
-with open('sets/hour.pkl','wb') as f:
+with open(dataPath+'sets/hour.pkl','wb') as f:
     pickle.dump(hour,f)
 
-with open('sets/C1.pkl','wb') as f:
+with open(dataPath+'sets/C1.pkl','wb') as f:
     pickle.dump(C1,f)
 
-with open('sets/C15.pkl','wb') as f:
+with open(dataPath+'sets/C15.pkl','wb') as f:
     pickle.dump(C15,f)
 
-with open('sets/C16.pkl','wb') as f:
+with open(dataPath+'sets/C16.pkl','wb') as f:
     pickle.dump(C16,f)
 
-with open('sets/C18.pkl','wb') as f:
+with open(dataPath+'sets/C18.pkl','wb') as f:
     pickle.dump(C18,f)
 
-with open('sets/C20.pkl','wb') as f:
+with open(dataPath+'sets/C20.pkl','wb') as f:
     pickle.dump(C20,f)
 
-with open('sets/banner_pos.pkl','wb') as f:
+with open(dataPath+'sets/banner_pos.pkl','wb') as f:
     pickle.dump(banner_pos,f)
 
-with open('sets/site_category.pkl','wb') as f:
+with open(dataPath+'sets/site_category.pkl','wb') as f:
     pickle.dump(site_category,f)
 
-with open('sets/app_category.pkl','wb') as f:
+with open(dataPath+'sets/app_category.pkl','wb') as f:
     pickle.dump(app_category,f)
 
-with open('sets/device_type.pkl','wb') as f:
+with open(dataPath+'sets/device_type.pkl','wb') as f:
     pickle.dump(device_type,f)
 
-with open('sets/device_conn_type.pkl','wb') as f:
+with open(dataPath+'sets/device_conn_type.pkl','wb') as f:
     pickle.dump(device_conn_type,f)
 
 
