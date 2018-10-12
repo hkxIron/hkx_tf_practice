@@ -44,9 +44,25 @@ def t3():
     sess =tf.Session()
     print("weight:",weight)
     with tf.variable_scope('v_scope') as scope1:
-        weight_var = tf.get_variable('Weights',initializer=weight)
+        weight_var = tf.get_variable('Weights',shape=[2,3])
+        print("var1:",weight_var.name) # v_scope/Weights:0
+
+        scope1.reuse_variables() # 如果不加则下面get_variable会报错
+        weight_var2 = tf.get_variable('Weights') # v_scope/Weights
+        print("var2:",weight_var2.name) # v_scope/Weights:0
+
+        #weight_var3 = tf.get_variable('v_scope/Weights') # v_scope/v_scope/Weights,这样获取是错的
+        #print(weight_var3.name) # 报错：ValueError: Variable v_scope/v_scope/Weights does not exist, or was not created with tf.get_variable(). Did you mean to set reuse=tf.AUTO_REUSE in VarScope?
+
         #tf.transpose(weight_var)
-    #    bias1 = tf.Variable([0.52], name='bias')
+    #bias1 = tf.Variable([0.52], name='bias')
+    weight_var4 = tf.get_variable('Weights', shape=[2,3])  # Weights:0, 注意，此处创建了新变量，var值跟原来不一样!!!不是同一个变量。
+    print("var4:",weight_var4.name) # Weights:0
+
+    tf.get_variable_scope().reuse_variables() # 设置变量重用
+    weight_var5 = tf.get_variable('v_scope/Weights')  # v_scope/Weights:0,
+    print("var5:",weight_var5.name) # v_scope/Weights:0, 获取的是var1的值
+
     init = tf.global_variables_initializer()
     sess.run(init)
     print("weight:",sess.run(weight_var))
@@ -101,4 +117,4 @@ def test_abs_name_scope():
 t3()
 #t4()
 
-test_abs_name_scope()
+#test_abs_name_scope()
