@@ -29,10 +29,10 @@ def test_mcmc():
         for i in range(0,N_hops):
             states.append(cur)
             next = random.uniform(0,1)
-            ap = min(beta_fpdf(next,a,b)/beta_fpdf(cur,a,b),1) # 计算接受概率
-            if transform(ap):
+            accept_prob = min(beta_fpdf(next, a, b) / beta_fpdf(cur, a, b), 1) # 计算接受概率
+            if transform(accept_prob):
                 cur = next
-        return states[-5000:] # 返回进入平稳分布后的1000个状态
+        return states[-5000:] # 返回进入平稳分布后的1000个状态,收敛之前的状态称为 burn-in period
 
 
     # 绘制通过MCMC方法抽样的Beta分布
@@ -43,10 +43,12 @@ def test_mcmc():
         # print("i_list:",i_list)
         for i in i_list:
             Lx.append(i)
-            Ly.append(beta(i, a, b))
+            Ly.append(beta(i, a, b)) # 真实的beta分布
         # 绘制真实的Beta分布进行对照
         plt.plot(Lx, Ly, label="Real Distribution: a="+str(a)+", b="+str(b))
-        plt.hist(beta_mcmc(200000,a,b),normed=True,bins=100, histtype='step',label="Simulated_MCMC: a="+str(a)+", b="+str(b))
+        # mcmc 采样得到的分布
+        mcmc_data = beta_mcmc(200000, a,b)
+        plt.hist(mcmc_data, normed=True,bins=100, histtype='step',label="Simulated_MCMC: a="+str(a)+", b="+str(b))
         plt.legend()
         plt.show()
 
@@ -63,10 +65,8 @@ def test_integate():
         z = random.uniform(0, 1)
         return x, y, z
 
-
     def fx(x, y, z):
         return x
-
 
     multidimi = 0.0
     n = 100000

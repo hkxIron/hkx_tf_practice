@@ -117,12 +117,13 @@ def generate_cipher(cipher):
 
 # 抛一枚出现正面概率为p的硬币，出现正面返回True，出现反面返回False
 # 以概率p接受转移
+# mcmc里的接受概率
 def accept_by_p(p):
     unif = random.uniform(0, 1)
-    if unif >= p:
-        return False
-    else:
+    if unif < p:
         return True
+    else:
+        return False
 
 
 # MCMC方法解密 运行n_iter轮
