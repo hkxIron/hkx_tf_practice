@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import matplotlib.pyplot as plt
 import numpy as np
-
+# https://bindog.github.io/blog/2015/05/20/different-method-to-generate-normal-distribution/
 def getNormal(SampleSize,n):
     xsum = []
     for i in range(SampleSize):
