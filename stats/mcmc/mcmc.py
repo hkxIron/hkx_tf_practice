@@ -32,7 +32,7 @@ def test_mcmc():
 
     # Beta分布概率密度函数(忽略了Beta函数前面的系数,因为其与x无关)
     # 在mcmc采样中,我们已知 待采样分布的概率密度
-    def beta_fpdf(x,a,b):
+    def beta_fast_pdf(x,a,b):
         return x**(a-1) * (1-x)**(b-1)
 
     # 根据接受概率决定是否转移
@@ -49,9 +49,9 @@ def test_mcmc():
         cur = random.uniform(0,1)
         for i in range(0,N_hops):
             states.append(cur)
-            next = random.uniform(0,1)
+            next = random.uniform(0,1)  # 从正态分布中随机出一个样本
             # a(i->j) = p(j)p(j->i)/[p(i)p(i->j)], 假定p(j->i)与p(i->j)相等
-            accept_prob = min(beta_fpdf(next, a, b) / beta_fpdf(cur, a, b), 1) # 计算接受概率
+            accept_prob = min(beta_fast_pdf(next, a, b) / beta_fast_pdf(cur, a, b), 1) # 计算接受概率
             if transform(accept_prob):
                 cur = next
         return states[-5000:] # 返回进入平稳分布后的1000个状态,收敛之前的状态称为 burn-in period
