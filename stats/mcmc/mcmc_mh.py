@@ -1,8 +1,11 @@
 # blog: https://www.cnblogs.com/pinard/p/6638955.html
 import random
 import math
+import numpy as np
 from scipy.stats import norm
+import scipy.stats as st
 import matplotlib.pyplot as plt
+import scipy.special as ss
 
 """
 在Gibbs采样过程中,最终得到的样本就是,马氏链收敛过程中,最终得到的样本为p(x,y),而收敛之前的阶段为burn-in period 
@@ -19,13 +22,51 @@ M-H采样解决了我们上一节MCMC采样接受率过低的问题。
 毕竟一个普通的一维正态分布用不着去用M-H采样来获得样本。
 
 """
+def metropolis_hastings_beta_sampling():
+    # 模拟beta分布
+    a=0.5
+    b=0.6
+    def beta_dist_prob(x):
+        return (1.0 / ss.beta(a, b)) * x ** (a - 1) * (1 - x) ** (b - 1)
+
+    T = 10000
+    #pi = np.random.random_sample(T)
+    pi = [random.random() for _ in range(T)]
+    sigma = 1
+    t = 0
+    while t < T-1:
+        t = t + 1
+        # 1. 从条件概率分布Q(x|xt)中采样得到样本x∗
+        # pi_star为只有一个元素的列表,从正态分布中选出一个元素X
+        # 转移矩阵Q(i,j)的条件转移概率是以i为均值,方差1的正态分布在位置j的值 (i->j)
+        pi_star = random.uniform(0,1)
+        # 2. 从均匀分布采样u∼uniform[0,1]
+        u = random.uniform(0, 1)
+        # pi[t-1]为上一时刻的采样元素
+        # p(x)p(y|x) /(p(y)P(x|y)) ,貌似此处认为转移概率p(y|x)与p(x|y)相等
+        alpha = min(1, (beta_dist_prob(pi_star) / beta_dist_prob(pi[t - 1]))) # 接受率
+
+        #3.如果u<α(xt,x∗)=min{π(j)Q(j,i)/(π(i)Q(i,j)),1}, 则接受转移xt→x∗，即xt+1=x∗
+        #  否则不接受转移，t=max(t−1,0)
+        if u < alpha: # 接受新元素
+            pi[t] = pi_star
+        else: # 拒绝新元素,维持老元素
+            pi[t] = pi[t - 1]
+    # 画出采样后元素的分布直方图
+    real_y = [ beta_dist_prob(x) for x in pi ]
+    plt.scatter(pi, real_y, edgecolors='black')
+
+    num_bins = 50
+    plt.hist(pi, num_bins, normed=1, facecolor='red', alpha=0.7)
+    plt.show()
+
 def metropolis_hastings_sampling():
     # 计算theta处的概率密度
     def norm_dist_prob(theta):
         y = norm.pdf(theta, loc=3, scale=2)  # 目标分布的均值为3,标准差为2
         return y
 
-    T = 5000
+    T = 10000
     pi = [0 for _ in range(T)]
     sigma = 1
     t = 0
@@ -34,17 +75,24 @@ def metropolis_hastings_sampling():
         # 1. 从条件概率分布Q(x|xt)中采样得到样本x∗
         # pi_star为只有一个元素的列表,从正态分布中选出一个元素X
         # 转移矩阵Q(i,j)的条件转移概率是以i为均值,方差1的正态分布在位置j的值 (i->j)
-        pi_star = norm.rvs(loc= pi[t - 1], scale=sigma, size=1, random_state=None) # 从条件分布Q(x|x_t)中采样,可以看出均值有变化, pi_star只有一个元素
+        # 此处有些问题,本身就是要模拟正态分布,结果产生样本时就已经使用了!! 相当于用结论去证明!所以此种做法是错误的
+        #pi_star = norm.rvs(loc= pi[t - 1], scale=sigma, size=1, random_state=None)[0] # 从条件分布Q(x|x_t)中采样,可以看出均值有变化, pi_star只有一个元素
+        # 应该利用与目标分布不一样的分布
+        #pi_star = norm.rvs(loc=0, scale=1) # 注意,此处的分布产生的样本应尽可能覆盖目标分布的定义域,否则会不准
+        # 此处用正态分布以及均匀分布均可以
+        pi_star = random.uniform(-10, 10)
+        #pi_star = st.gamma.rvs(1, 0.5)
+        #pi_star = norm.rvs(loc=0, scale=10) # 注意,此处的分布产生的样本应尽可能覆盖目标分布的定义域,否则会不准
         # 2. 从均匀分布采样u∼uniform[0,1]
         u = random.uniform(0, 1)
         # pi[t-1]为上一时刻的采样元素
         # p(x)p(y|x) /(p(y)P(x|y)) ,貌似此处认为转移概率p(y|x)与p(x|y)相等
-        alpha = min(1, (norm_dist_prob(pi_star[0]) / norm_dist_prob(pi[t - 1]))) # 接受率
+        alpha = min(1, (norm_dist_prob(pi_star) / norm_dist_prob(pi[t - 1]))) # 接受率
 
         #3.如果u<α(xt,x∗)=min{π(j)Q(j,i)/(π(i)Q(i,j)),1}, 则接受转移xt→x∗，即xt+1=x∗
         #  否则不接受转移，t=max(t−1,0)
         if u < alpha: # 接受新元素
-            pi[t] = pi_star[0]
+            pi[t] = pi_star
         else: # 拒绝新元素,维持老元素
             pi[t] = pi[t - 1]
     # 画出采样后元素的分布直方图
@@ -110,5 +158,6 @@ def gibbs_sampling():
     ax.scatter(x_res, y_res, z_res, marker='+')
     plt.show()
 
+#metropolis_hastings_beta_sampling()
 metropolis_hastings_sampling()
-gibbs_sampling()
+#gibbs_sampling()

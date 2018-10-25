@@ -24,7 +24,7 @@ def tf(word:str, count:dict):
 def n_containing(word:str, count_list):
     return sum(1 for count in count_list if word in count)
 
-def idf(word:str, count_list):
+def idf(word:str, count_list): # 文档总数, 包含该词的文档数
     return math.log(len(count_list) / (1 + n_containing(word, count_list)))
 
 def tfidf(word, count, count_list):
