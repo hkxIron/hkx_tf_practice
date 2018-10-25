@@ -26,6 +26,7 @@ pj = C*j^(a-1)*(1-j)^(b-1)
 def test_mcmc():
 
     # 真实Beta分布概率密度函数
+    # 注意：beta为beta分布函数，而ss.beta为beta函数，二者不是同一个概念
     def beta(x, a, b):
         return (1.0 / ss.beta(a,b)) * x**(a-1) * (1-x)**(b-1)
 
