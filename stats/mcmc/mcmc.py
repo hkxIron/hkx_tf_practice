@@ -63,11 +63,19 @@ def test_mcmc():
             #next = np.clip(norm.rvs(loc=0.5, scale=1),0,1)
             next = sigmoid(rand)
             # 转移概率, 由于cur,next产生的分布一样,因此i->j与j->i的转移概率只与目标状态有关,而与出发状态无关
-            trans_cur_to_next = beta_fast_pdf(next,a,b)/beta_fast_pdf(cur, a,b)  # 概率
-            trans_next_to_cur = beta_fast_pdf(cur,a,b)/beta_fast_pdf(next, a,b )
+            # 转移概率计算: i->j,由于i转移时只有两种选择,即保留在i或者转移到j, 因此概率为p(i->j) = pj/(pi+pj)
+            # 目前经过多次试验,发现条件概率计算还是有问题
+            p_cur = beta_fast_pdf(cur, a, b)
+            p_next= beta_fast_pdf(next, a, b)
+            p_all = p_cur+p_next
+            trans_cur_to_next = p_next/p_all
+            trans_next_to_cur = p_cur/p_all
+            #trans_cur_to_next = p_next/p_cur
+            #trans_next_to_cur = p_cur/p_next
+            #trans_next_to_cur = beta_fast_pdf(cur,a,b)/beta_fast_pdf(next, a,b )
             # a(i->j) = p(j)p(j->i)/[p(i)p(i->j)], 假定p(j->i)与p(i->j)相等
             # 2.用目标分布根据当前状态 以及潜在转移状态 计算接受概率
-            accept_prob = min(trans_next_to_cur*beta_fast_pdf(next, a, b) / (trans_cur_to_next*beta_fast_pdf(cur, a, b)), 1) # 计算接受概率
+            accept_prob = min(trans_next_to_cur*p_next /(trans_cur_to_next*p_cur) , 1) # 计算接受概率
             if transform(accept_prob):
                 cur = next
         return states[-10000:] # 返回进入平稳分布后的1000个状态,收敛之前的状态称为 burn-in period
@@ -108,7 +116,7 @@ def test_mcmc():
         plt.legend()
         plt.show()
 
-    plot_beta(0.5, 0.6)
+    plot_beta(0.3, 1.2)
 
 
 #通过采样的方法计算积分
