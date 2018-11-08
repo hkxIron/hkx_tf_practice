@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.special as ss
 import math
-from scipy.stats import norm
 
 # blog: http://bindog.github.io/blog/2015/10/15/revisit-mcmc-method/
 """
@@ -50,7 +49,7 @@ def test_mcmc():
         return 1/(1+math.exp(-x))
 
     # 模拟转移概率不相等的情况,即建议分布不能是uniform,随便设一个函数均可,此处用sigmoid代替
-    # 感觉还是有些问题
+    # 感觉还是有些问题(20181027)
     def beta_mcmc_no_symmetric(N_hops,a,b):
         states = []
         cur = sigmoid(random.uniform(0,1))
@@ -116,7 +115,8 @@ def test_mcmc():
         plt.legend()
         plt.show()
 
-    plot_beta(0.3, 1.2)
+    plot_beta(1, 1) # beta(1,1)是均匀分布,的确如此
+    #plot_beta(0.3, 1.2)
 
 
 #通过采样的方法计算积分
@@ -144,5 +144,5 @@ def test_integate():
     real_value =1.0/24
     print("simulate_value:%f real_value:%f"%(simulate_value,real_value))
 
-#test_integate()
 test_mcmc()
+#test_integate()

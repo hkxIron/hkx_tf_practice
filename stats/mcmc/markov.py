@@ -43,3 +43,9 @@ for i in range(80):
  即可以理解为:任意状态到x0状态概率相同,同理到x1,x2的状态概率分别相同.
 """
 
+# 随机生成一个矩阵,看看 连乘会出现什么
+testA = np.random.rand(5,5)
+pt = np.identity(5,dtype=np.float)
+for i in range(80):
+    pt = np.dot(pt,testA)
+    print("iter:{} testA:{}".format(i, pt)) # 到100次时,testA后面趋于无穷大
