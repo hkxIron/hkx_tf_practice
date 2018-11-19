@@ -1,42 +1,55 @@
+# blog:http://nicodjimenez.github.io/2014/08/08/lstm.html
+
 import random
 
 import numpy as np
 import math
 
-def sigmoid(x): 
+
+def sigmoid(x):
     return 1. / (1 + np.exp(-x))
 
-# create test uniform random array w/ values in [a,b) and shape args
-def rand_arr(a, b, *args): 
+
+def sigmoid_derivative(values):
+    return values * (1 - values) # sig(x)*(1-sig(x))
+
+
+def tanh_derivative(values):
+    return 1. - values ** 2  # (1-tanh(x))(1+tanh(x))
+
+
+# createst uniform random array w/ values in [a,b) and shape args
+def rand_arr(a, b, *args):
     np.random.seed(0)
     return np.random.rand(*args) * (b - a) + a
+
 
 class LstmParam:
     def __init__(self, mem_cell_ct, x_dim):
         self.mem_cell_ct = mem_cell_ct
         self.x_dim = x_dim
-        concat_len = x_dim + mem_cell_ct
-        # weight matrices
-        self.wg = rand_arr(-0.1, 0.1, mem_cell_ct, concat_len)  #维度:100*150
-        self.wi = rand_arr(-0.1, 0.1, mem_cell_ct, concat_len) 
+        concat_len = x_dim + mem_cell_ct # x_dim + hidden_dim
+        # weight matrices, 权重不宜初始化为0,而要随机初始化
+        self.wg = rand_arr(-0.1, 0.1, mem_cell_ct, concat_len)
+        self.wi = rand_arr(-0.1, 0.1, mem_cell_ct, concat_len)
         self.wf = rand_arr(-0.1, 0.1, mem_cell_ct, concat_len)
         self.wo = rand_arr(-0.1, 0.1, mem_cell_ct, concat_len)
         # bias terms
-        self.bg = rand_arr(-0.1, 0.1, mem_cell_ct) # 维度:100*1
-        self.bi = rand_arr(-0.1, 0.1, mem_cell_ct) 
-        self.bf = rand_arr(-0.1, 0.1, mem_cell_ct) 
-        self.bo = rand_arr(-0.1, 0.1, mem_cell_ct) 
+        self.bg = rand_arr(-0.1, 0.1, mem_cell_ct) # hidden_size
+        self.bi = rand_arr(-0.1, 0.1, mem_cell_ct)
+        self.bf = rand_arr(-0.1, 0.1, mem_cell_ct)
+        self.bo = rand_arr(-0.1, 0.1, mem_cell_ct)
         # diffs (derivative of loss function w.r.t. all parameters)
-        self.wg_diff = np.zeros((mem_cell_ct, concat_len)) 
-        self.wi_diff = np.zeros((mem_cell_ct, concat_len)) 
-        self.wf_diff = np.zeros((mem_cell_ct, concat_len)) 
-        self.wo_diff = np.zeros((mem_cell_ct, concat_len)) 
-        self.bg_diff = np.zeros(mem_cell_ct) 
-        self.bi_diff = np.zeros(mem_cell_ct) 
-        self.bf_diff = np.zeros(mem_cell_ct) 
-        self.bo_diff = np.zeros(mem_cell_ct) 
+        self.wg_diff = np.zeros((mem_cell_ct, concat_len))
+        self.wi_diff = np.zeros((mem_cell_ct, concat_len))
+        self.wf_diff = np.zeros((mem_cell_ct, concat_len))
+        self.wo_diff = np.zeros((mem_cell_ct, concat_len))
+        self.bg_diff = np.zeros(mem_cell_ct)
+        self.bi_diff = np.zeros(mem_cell_ct)
+        self.bf_diff = np.zeros(mem_cell_ct)
+        self.bo_diff = np.zeros(mem_cell_ct)
 
-    def apply_diff(self, lr = 1):
+    def apply_diff(self, lr=1):
         self.wg -= lr * self.wg_diff
         self.wi -= lr * self.wi_diff
         self.wf -= lr * self.wf_diff
@@ -47,71 +60,67 @@ class LstmParam:
         self.bo -= lr * self.bo_diff
         # reset diffs to zero
         self.wg_diff = np.zeros_like(self.wg)
-        self.wi_diff = np.zeros_like(self.wi) 
-        self.wf_diff = np.zeros_like(self.wf) 
-        self.wo_diff = np.zeros_like(self.wo) 
+        self.wi_diff = np.zeros_like(self.wi)
+        self.wf_diff = np.zeros_like(self.wf)
+        self.wo_diff = np.zeros_like(self.wo)
         self.bg_diff = np.zeros_like(self.bg)
-        self.bi_diff = np.zeros_like(self.bi) 
-        self.bf_diff = np.zeros_like(self.bf) 
-        self.bo_diff = np.zeros_like(self.bo) 
+        self.bi_diff = np.zeros_like(self.bi)
+        self.bf_diff = np.zeros_like(self.bf)
+        self.bo_diff = np.zeros_like(self.bo)
+
 
 class LstmState:
     def __init__(self, mem_cell_ct, x_dim):
-        self.g = np.zeros(mem_cell_ct)  #100*1
-        self.i = np.zeros(mem_cell_ct)  #100*1
-        self.f = np.zeros(mem_cell_ct)  #100*1
-        self.o = np.zeros(mem_cell_ct)  #100*1
-        self.s = np.zeros(mem_cell_ct)  #100*1
-        self.h = np.zeros(mem_cell_ct)  #100*1
-        self.bottom_diff_h = np.zeros_like(self.h)  #100*1
-        self.bottom_diff_s = np.zeros_like(self.s)  #100*1
-        self.bottom_diff_x = np.zeros(x_dim)  #50*1
-    
+        self.g = np.zeros(mem_cell_ct)
+        self.i = np.zeros(mem_cell_ct)
+        self.f = np.zeros(mem_cell_ct)
+        self.o = np.zeros(mem_cell_ct)
+        self.s = np.zeros(mem_cell_ct)
+        self.h = np.zeros(mem_cell_ct)
+        self.bottom_diff_h = np.zeros_like(self.h)
+        self.bottom_diff_s = np.zeros_like(self.s)
+
+
 class LstmNode:
     def __init__(self, lstm_param, lstm_state):
         # store reference to parameters and to activations
         self.state = lstm_state
         self.param = lstm_param
-        # non-recurrent input to node
-        self.x = None
         # non-recurrent input concatenated with recurrent input
         self.xc = None
 
-    #自顶向下,前向传播
-    def bottom_data_is(self, x, s_prev = None, h_prev = None):
+    def bottom_data_is(self, x, s_prev=None, h_prev=None):
         # if this is the first lstm node in the network
-        # 如果是第一个节点,prev初始始化为0
-        if s_prev == None: s_prev = np.zeros_like(self.state.s)
-        if h_prev == None: h_prev = np.zeros_like(self.state.h)
+        if s_prev is None: s_prev = np.zeros_like(self.state.s)
+        if h_prev is None: h_prev = np.zeros_like(self.state.h)
         # save data for use in backprop
         self.s_prev = s_prev
         self.h_prev = h_prev
 
         # concatenate x(t) and h(t-1)
-        xc = np.hstack((x,  h_prev))  #150*1
-        self.state.g = np.tanh(np.dot(self.param.wg, xc) + self.param.bg) # wg:100*150,xc:150*1,bg:100*1
+        xc = np.hstack((x, h_prev))
+        self.state.g = np.tanh(np.dot(self.param.wg, xc) + self.param.bg)
         self.state.i = sigmoid(np.dot(self.param.wi, xc) + self.param.bi)
         self.state.f = sigmoid(np.dot(self.param.wf, xc) + self.param.bf)
         self.state.o = sigmoid(np.dot(self.param.wo, xc) + self.param.bo)
-        self.state.s = self.state.g * self.state.i + s_prev * self.state.f  #100*1
-        self.state.h = self.state.s * self.state.o  #100*1
-        self.x = x
+        self.state.s = self.state.g * self.state.i + s_prev * self.state.f
+        self.state.h = self.state.s * self.state.o
+
         self.xc = xc
-    
-    #自底向上,反向传播
+
     def top_diff_is(self, top_diff_h, top_diff_s):
         # notice that top_diff_s is carried along the constant error carousel
-        ds = self.state.o * top_diff_h + top_diff_s  #dL/ds , ds:100*1
-        do = self.state.s * top_diff_h  #dL/do
+        ds = self.state.o * top_diff_h + top_diff_s
+        do = self.state.s * top_diff_h
         di = self.state.g * ds
         dg = self.state.i * ds
         df = self.s_prev * ds
 
         # diffs w.r.t. vector inside sigma / tanh function
-        di_input = (1. - self.state.i) * self.state.i * di 
-        df_input = (1. - self.state.f) * self.state.f * df 
-        do_input = (1. - self.state.o) * self.state.o * do 
-        dg_input = (1. - self.state.g ** 2) * dg
+        di_input = sigmoid_derivative(self.state.i) * di
+        df_input = sigmoid_derivative(self.state.f) * df
+        do_input = sigmoid_derivative(self.state.o) * do
+        dg_input = tanh_derivative(self.state.g) * dg
 
         # diffs w.r.t. inputs
         self.param.wi_diff += np.outer(di_input, self.xc)
@@ -119,9 +128,9 @@ class LstmNode:
         self.param.wo_diff += np.outer(do_input, self.xc)
         self.param.wg_diff += np.outer(dg_input, self.xc)
         self.param.bi_diff += di_input
-        self.param.bf_diff += df_input       
+        self.param.bf_diff += df_input
         self.param.bo_diff += do_input
-        self.param.bg_diff += dg_input       
+        self.param.bg_diff += dg_input
 
         # compute bottom diff
         dxc = np.zeros_like(self.xc)
@@ -132,8 +141,8 @@ class LstmNode:
 
         # save bottom diffs
         self.state.bottom_diff_s = ds * self.state.f
-        self.state.bottom_diff_x = dxc[:self.param.x_dim]
         self.state.bottom_diff_h = dxc[self.param.x_dim:]
+
 
 class LstmNetwork():
     def __init__(self, lstm_param):
@@ -144,16 +153,16 @@ class LstmNetwork():
 
     def y_list_is(self, y_list, loss_layer):
         """
-        Updates diffs by setting target sequence 
-        with corresponding loss layer. 
+        Updates diffs by setting target sequence
+        with corresponding loss layer.
         Will *NOT* update parameters.  To update parameters,
         call self.lstm_param.apply_diff()
         """
         assert len(y_list) == len(self.x_list)
         idx = len(self.x_list) - 1
         # first node only gets diffs from label ...
-        loss = loss_layer.loss(self.lstm_node_list[idx].state.h, y_list[idx])  #误差
-        diff_h = loss_layer.bottom_diff(self.lstm_node_list[idx].state.h, y_list[idx])  #梯度
+        loss = loss_layer.loss(self.lstm_node_list[idx].state.h, y_list[idx])
+        diff_h = loss_layer.bottom_diff(self.lstm_node_list[idx].state.h, y_list[idx])
         # here s is not affecting loss due to h(t+1), hence we set equal to zero
         diff_s = np.zeros(self.lstm_param.mem_cell_ct)
         self.lstm_node_list[idx].top_diff_is(diff_h, diff_s)
@@ -167,7 +176,7 @@ class LstmNetwork():
             diff_h += self.lstm_node_list[idx + 1].state.bottom_diff_h
             diff_s = self.lstm_node_list[idx + 1].state.bottom_diff_s
             self.lstm_node_list[idx].top_diff_is(diff_h, diff_s)
-            idx -= 1 
+            idx -= 1
 
         return loss
 
@@ -175,7 +184,7 @@ class LstmNetwork():
         self.x_list = []
 
     def x_list_add(self, x):
-        self.x_list.append(x)  #x为50维的向量,序列中样本的个数要少于或等于 lstm结点的个数
+        self.x_list.append(x)
         if len(self.x_list) > len(self.lstm_node_list):
             # need to add new lstm node, create new state mem
             lstm_state = LstmState(self.lstm_param.mem_cell_ct, self.lstm_param.x_dim)
@@ -190,4 +199,5 @@ class LstmNetwork():
             s_prev = self.lstm_node_list[idx - 1].state.s
             h_prev = self.lstm_node_list[idx - 1].state.h
             self.lstm_node_list[idx].bottom_data_is(x, s_prev, h_prev)
+
 

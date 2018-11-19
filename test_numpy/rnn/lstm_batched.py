@@ -45,7 +45,7 @@ class LSTM:
     IFOGf = np.zeros((n, b, d * 4)) # after nonlinearity
     C = np.zeros((n, b, d)) # cell content
     Ct = np.zeros((n, b, d)) # tanh of cell content
-    for t in xrange(n): #序列的长度,比如长度为5的序列
+    for t in range(n): #序列的长度,比如长度为5的序列
       # concat [x,h] as input to the LSTM
       prevh = Hout[t-1] if t > 0 else h0 # batch_size*hidden_size,3*4
       Hin[t,:,0] = 1 # bias
@@ -104,7 +104,7 @@ class LSTM:
     dHout = dHout_in.copy() # make a copy so we don't have any funny side effects,dHout即dHt
     if dcn is not None: dC[n-1] += dcn.copy() # carry over gradients from later
     if dhn is not None: dHout[n-1] += dhn.copy()
-    for t in reversed(xrange(n)):#从t到t-1,t-2,...0
+    for t in reversed(range(n)):#从t到t-1,t-2,...0
       tanhCt = Ct[t] #3*4,最后一次细胞状态
       dIFOGf[t,:,2*d:3*d] = tanhCt * dHout[t]#输出门的梯度,tanhCt:3*4,dHout[t]:3*4,细胞状态*输出门,Ht=Ot*tanh(Ct),则 dOt=tanh(Ct)*dHt
       # backprop tanh non-linearity first then continue backprop
@@ -158,9 +158,9 @@ def checkSequentialMatchesBatch():
   # sequential forward
   cprev = c0
   hprev = h0
-  caches = [{} for t in xrange(n)]
+  caches = [{} for t in range(n)]
   Hcat = np.zeros((n,b,d))
-  for t in xrange(n):
+  for t in range(n):
     xt = X[t:t+1] #1*3*10,同于X[t:t+1,:,:],1*3*10
     _, cprev, hprev, cache = LSTM.forward(xt, WLSTM, cprev, hprev) #forward返回: Hout, C[t], Hout[t], cache
     caches[t] = cache
@@ -185,7 +185,7 @@ def checkSequentialMatchesBatch():
   dh0 = np.zeros_like(h0)
   dcnext = None
   dhnext = None
-  for t in reversed(xrange(n)):
+  for t in reversed(range(n)):
     dht = dH[t].reshape(1, b, d)
     dx, dWLSTMt, dcprev, dhprev = LSTM.backward(dht, caches[t], dcnext, dhnext)
     dhnext = dhprev
@@ -198,11 +198,11 @@ def checkSequentialMatchesBatch():
       dh0 = dhprev
 
   # and make sure the gradients match
-  print 'Making sure batched version agrees with sequential version: (should all be True)'
-  print np.allclose(BdX, dX)
-  print np.allclose(BdWLSTM, dWLSTM)
-  print np.allclose(Bdc0, dc0)
-  print np.allclose(Bdh0, dh0)
+  print('Making sure batched version agrees with sequential version: (should all be True)')
+  print(np.allclose(BdX, dX))
+  print(np.allclose(BdWLSTM, dWLSTM))
+  print(np.allclose(Bdc0, dc0))
+  print(np.allclose(Bdh0, dh0))
   
 
 def checkBatchGradient():
@@ -234,12 +234,12 @@ def checkBatchGradient():
   tocheck = [X, WLSTM, c0, h0]
   grads_analytic = [dX, dWLSTM, dc0, dh0]
   names = ['X', 'WLSTM', 'c0', 'h0']
-  for j in xrange(len(tocheck)):
+  for j in range(len(tocheck)):
     mat = tocheck[j]
     dmat = grads_analytic[j]
     name = names[j]
     # gradcheck
-    for i in xrange(mat.size):
+    for i in range(mat.size):
       old_val = mat.flat[i]
       mat.flat[i] = old_val + delta
       loss0 = fwd()
@@ -263,8 +263,8 @@ def checkBatchGradient():
         if rel_error > rel_error_thr_error: status = '!!!!! NOTOK'
 
       # print stats
-      print '%s checking param %s index %s (val = %+8f), analytic = %+8f, numerical = %+8f, relative error = %+8f' \
-            % (status, name, `np.unravel_index(i, mat.shape)`, old_val, grad_analytic, grad_numerical, rel_error)
+      print('%s checking param %s index %s (val = %+8f), analytic = %+8f, numerical = %+8f, relative error = %+8f' \
+            % (status, name, np.unravel_index(i, mat.shape), old_val, grad_analytic, grad_numerical, rel_error))
 
 
 if __name__ == "__main__":
@@ -272,4 +272,4 @@ if __name__ == "__main__":
   checkSequentialMatchesBatch()
   raw_input('check OK, press key to continue to gradient check')
   checkBatchGradient()
-  print 'every line should start with OK. Have a nice day!'
+  print('every line should start with OK. Have a nice day!')
