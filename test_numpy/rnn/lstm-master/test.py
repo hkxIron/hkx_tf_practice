@@ -31,7 +31,7 @@ def example_0():
     y_list = [-0.5, 0.2, 0.1, -0.5] #这是1个样本的label,分别为每个输入word embedding的打分
     # 为每个y,生成一个x输入向量,x样本序列的长度为4,embedding维度为50
     # 类比例子,可以看成对序列中的每个向量进行pos/neg打分
-    input_val_arr = [np.random.random(x_dim) for _ in y_list] # list of ndarray(dim=50)
+    input_val_arr = [np.random.random(x_dim) for _ in y_list] # list of ndarray(dim=50), list长度为4
     print("input_val_arr:", input_val_arr)
 
     for cur_iter in range(210):

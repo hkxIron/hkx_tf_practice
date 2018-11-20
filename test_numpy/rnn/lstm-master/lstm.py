@@ -76,12 +76,12 @@ class LstmState:
         self.i = np.zeros(mem_cell_ct)
         self.f = np.zeros(mem_cell_ct)
         self.o = np.zeros(mem_cell_ct)
-        self.s = np.zeros(mem_cell_ct)
+        self.s = np.zeros(mem_cell_ct) # state里存有cell_state,以及hidden_state,这与tensorflow中的表示类似
         self.h = np.zeros(mem_cell_ct)
         self.bottom_diff_h = np.zeros_like(self.h)
         self.bottom_diff_s = np.zeros_like(self.s)
 
-# 这里的一个LSTMNode其是多层lstm中的一层,作者想要模仿类似于caffe中的输入层与输出层,然后每层级联形成最后的多层stacked-lstm
+# 这里的一个LSTMNode其是time_step中的一个时间step,作者想要模仿类似于caffe中的输入层与输出层,只不过各层之间是时间先后依赖
 class LstmNode:
     def __init__(self, lstm_param, lstm_state):
         # store reference to parameters and to activations
@@ -90,7 +90,7 @@ class LstmNode:
         # non-recurrent input concatenated with recurrent input
         self.xc = None
 
-    # 底部输入的data
+    # 底部输入的data(此处所谓的底部,即时间time_step-1)
     def bottom_data_is(self, x_t, s_prev=None, h_prev=None):
         # if this is the first lstm node in the network
         if s_prev is None: s_prev = np.zeros_like(self.state.s)
@@ -111,7 +111,7 @@ class LstmNode:
 
         self.xc = xc
 
-    # 来自顶部回传的梯度
+    # 来自顶部(time_step+1)回传的梯度
     def top_diff_is(self, top_diff_h, top_diff_s):
         # notice that top_diff_s is carried along the constant error carousel
         ds = self.state.o * top_diff_h + top_diff_s # ds: hidden_dim
@@ -167,7 +167,7 @@ class LstmNetwork():
         time_step = len(self.x_list) - 1
         # first node only gets diffs from label ...
         loss = loss_layer.loss(self.lstm_node_list[time_step].state.h, y_list[time_step]) # 计算回归损失
-        diff_h = loss_layer.bottom_diff(self.lstm_node_list[time_step].state.h, y_list[time_step]) # 计算time_step梯度
+        diff_h = loss_layer.bottom_diff(self.lstm_node_list[time_step].state.h, y_list[time_step]) # 计算最后一层梯度
         # here s is not affecting loss due to h(t+1), hence we set equal to zero
         diff_s = np.zeros(self.lstm_param.mem_cell_ct)
         self.lstm_node_list[time_step].top_diff_is(diff_h, diff_s)
@@ -176,7 +176,8 @@ class LstmNetwork():
         ### ... following nodes also get diffs from next nodes, hence we add diffs to diff_h
         ### we also propagate error along constant error carousel using diff_s
         while time_step >= 0:
-            loss += loss_layer.loss(self.lstm_node_list[time_step].state.h, y_list[time_step])
+            # 注意: 总loss是所有时间步的loss加起来的损失
+            loss += loss_layer.loss(self.lstm_node_list[time_step].state.h, y_list[time_step]) # 计算time_step处的损失
             diff_h = loss_layer.bottom_diff(self.lstm_node_list[time_step].state.h, y_list[time_step])
             diff_h += self.lstm_node_list[time_step + 1].state.bottom_diff_h # 将time+1时间的diff_h累加
             diff_s = self.lstm_node_list[time_step + 1].state.bottom_diff_s
@@ -200,10 +201,12 @@ class LstmNetwork():
         time_step = len(self.x_list) - 1 # idx: time_step
         if time_step == 0:
             # no recurrent inputs yet
-            self.lstm_node_list[time_step].bottom_data_is(x) # x: x_dim=50
+            s_prev = None
+            h_prev = None
         else:
             s_prev = self.lstm_node_list[time_step - 1].state.s
             h_prev = self.lstm_node_list[time_step - 1].state.h
-            self.lstm_node_list[time_step].bottom_data_is(x, s_prev, h_prev)
+        # 每层的输入数据为x
+        self.lstm_node_list[time_step].bottom_data_is(x, s_prev, h_prev) # x: x_dim=50
 
 
