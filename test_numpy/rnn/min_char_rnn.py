@@ -1,4 +1,5 @@
 """
+blog:http://karpathy.github.io/2015/05/21/rnn-effectiveness/
 Minimal character-level Vanilla RNN model. Written by Andrej Karpathy (@karpathy)
 BSD License
 """
