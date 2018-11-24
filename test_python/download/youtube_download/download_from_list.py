@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# coding:utf-8
 # -*- coding: utf-8 -*-
 # author: hkxIron
 # 根据视频列表，下载视频文件
@@ -11,7 +12,10 @@ import os,sys
 D:\lunaWorkspace\old_bak\youtube_downloadProj>D:\lunaWorkspace\old_bak\youtube_d
 ownloadProj\youtube-dl.exe https://www.youtube.com/watch?v=NfnWJUyUJYU  --proxy "dev-proxy.oa.com:8080" 
   -o %(title).%(ext)  --write-auto-sub --verbose
+  
+用法示例:python download_from_list.py list_advanced_deep_learning_and_reinforcelearning_2018.txt C:\\Users\kexin\youtube\
 """
+
 #downloader=r"D:\public_code\hkx_tf_practice\test_python\youtube_download\youtube-dl.exe "
 downloader=r"youtube-dl.exe "  # 由于是在当前路径下，所以不需要写全路径
 proxy = ' --proxy "dev-proxy.oa.com:8080" ' # 在公司，代理很好用
@@ -48,6 +52,7 @@ def read_link_list(link_list_file):
     link_list = []
     with open(link_list_file,"r") as fr:
         for line in fr.readlines():
+            if line.strip().startswith("#") or len(line.strip()) <=5: continue
             link_list.append(line.rstrip("\n"))
     return link_list
 
