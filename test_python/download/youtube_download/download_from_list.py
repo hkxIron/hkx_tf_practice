@@ -44,7 +44,7 @@ def download(link_list, output_dir):
     for link in link_list:
         prefix = str(index).zfill(2)  # 填充为两位
         print("begin to download: ", link)
-        cmd = downloader + link +" -o "+ os.path.join(output_dir, '"'+prefix + format)
+        cmd = downloader + link +" -o "+ os.path.join('"'+output_dir, prefix + format)
         if len(proxy) > 0:
             cmd += proxy
         print("cmd: ", cmd)
