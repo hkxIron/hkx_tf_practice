@@ -8,6 +8,8 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 import os,sys
+import platform
+
 """
 D:\lunaWorkspace\old_bak\youtube_downloadProj>D:\lunaWorkspace\old_bak\youtube_d
 ownloadProj\youtube-dl.exe https://www.youtube.com/watch?v=NfnWJUyUJYU  --proxy "dev-proxy.oa.com:8080" 
@@ -17,9 +19,16 @@ ownloadProj\youtube-dl.exe https://www.youtube.com/watch?v=NfnWJUyUJYU  --proxy 
 """
 
 #downloader=r"D:\public_code\hkx_tf_practice\test_python\youtube_download\youtube-dl.exe "
-downloader=r"youtube-dl.exe "  # 由于是在当前路径下，所以不需要写全路径
+sysstr = platform.system()
+print("system: ", sysstr)
+if sysstr  =="Windows":
+    downloader=r"youtube-dl.exe "  # 由于是在当前路径下，所以不需要写全路径
+else: # Linux
+    downloader=r"youtube-dl "
+
+#downloader=r"youtube-dl "  # linux
 proxy = ' --proxy "dev-proxy.oa.com:8080" ' # 在公司，代理很好用
-format = "_%(title)s_%(resolution)s.%(ext)s  --write-auto-sub --verbose "
+format = '_%(title)s_%(resolution)s.%(ext)s"  --write-auto-sub --verbose '
 
 def download(link_list, output_dir):
     if not os.path.exists(output_dir):
@@ -35,7 +44,7 @@ def download(link_list, output_dir):
     for link in link_list:
         prefix = str(index).zfill(2)  # 填充为两位
         print("begin to download: ", link)
-        cmd = downloader + link +" -o "+ os.path.join(output_dir, prefix + format)
+        cmd = downloader + link +" -o "+ os.path.join(output_dir, '"'+prefix + format)
         if len(proxy) > 0:
             cmd += proxy
         print("cmd: ", cmd)
