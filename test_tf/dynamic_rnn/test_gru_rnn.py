@@ -11,11 +11,22 @@ X = np.random.randn(batch, time_step, word_embedding_size)
 X[1, 6:] = 0
 X[2, 3:] = 0
 X_lengths = [10, 6, 3] # 每个样本的时间长度
+#X_tensor = tf.Tensor(X, dtype=tf.float32)
 
-cell = tf.nn.rnn_cell.LSTMCell(num_units=5, state_is_tuple=True)
+#X_tensor = tf.get_variable("x", initializer=tf.constant_initializer(X))
+#cell = tf.nn.rnn_cell.LSTMCell(num_units=5, state_is_tuple=True)
+fw_cell = tf.nn.rnn_cell.GRUCell(num_units=5, dtype=tf.float64)
+bw_cell = tf.nn.rnn_cell.GRUCell(num_units=5, dtype=tf.float64)
+#init_state = cell.zero_state(batch, dtype=tf.float32)
 
 outputs, states = tf.nn.bidirectional_dynamic_rnn(
-    cell_fw=cell, cell_bw=cell, dtype=tf.float64, sequence_length=X_lengths, inputs=X
+    cell_fw=fw_cell,
+    cell_bw=bw_cell,
+    inputs=X,
+    sequence_length=X_lengths,
+    dtype=tf.float64,
+    #initial_state = init_state,
+    time_major=False
 )
 
 output_fw, output_bw = outputs
