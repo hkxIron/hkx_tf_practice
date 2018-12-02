@@ -9,7 +9,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import os
 import math
-import networkx as nx
+import networkx as nx # 用来计算pagerank(power iteration)
 import numpy as np
 import sys
 
