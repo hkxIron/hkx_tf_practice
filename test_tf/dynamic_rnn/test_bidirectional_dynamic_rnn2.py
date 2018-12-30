@@ -14,18 +14,17 @@ X[2, 3:] = 0 # 第三个样本长度为3
 X_lengths = [10, 6, 3] # 每个样本的时间长度
 X_tensor = tf.convert_to_tensor(X)
 
-cell = tf.nn.rnn_cell.LSTMCell(num_units=5, state_is_tuple=True)
+cell_fw = tf.nn.rnn_cell.LSTMCell(num_units=5, state_is_tuple=True)
+cell_bw = tf.nn.rnn_cell.LSTMCell(num_units=5, state_is_tuple=True)
 
 outputs, states = tf.nn.bidirectional_dynamic_rnn(
-    cell_fw=cell,
-    cell_bw=cell,
+    cell_fw=cell_fw,
+    cell_bw=cell_bw,
     dtype=tf.float64,
     sequence_length=X_lengths,
     inputs=X_tensor # 将numpy 数组转为tensor
 )
 
-# output_fw:[batch, time_step, hidden_size]
-# state_fw:[batch, hidden_size], hidden state:只记录最后一个hidden_state
 output_fw, output_bw = outputs
 states_fw, states_bw = states
 
@@ -34,13 +33,21 @@ with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     states_shape = tf.shape(states)
     print(states_shape.eval())
-    o = output_fw
     c, h = states_fw
-    print('o(all hidden state seq) forward:\n', sess.run(o))
+    o = output_fw
     print('c(last cell state) forward\n', sess.run(c))
     print('h(last hidden state) forward\n', sess.run(h))
+    print('o(all hidden state seq) forward:\n', sess.run(o))
 
 """
+c(last cell state) forward
+ [[-0.12217524  0.28533151 -0.36844351 -0.43810071  0.00811558]
+ [ 0.07820437 -0.92231635 -0.26364966  0.31294861  0.31548287]
+ [-0.65065489 -0.32258168 -0.30470056  0.13921824  0.38474448]]
+h(last hidden state) forward
+ [[-0.04144077  0.12940451 -0.16907926 -0.21485672  0.00483757]
+ [ 0.06429532 -0.56275855 -0.21832985  0.1266499   0.0818067 ]
+ [-0.20172505 -0.12580037 -0.14340393  0.04755116  0.23248379]]
 o(all hidden state seq) forward:
  [[[-0.04676045  0.02525628  0.15680289 -0.08090868 -0.00158162]
   [-0.13279093  0.07675365  0.10376204  0.02689012  0.17435146]
@@ -74,13 +81,4 @@ o(all hidden state seq) forward:
   [ 0.          0.          0.          0.          0.        ]
   [ 0.          0.          0.          0.          0.        ]
   [ 0.          0.          0.          0.          0.        ]]]
-  
-c(last cell state) forward
- [[-0.12217524  0.28533151 -0.36844351 -0.43810071  0.00811558]
- [ 0.07820437 -0.92231635 -0.26364966  0.31294861  0.31548287]
- [-0.65065489 -0.32258168 -0.30470056  0.13921824  0.38474448]]
-h(last hidden state) forward
- [[-0.04144077  0.12940451 -0.16907926 -0.21485672  0.00483757]
- [ 0.06429532 -0.56275855 -0.21832985  0.1266499   0.0818067 ]
- [-0.20172505 -0.12580037 -0.14340393  0.04755116  0.23248379]]
 """
