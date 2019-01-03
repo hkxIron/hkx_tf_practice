@@ -241,6 +241,7 @@ xy = Interact()([y_lstm2, x_bi_lstm2, x_mask])
 # xy: [batch, max_dec_length, 3*char_embedding]
 xy_dense1 = Dense(512, activation='relu')(xy)
 xy_dense2 = Dense(VOCAB_SIZE_WITH_SPECIAL)(xy_dense1)
+# xy_average: [batch, max_dec_length, vocab]
 xy_average = Lambda(lambda x: (x[0]+x[1])/2)([xy_dense2, x_prior]) # 与先验结果平均
 xy_softmax = Activation(activation='softmax')(xy_average)
 
