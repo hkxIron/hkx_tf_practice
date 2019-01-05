@@ -7,6 +7,7 @@
 
 #! -*- coding: utf-8 -*-
 # blog: https://mp.weixin.qq.com/s?__biz=MzIwMTc4ODE0Mw==&mid=2247491314&idx=1&sn=3e22d4a6d732b0877fdc567d2bce1076&chksm=96e9c172a19e48646005da05e143751aa9012c141dd1cf9846a2b418cbf854c7d343013105a1&scene=21#wechat_redirect
+# blog: https://kexue.fm/archives/5861/comment-page-2#comments
 # origin code: https://github.com/bojone/seq2seq/blob/master/seq2seq.py
 import numpy as np
 #import pymongo
