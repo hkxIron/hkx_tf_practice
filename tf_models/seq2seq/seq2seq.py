@@ -1,8 +1,9 @@
 """
-注意:此实现中的decoder部分与原seq2seq-attention论文neural machine translation by jointly learning to align and translate 2015
+注意:此实现中的decoder部分与原seq2seq-attention论文
+neural machine translation by jointly learning to align and translate (2015 Dzmitry Bahdanau)
 中不太一样,原论文中decoder_hidden_j都是依赖于y_(i-1),C_i,即S_i = g(s_(i-1), y_(i-1), c_i),
 而此code中S_i仅依赖于 S_(i-1), 而只是在后面的全连接层才用到C_i与y_(i-1)
-所以感觉并非标准的seq2seq-attention
+所以感觉并非 "原始论文中的seq2seq-attention"
 """
 
 #! -*- coding: utf-8 -*-
@@ -178,8 +179,10 @@ x_bi_lstm2 = Bidirectional(layer=LSTM(units=encoder_embedding_size, return_seque
 
 # decoder，双层单向LSTM, 注意是单向
 """ 
-注意:此实现中的decoder部分与原seq2seq-attention论文neural machine translation by jointly learning to align and translate 2015
-中不太一样,原论文中decoder_hidden_j都是依赖于y_(i-1),而此处并没有,所以感觉并非标准的seq2seq-attention
+注意:此实现中的decoder部分与原seq2seq-attention论文
+neural machine translation by jointly learning to align and translate 2015
+中不太一样,原论文中decoder_hidden_j都是依赖于y_(i-1),而此处并没有,
+所以感觉并非原始论文中的seq2seq-attention
 
 此处S_i = g(S_(i-1))
 """
