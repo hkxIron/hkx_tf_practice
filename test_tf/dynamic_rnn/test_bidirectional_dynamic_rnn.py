@@ -29,6 +29,8 @@ outputs, states = tf.nn.bidirectional_dynamic_rnn(
 output_fw, output_bw = outputs
 states_fw, states_bw = states
 
+
+
 # tf中的所谓output一般指hidden_state,而非cell_state, cell_state中一般包含所有时记刻的cell_state,hidden_state
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
@@ -36,6 +38,8 @@ with tf.Session() as sess:
     print(states_shape.eval())
     o = output_fw
     c, h = states_fw
+    #print("state_h:", sess.run(state_h))
+    #print("state_c:", sess.run(state_c))
     print('o(all hidden state seq) forward:\n', sess.run(o))
     print('c(last cell state) forward\n', sess.run(c))
     print('h(last hidden state) forward\n', sess.run(h))
