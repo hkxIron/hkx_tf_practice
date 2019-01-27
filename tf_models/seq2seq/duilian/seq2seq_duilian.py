@@ -67,7 +67,8 @@ source_int = [[source_letter_to_int.get(letter, source_letter_to_int['<UNK>']) f
                 for line in source_data.split('\n')] # 上联进行转换
 
 # TODO: 注意:seq2seq中, decoder末尾有一个 "<eos>"
-target_int = [[target_letter_to_int.get(letter, target_letter_to_int['<UNK>']) for letter in line] + [target_letter_to_int['<EOS>']]
+target_int = [[target_letter_to_int.get(letter, target_letter_to_int['<UNK>']) for letter in line]
+              + [target_letter_to_int['<EOS>']]
                 for line in target_data.split('\n')]
 
 print(source_int)
@@ -95,7 +96,11 @@ def get_inputs():
 """
 
 
-def get_encoder_layer(input_data, rnn_size, num_layers, source_sequence_length, source_vocab_size,
+def get_encoder_layer(input_data,
+                      rnn_size,
+                      num_layers,
+                      source_sequence_length,
+                      source_vocab_size,
                       encoding_embedding_size):
     """
     构造Encoder层
@@ -124,29 +129,59 @@ def get_encoder_layer(input_data, rnn_size, num_layers, source_sequence_length, 
 
     return : Tensor of [batch_size, doc_length, embed_dim] with embedded sequences.
     """
+
+    # input_data:[batch, source_sequence_length]
+    # encoder_input:[batch, source_sequence_length, embedding_size]
+    # 这个高级接口,都不需要申请变量了
     encoder_embed_input = tf.contrib.layers.embed_sequence(input_data, source_vocab_size, encoding_embedding_size)
 
     def get_lstm_cell(rnn_size):
-        lstm_cell = tf.contrib.rnn.LSTMCell(rnn_size, initializer=tf.random_uniform_initializer(-0.1, 0.1, seed=2))
+        lstm_cell = tf.contrib.rnn.LSTMCell(rnn_size,
+                                            initializer=tf.random_uniform_initializer(-0.1, 0.1, seed=2))
         return lstm_cell
 
     cell = tf.contrib.rnn.MultiRNNCell([get_lstm_cell(rnn_size) for _ in range(num_layers)])
 
-    encoder_output, encoder_state = tf.nn.dynamic_rnn(cell, encoder_embed_input, sequence_length=source_sequence_length,
+    # encoder_embed_input:[batch, source_sequence_length, embedding_size]
+    # source_sequence_length:[batch]
+    # encoder_output:[batch, source_sequence_length, hidden_size]
+    # encoder_state:[hidden=[batch, hidden_size], cell=[batch, hidden_size]]
+    encoder_output, encoder_state = tf.nn.dynamic_rnn(cell=cell,
+                                                      inputs=encoder_embed_input,
+                                                      sequence_length=source_sequence_length,
                                                       dtype=tf.float32)
 
     return encoder_output, encoder_state
 
 
-def process_decoder_input(data, vocab_to_int, batch_size):
-    ending = tf.strided_slice(data, [0, 0], [batch_size, -1], [1, 1])
-    decoder_input = tf.concat([tf.fill([batch_size, 1], vocab_to_int['<GO>']), ending], 1)
+"""
+我们首先需要对target端的数据进行一步预处理。在我们将target中的序列作为输入给Decoder端的RNN时，序列中的最后一个字母（或单词）其实是没有用的
+我们此时只看右边的Decoder端，可以看到我们的target序列是[<go>, W, X, Y, Z, <eos>]，
+其中<go>，W，X，Y，Z是每个时间序列上输入给RNN的内容，我们发现，<eos>并没有作为输入传递给RNN。
+因此我们需要将target中的最后一个字符去掉，同时还需要在前面添加<go>标识，告诉模型这代表一个句子的开始。
 
+即decoder里的输入:<go>,W,X,Y,Z
+decoder的输出:     X  ,X,Y,Z,<eos>
+"""
+def process_decoder_input(data,
+        vocab_to_int,
+        batch_size ):
+    # data:[batch, decoder_sequence_length-1]
+    ending = tf.strided_slice(input_=data, begin=[0, 0], en =[batch_size, -1], strides=[1, 1]) # 去掉最后一个字符<eos>
+    # filled_value:[batch, 1]
+    filled_value = tf.fill(dims=[batch_size, 1], value=vocab_to_int['<GO>']) # 每个target序列前面加上<GO>,即begin开始符
+    # data:[batch, decoder_sequence_length]
+    decoder_input = tf.concat([filled_value, ending], axis=1)
     return decoder_input
 
-
-def decoding_layer(target_letter_to_int, decoding_embedding_size, num_layers, rnn_size,
-                   target_sequence_length, max_target_sequence_length, encoder_state, decoder_input):
+def decoding_layer(target_letter_to_int,
+                   decoding_embedding_size,
+                   num_layers,
+                   rnn_size,
+                   target_sequence_length,
+                   max_target_sequence_length,
+                   encoder_state,
+                   decoder_input):
     '''
     构造Decoder层
     参数：
@@ -162,28 +197,47 @@ def decoding_layer(target_letter_to_int, decoding_embedding_size, num_layers, rn
 
     # 1. Embedding
     target_vocab_size = len(target_letter_to_int)
+    # [vocab, embedding_size]
     decoder_embeddings = tf.Variable(tf.random_uniform([target_vocab_size, decoding_embedding_size]))
+    # [batch, decoder_sequence_length, embedding_size]
     decoder_embed_input = tf.nn.embedding_lookup(decoder_embeddings, decoder_input)
 
     # 构造Decoder中的RNN单元
     def get_decoder_cell(rnn_size):
-        decoder_cell = tf.contrib.rnn.LSTMCell(rnn_size, initializer=tf.random_uniform_initializer(-0.1, 0.1, seed=2))
+        decoder_cell = tf.contrib.rnn.LSTMCell(rnn_size,
+                                               initializer=tf.random_uniform_initializer(-0.1, 0.1, seed=2))
         return decoder_cell
 
-    cell = tf.contrib.rnn.MultiRNNCell([get_decoder_cell(rnn_size) for _ in range(num_layers)])
+    # 构建多层rnn
+    multi_rnn_cell = tf.contrib.rnn.MultiRNNCell([get_decoder_cell(rnn_size) for _ in range(num_layers)])
 
     # Output全连接层
     # target_vocab_size定义了输出层的大小
-    output_layer = Dense(target_vocab_size, kernel_initializer=tf.truncated_normal_initializer(mean=0.1, stddev=0.1))
+    output_layer = Dense(target_vocab_size,
+                         kernel_initializer=tf.truncated_normal_initializer(mean=0.1, stddev=0.1))
 
     # 4. Training decoder
     with tf.variable_scope("decode"):
+        # decoder_embed_input:[batch, decoder_sequence_length, embedding_size]
+        # target_sequence_length:[batch]
         training_helper = tf.contrib.seq2seq.TrainingHelper(inputs=decoder_embed_input,
                                                             sequence_length=target_sequence_length,
                                                             time_major=False)
-
-        training_decoder = tf.contrib.seq2seq.BasicDecoder(cell, training_helper, encoder_state, output_layer)
-        training_decoder_output, _, _ = tf.contrib.seq2seq.dynamic_decode(training_decoder, impute_finished=True,
+        # 构造一个decoder
+        # return: (outputs, next_state, next_inputs, finished).
+        training_decoder = tf.contrib.seq2seq.BasicDecoder(cell=multi_rnn_cell,
+                                                           helper=training_helper,
+                                                           initial_state=encoder_state,
+                                                           output_layer=output_layer)
+        """
+        dynamic_decode
+        用于构造一个动态的decoder，返回的内容是：(final_outputs, final_state, final_sequence_lengths).
+        其中，final_outputs是一个namedtuple，里面包含两项(rnn_outputs, sample_id)
+        rnn_output: [batch_size, decoder_targets_length, vocab_size]，保存decode每个时刻每个单词的概率，可以用来计算loss
+        sample_id: [batch_size], tf.int32，保存最终的编码结果。可以表示最后的答案
+        """
+        training_decoder_output, _, _ = tf.contrib.seq2seq.dynamic_decode(training_decoder,
+                                                                          impute_finished=True,
                                                                           maximum_iterations=max_target_sequence_length)
 
     # 5. Predicting decoder
@@ -191,15 +245,18 @@ def decoding_layer(target_letter_to_int, decoding_embedding_size, num_layers, rn
 
     with tf.variable_scope("decode", reuse=True):
         # 创建一个常量tensor并复制为batch_size的大小
-        start_tokens = tf.tile(tf.constant([target_letter_to_int['<GO>']], dtype=tf.int32), [batch_size],
+        start_tokens = tf.tile(tf.constant([target_letter_to_int['<GO>']], dtype=tf.int32),
+                               [batch_size],
                                name='start_token')
-        predicting_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(decoder_embeddings, start_tokens,
-                                                                     target_letter_to_int['<EOS>'])
+        # predict时用greedySearch
+        predicting_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding=decoder_embeddings,
+                                                                     start_tokens=start_tokens,
+                                                                     end_token=target_letter_to_int['<EOS>'])
 
-        predicting_decoder = tf.contrib.seq2seq.BasicDecoder(cell,
-                                                             predicting_helper,
-                                                             encoder_state,
-                                                             output_layer)
+        predicting_decoder = tf.contrib.seq2seq.BasicDecoder(cell=multi_rnn_cell,
+                                                             helper=predicting_helper,
+                                                             initial_state=encoder_state,
+                                                             output_layer=output_layer)
         predicting_decoder_output, _, _ = tf.contrib.seq2seq.dynamic_decode(predicting_decoder, impute_finished=True,
                                                                             maximum_iterations=max_target_sequence_length)
 
@@ -268,9 +325,9 @@ with train_graph.as_default():
     # set all valid timesteps to 1 and all padded timesteps to 0, e.g. a mask returned by tf.sequence_mask.
     with tf.name_scope("optimization"):
         cost = tf.contrib.seq2seq.sequence_loss(
-            training_logits,
-            targets,
-            masks
+            logits=training_logits,
+            targets=targets,
+            weights=masks # weights参数常常使用我们1.11中得到的mask。
         )
 
         optimizer = tf.train.AdamOptimizer(lr)
