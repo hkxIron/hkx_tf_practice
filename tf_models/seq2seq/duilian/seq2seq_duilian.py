@@ -179,6 +179,7 @@ def process_decoder_input(data,
     # data:[batch, decoder_sequence_length]
     # ending:[batch, decoder_sequence_length-1]
     # batch_size = data.get_shape().as_list()[0]
+    # 此处用到batch_size,因此 训练时的batch_size与serving时的必须一样才行
     ending = tf.strided_slice(input_=data, begin=[0, 0], end =[batch_size, -1], strides=[1, 1]) # 每个样本中去掉最后一个字符<eos>
     # filled_value:[batch, 1]
     filled_value = tf.fill(dims=[batch_size, 1], value=vocab_to_int['<GO>']) # 每个target序列前面加上<GO>,即begin开始符
@@ -211,6 +212,7 @@ def decoding_layer(target_letter_to_int,
     target_vocab_size = len(target_letter_to_int)
     # decoder_embeddings:[vocab, embedding_size]
     decoder_embeddings = tf.Variable(tf.random_uniform([target_vocab_size, decoding_embedding_size]))
+    # decoder_input:[batch, decoder_input_length]
     # decoder_embed_input:[batch, decoder_input_length, embedding_size]
     decoder_embed_input = tf.nn.embedding_lookup(decoder_embeddings, decoder_input)
 
@@ -223,7 +225,7 @@ def decoding_layer(target_letter_to_int,
     # 2.构建多层rnn
     multi_rnn_cell = tf.contrib.rnn.MultiRNNCell([get_decoder_cell(rnn_size) for _ in range(num_layers)])
 
-    # 3.Output全连接层
+    # 3.Output全连接层,用于连接decoder rnn的hidden层到vocab_size层的连接
     # output_layer:[batch, decoder_output_length, target_vocab_size], target_vocab_size定义了输出层的大小
     output_layer = Dense(units=target_vocab_size,
                          kernel_initializer=tf.truncated_normal_initializer(mean=0.1, stddev=0.1))
@@ -235,7 +237,7 @@ def decoding_layer(target_letter_to_int,
         training_helper = tf.contrib.seq2seq.TrainingHelper(inputs=decoder_embed_input,
                                                             sequence_length=target_sequence_length,
                                                             time_major=False)
-        # 构造一个decoder
+        # 注意 (TODO):decoder部分中的initial_state需要以encoder中的最后一个hidden_state作为初始输入,这个是seq2seq的关键
         # encoder_state: [hidden = [batch, hidden_size], cell = [batch, hidden_size]]
         # output_layer: [target_vocab_size]
         training_decoder = tf.contrib.seq2seq.BasicDecoder(cell=multi_rnn_cell, # 定义decoder里的rnn cell
@@ -250,7 +252,8 @@ def decoding_layer(target_letter_to_int,
         rnn_output: [batch_size, decoder_targets_length, vocab_size]，保存decode每个时刻每个单词的概率，可以用来计算loss
         sample_id: [batch_size, decoder_targets_length], tf.int32，保存最终的解码结果。可以表示最后的答案
         """
-        # training_decoder_output:(rnn_output:[batch_size, decoder_targets_length, vocab_size], sample_id:[batch_size, decoder_targets_length])
+        # training_decoder_output:(rnn_output:[batch_size, decoder_targets_length, vocab_size],
+        #                          sample_id:[batch_size, decoder_targets_length])
         training_decoder_output, _, _ = tf.contrib.seq2seq.dynamic_decode(decoder=training_decoder,
                                                                           impute_finished=True,
                                                                           maximum_iterations=max_target_sequence_length)
@@ -259,7 +262,7 @@ def decoding_layer(target_letter_to_int,
     # 与training共享参数
     # encoder的输入:  A,B,C
     # decoder里的输入:<go>,W,X,Y,Z
-    # decoder的输出:    X ,X,Y,Z,<eos>
+    # decoder的输出:    W ,X,Y,Z,<eos>
     with tf.variable_scope("decode", reuse=True):
         # 创建一个常量tensor并复制为batch_size的大小
         # start_tokens:[batch_size,],内容均为:'<GO>'
@@ -279,7 +282,8 @@ def decoding_layer(target_letter_to_int,
                                                              helper=predicting_helper,
                                                              initial_state=encoder_state,
                                                              output_layer=output_layer)
-        # predicting_decoder_output:(rnn_output:[batch_size, decoder_targets_length, vocab_size], sample_id:[batch_size, decoder_targets_length])
+        # predicting_decoder_output:(rnn_output:[batch_size, decoder_targets_length, vocab_size],
+        #                            sample_id:[batch_size, decoder_targets_length])
         predicting_decoder_output, _, _ = tf.contrib.seq2seq.dynamic_decode(predicting_decoder,
                                                                             impute_finished=True,
                                                                             maximum_iterations=max_target_sequence_length)
@@ -301,6 +305,7 @@ def seq2seq_model(input_data,
                   encoder_embedding_size,
                   decoder_embedding_size,
                   rnn_size, num_layers):
+    # input_data:[batch, source_sequence_length], targets:[batch, target_sequence_length]
     # encoder_output:[batch, source_sequence_length, hidden_size]
     # encoder_state:[hidden=[batch, hidden_size], cell=[batch, hidden_size]]
     _, encoder_state = get_encoder_layer(input_data,
@@ -310,6 +315,7 @@ def seq2seq_model(input_data,
                                          source_vocab_size,
                                          encoding_embedding_size)
 
+    # 处理decoder input,即decoder output:W,X,Y,Z,<eos> => decoder input: <go>,W,X,Y,Z
     # decoder_input:[batch, decoder_sequence_length]
     decoder_input = process_decoder_input(targets, target_letter_to_int, batch_size)
 
