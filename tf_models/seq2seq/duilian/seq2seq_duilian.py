@@ -62,11 +62,13 @@ def extract_character_vocab(data):
 source_int_to_letter, source_letter_to_int = extract_character_vocab(source_data + target_data)
 target_int_to_letter, target_letter_to_int = extract_character_vocab(source_data + target_data)
 
-# 将每一行转换成字符id的list
+# 将每一行转换成字符id的二维list,每行为一个上联
+# source如:承上下求索志
 source_int = [[source_letter_to_int.get(letter, source_letter_to_int['<UNK>']) for letter in line]
                 for line in source_data.split('\n')] # 上联进行转换
 
 # TODO: 注意:seq2seq中, decoder末尾有一个 "<eos>"
+# target如:绘春秋振兴图
 target_int = [[target_letter_to_int.get(letter, target_letter_to_int['<UNK>']) for letter in line]
               + [target_letter_to_int['<EOS>']]
                 for line in target_data.split('\n')]
@@ -76,16 +78,18 @@ print(target_int)
 
 
 # 输入层
-def get_inputs():
+def get_input_tensors():
     inputs = tf.placeholder(tf.int32, [None, None], name='inputs') # [batch, source_sequence_length]
     targets = tf.placeholder(tf.int32, [None, None], name='targets') # [batch, target_sequence_length]
     learning_rate = tf.placeholder(tf.float32, name='learning_rate')
 
     # 定义target序列最大长度（之后target_sequence_length和source_sequence_length会作为feed_dict的参数）
-    target_sequence_length = tf.placeholder(tf.int32, (None,), name='target_sequence_length')
-    max_target_sequence_length = tf.reduce_max(target_sequence_length, name='max_target_len')
-    source_sequence_length = tf.placeholder(tf.int32, (None,), name='source_sequence_length')
-
+    target_sequence_length = tf.placeholder(tf.int32, (None,), name='target_sequence_length') # [batch,]
+    max_target_sequence_length = tf.reduce_max(target_sequence_length, name='max_target_len') # [1]
+    source_sequence_length = tf.placeholder(tf.int32, (None,), name='source_sequence_length') # [batch]
+    # inputs:[batch, source_sequence_length], targets:[batch, target_sequence_length]
+    # target_sequence_length:[batch,], max_target_sequence_length:[1]
+    # source_sequence_length:[batch,]
     return inputs, targets, learning_rate, target_sequence_length, max_target_sequence_length, source_sequence_length
 
 
@@ -139,11 +143,12 @@ def get_encoder_layer(input_data,
         lstm_cell = tf.contrib.rnn.LSTMCell(rnn_size,
                                             initializer=tf.random_uniform_initializer(-0.1, 0.1, seed=2))
         return lstm_cell
-
+    # 多层lstm
     cell = tf.contrib.rnn.MultiRNNCell([get_lstm_cell(rnn_size) for _ in range(num_layers)])
 
     # encoder_embed_input:[batch, source_sequence_length, embedding_size]
     # source_sequence_length:[batch]
+
     # encoder_output:[batch, source_sequence_length, hidden_size]
     # encoder_state:[hidden=[batch, hidden_size], cell=[batch, hidden_size]]
     encoder_output, encoder_state = tf.nn.dynamic_rnn(cell=cell,
@@ -155,19 +160,26 @@ def get_encoder_layer(input_data,
 
 
 """
-我们首先需要对target端的数据进行一步预处理。在我们将target中的序列作为输入给Decoder端的RNN时，序列中的最后一个字母（或单词）其实是没有用的
+我们首先需要对target端的数据进行一步预处理。在我们将target中的序列作为输入给Decoder端的RNN时，
+序列中的最后一个字母（或单词）其实是没有用的,
 我们此时只看右边的Decoder端，可以看到我们的target序列是[<go>, W, X, Y, Z, <eos>]，
 其中<go>，W，X，Y，Z是每个时间序列上输入给RNN的内容，我们发现，<eos>并没有作为输入传递给RNN。
 因此我们需要将target中的最后一个字符去掉，同时还需要在前面添加<go>标识，告诉模型这代表一个句子的开始。
 
-即decoder里的输入:<go>,W,X,Y,Z
-decoder的输出:     X  ,X,Y,Z,<eos>
+即
+encoder的输入:  A,B,C
+decoder里的输入:<go>,W,X,Y,Z
+decoder的输出:    W ,X,Y,Z,<eos>
 """
+# decoder output:W,X,Y,Z,<eos>
+# => decoder input: <go>,W,X,Y,Z
 def process_decoder_input(data,
         vocab_to_int,
-        batch_size ):
-    # data:[batch, decoder_sequence_length-1]
-    ending = tf.strided_slice(input_=data, begin=[0, 0], en =[batch_size, -1], strides=[1, 1]) # 去掉最后一个字符<eos>
+        batch_size):
+    # data:[batch, decoder_sequence_length]
+    # ending:[batch, decoder_sequence_length-1]
+    # batch_size = data.get_shape().as_list()[0]
+    ending = tf.strided_slice(input_=data, begin=[0, 0], end =[batch_size, -1], strides=[1, 1]) # 每个样本中去掉最后一个字符<eos>
     # filled_value:[batch, 1]
     filled_value = tf.fill(dims=[batch_size, 1], value=vocab_to_int['<GO>']) # 每个target序列前面加上<GO>,即begin开始符
     # data:[batch, decoder_sequence_length]
@@ -197,9 +209,9 @@ def decoding_layer(target_letter_to_int,
 
     # 1. Embedding
     target_vocab_size = len(target_letter_to_int)
-    # [vocab, embedding_size]
+    # decoder_embeddings:[vocab, embedding_size]
     decoder_embeddings = tf.Variable(tf.random_uniform([target_vocab_size, decoding_embedding_size]))
-    # [batch, decoder_sequence_length, embedding_size]
+    # decoder_embed_input:[batch, decoder_input_length, embedding_size]
     decoder_embed_input = tf.nn.embedding_lookup(decoder_embeddings, decoder_input)
 
     # 构造Decoder中的RNN单元
@@ -208,65 +220,89 @@ def decoding_layer(target_letter_to_int,
                                                initializer=tf.random_uniform_initializer(-0.1, 0.1, seed=2))
         return decoder_cell
 
-    # 构建多层rnn
+    # 2.构建多层rnn
     multi_rnn_cell = tf.contrib.rnn.MultiRNNCell([get_decoder_cell(rnn_size) for _ in range(num_layers)])
 
-    # Output全连接层
-    # target_vocab_size定义了输出层的大小
-    output_layer = Dense(target_vocab_size,
+    # 3.Output全连接层
+    # output_layer:[batch, decoder_output_length, target_vocab_size], target_vocab_size定义了输出层的大小
+    output_layer = Dense(units=target_vocab_size,
                          kernel_initializer=tf.truncated_normal_initializer(mean=0.1, stddev=0.1))
 
-    # 4. Training decoder
+    # 4. Training decoder(注意:此处是训练阶段)
     with tf.variable_scope("decode"):
-        # decoder_embed_input:[batch, decoder_sequence_length, embedding_size]
+        # decoder_embed_input:[batch, decoder_input_length, embedding_size]
         # target_sequence_length:[batch]
         training_helper = tf.contrib.seq2seq.TrainingHelper(inputs=decoder_embed_input,
                                                             sequence_length=target_sequence_length,
                                                             time_major=False)
         # 构造一个decoder
-        # return: (outputs, next_state, next_inputs, finished).
-        training_decoder = tf.contrib.seq2seq.BasicDecoder(cell=multi_rnn_cell,
-                                                           helper=training_helper,
-                                                           initial_state=encoder_state,
-                                                           output_layer=output_layer)
+        # encoder_state: [hidden = [batch, hidden_size], cell = [batch, hidden_size]]
+        # output_layer: [target_vocab_size]
+        training_decoder = tf.contrib.seq2seq.BasicDecoder(cell=multi_rnn_cell, # 定义decoder里的rnn cell
+                                                           helper=training_helper, # 定义decoder里的embedding输入
+                                                           initial_state=encoder_state, # decoder里的hidden,cell初始化状态
+                                                           output_layer=output_layer) # 输出层大小
+
         """
         dynamic_decode
         用于构造一个动态的decoder，返回的内容是：(final_outputs, final_state, final_sequence_lengths).
         其中，final_outputs是一个namedtuple，里面包含两项(rnn_outputs, sample_id)
         rnn_output: [batch_size, decoder_targets_length, vocab_size]，保存decode每个时刻每个单词的概率，可以用来计算loss
-        sample_id: [batch_size], tf.int32，保存最终的编码结果。可以表示最后的答案
+        sample_id: [batch_size, decoder_targets_length], tf.int32，保存最终的解码结果。可以表示最后的答案
         """
-        training_decoder_output, _, _ = tf.contrib.seq2seq.dynamic_decode(training_decoder,
+        # training_decoder_output:(rnn_output:[batch_size, decoder_targets_length, vocab_size], sample_id:[batch_size, decoder_targets_length])
+        training_decoder_output, _, _ = tf.contrib.seq2seq.dynamic_decode(decoder=training_decoder,
                                                                           impute_finished=True,
                                                                           maximum_iterations=max_target_sequence_length)
 
-    # 5. Predicting decoder
+    # 5. Predicting decoder (注意,此处是预测,用greedySearch或者beamSearch)
     # 与training共享参数
-
+    # encoder的输入:  A,B,C
+    # decoder里的输入:<go>,W,X,Y,Z
+    # decoder的输出:    X ,X,Y,Z,<eos>
     with tf.variable_scope("decode", reuse=True):
         # 创建一个常量tensor并复制为batch_size的大小
-        start_tokens = tf.tile(tf.constant([target_letter_to_int['<GO>']], dtype=tf.int32),
-                               [batch_size],
+        # start_tokens:[batch_size,],内容均为:'<GO>'
+        start_tokens = tf.tile(input=tf.constant([target_letter_to_int['<GO>']], dtype=tf.int32),
+                               multiples=[batch_size],
                                name='start_token')
+
         # predict时用greedySearch
+        # decoder_embeddings:[vocab, embedding_size]
         predicting_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding=decoder_embeddings,
                                                                      start_tokens=start_tokens,
                                                                      end_token=target_letter_to_int['<EOS>'])
 
+        # encoder_state: [hidden = [batch, hidden_size], cell = [batch, hidden_size]]
+        # output_layer:[batch, decoder_output_length, target_vocab_size]
         predicting_decoder = tf.contrib.seq2seq.BasicDecoder(cell=multi_rnn_cell,
                                                              helper=predicting_helper,
                                                              initial_state=encoder_state,
                                                              output_layer=output_layer)
-        predicting_decoder_output, _, _ = tf.contrib.seq2seq.dynamic_decode(predicting_decoder, impute_finished=True,
+        # predicting_decoder_output:(rnn_output:[batch_size, decoder_targets_length, vocab_size], sample_id:[batch_size, decoder_targets_length])
+        predicting_decoder_output, _, _ = tf.contrib.seq2seq.dynamic_decode(predicting_decoder,
+                                                                            impute_finished=True,
                                                                             maximum_iterations=max_target_sequence_length)
 
+    # training_decoder_output:(rnn_output:[batch_size, decoder_targets_length, vocab_size], sample_id:[batch_size, decoder_targets_length ])
+    # predicting_decoder_output:(rnn_output:[batch_size, decoder_targets_length, vocab_size], sample_id:[batch_size, decoder_targets_length ])
     return training_decoder_output, predicting_decoder_output
 
 
 # 上面已经构建完成Encoder和Decoder，下面将这两部分连接起来，构建seq2seq模型
-def seq2seq_model(input_data, targets, lr, target_sequence_length, max_target_sequence_length,
-                  source_sequence_length, source_vocab_size, target_vocab_size, encoder_embedding_size,
-                  decoder_embedding_size, rnn_size, num_layers):
+def seq2seq_model(input_data,
+                  targets,
+                  lr,
+                  target_sequence_length,
+                  max_target_sequence_length,
+                  source_sequence_length,
+                  source_vocab_size,
+                  target_vocab_size,
+                  encoder_embedding_size,
+                  decoder_embedding_size,
+                  rnn_size, num_layers):
+    # encoder_output:[batch, source_sequence_length, hidden_size]
+    # encoder_state:[hidden=[batch, hidden_size], cell=[batch, hidden_size]]
     _, encoder_state = get_encoder_layer(input_data,
                                          rnn_size,
                                          num_layers,
@@ -274,8 +310,11 @@ def seq2seq_model(input_data, targets, lr, target_sequence_length, max_target_se
                                          source_vocab_size,
                                          encoding_embedding_size)
 
+    # decoder_input:[batch, decoder_sequence_length]
     decoder_input = process_decoder_input(targets, target_letter_to_int, batch_size)
 
+    # training_decoder_output:(rnn_output:[batch_size, decoder_targets_length, vocab_size], sample_id:[batch_size, decoder_targets_length])
+    # predicting_decoder_output:(rnn_output:[batch_size, decoder_targets_length, vocab_size], sample_id:[batch_size, decoder_targets_length])
     training_decoder_output, predicting_decoder_output = decoding_layer(target_letter_to_int,
                                                                         decoding_embedding_size,
                                                                         num_layers,
@@ -292,8 +331,15 @@ def seq2seq_model(input_data, targets, lr, target_sequence_length, max_target_se
 train_graph = tf.Graph()
 
 with train_graph.as_default():
-    input_data, targets, lr, target_sequence_length, max_target_sequence_length, source_sequence_length = get_inputs()
+    # inputs:[batch, source_sequence_length], targets:[batch, target_sequence_length]
+    # target_sequence_length:[batch,], max_target_sequence_length:[1]
+    # source_sequence_length:[batch,]
+    input_data, targets, \
+    lr, target_sequence_length, \
+    max_target_sequence_length, source_sequence_length = get_input_tensors()
 
+    # training_decoder_output:(rnn_output:[batch_size, decoder_targets_length, vocab_size], sample_id:[batch_size, decoder_targets_length])
+    # predicting_decoder_output:(rnn_output:[batch_size, decoder_targets_length, vocab_size], sample_id:[batch_size, decoder_targets_length])
     training_decoder_output, predicting_decoder_output = seq2seq_model(input_data,
                                                                        targets,
                                                                        lr,
@@ -307,14 +353,20 @@ with train_graph.as_default():
                                                                        rnn_size,
                                                                        num_layers)
 
+    # training_logits:[batch_size, decoder_targets_length, vocab_size]
     training_logits = tf.identity(training_decoder_output.rnn_output, 'logits')
-    predicting_logits = tf.identity(predicting_decoder_output.sample_id, name='predictions')
+    # predicting_logits:[batch_size, decoder_targets_length]
+    predicting_sample_ids = tf.identity(predicting_decoder_output.sample_id, name='predictions')
 
     # mask是权重的意思
-    # tf.sequence_mask([1, 3, 2], 5)  # [[True, False, False, False, False],
+    # tf.sequence_mask([1, 3, 2], 5)
+    #  [[True, False, False, False, False],
     #  [True, True, True, False, False],
     #  [True, True, False, False, False]]
-    masks = tf.sequence_mask(target_sequence_length, max_target_sequence_length, dtype=tf.float32, name="masks")
+
+    # target_sequence_length:[batch, target_sequence_length]
+    # target_sequence_mask:[batch, max_target_sequence_length]
+    target_sequence_mask = tf.sequence_mask(target_sequence_length, max_target_sequence_length, dtype=tf.float32, name="masks")
 
     # logits: A Tensor of shape [batch_size, sequence_length, num_decoder_symbols] and dtype float.
     # The logits correspond to the prediction across all classes at each timestep.
@@ -324,10 +376,14 @@ with train_graph.as_default():
     # weights constitutes the weighting of each prediction in the sequence. When using weights as masking,
     # set all valid timesteps to 1 and all padded timesteps to 0, e.g. a mask returned by tf.sequence_mask.
     with tf.name_scope("optimization"):
+        # training_logits:[batch_size, decoder_targets_length, vocab_size]
+        # targets:[batch_size, decoder_targets_length]
+        # target_sequence_mask:[batch, max_target_sequence_length]
+        # cost: scalar
         cost = tf.contrib.seq2seq.sequence_loss(
             logits=training_logits,
             targets=targets,
-            weights=masks # weights参数常常使用我们1.11中得到的mask。
+            weights=target_sequence_mask # weights参数常常使用我们1.11中得到的mask。
         )
 
         optimizer = tf.train.AdamOptimizer(lr)
@@ -340,10 +396,9 @@ with train_graph.as_default():
 
         # 对var_list中的变量计算loss的梯度 该函数为函数minimize()的第一部分，返回一个以元组(gradient, variable)组成的列表
         gradients = optimizer.compute_gradients(cost)
-        capped_gradients = [(tf.clip_by_value(grad, -5., 5.), var) for grad, var in gradients if grad is not None]
+        clippped_gradients = [(tf.clip_by_value(grad, -5., 5.), var) for grad, var in gradients if grad is not None]
         # 将计算出的梯度应用到变量上，是函数minimize()的第二部分，返回一个应用指定的梯度的操作Operation，对global_step做自增操作
-        train_op = optimizer.apply_gradients(capped_gradients)
-
+        train_op = optimizer.apply_gradients(clippped_gradients)
 
 def pad_sentence_batch(sentence_batch, pad_int):
     '''
@@ -352,62 +407,72 @@ def pad_sentence_batch(sentence_batch, pad_int):
     - sentence batch
     - pad_int: <PAD>对应索引号
     '''
-    max_sentence = max([len(sentence) for sentence in sentence_batch])
-    return [sentence + [pad_int] * (max_sentence - len(sentence)) for sentence in sentence_batch]
-
+    max_sentence_length_in_batch = max([len(sentence) for sentence in sentence_batch])
+    return [sentence + [pad_int] * (max_sentence_length_in_batch - len(sentence))
+            for sentence in sentence_batch]
 
 def get_batches(targets, sources, batch_size, source_pad_int, target_pad_int):
     for batch_i in range(0, len(sources) // batch_size):
         start_i = batch_i * batch_size
+        # start_i:start_i+batch_size-1
         sources_batch = sources[start_i: start_i + batch_size]
         targets_batch = targets[start_i: start_i + batch_size]
-
+        # padding
         pad_sources_batch = np.array(pad_sentence_batch(sources_batch, source_pad_int))
         pad_targets_batch = np.array(pad_sentence_batch(targets_batch, target_pad_int))
-
+        # 计算每个batch中各句子的真实长度
+        source_lengths = []
+        for source in sources_batch:
+            source_lengths.append(len(source))
+        # 计算每个batch中各句子的真实长度
         targets_lengths = []
         for target in targets_batch:
             targets_lengths.append(len(target))
 
-        source_lengths = []
-        for source in sources_batch:
-            source_lengths.append(len(source))
-
         yield pad_targets_batch, pad_sources_batch, targets_lengths, source_lengths
 
-
-# Train
+# Train,从第batch_size:end-1的行作为训练数据
 train_source = source_int[batch_size:]
 train_target = target_int[batch_size:]
 
-# 留出一个batch进行验证
+# 留出一个batch进行验证,从第0:batch_size-1的行作为测试数据
 valid_source = source_int[:batch_size]
 valid_target = target_int[:batch_size]
 
-(valid_targets_batch, valid_sources_batch, valid_targets_lengths, valid_sources_lengths) = next(
-    get_batches(valid_target, valid_source, batch_size,
+(valid_targets_batch,
+ valid_sources_batch,
+ valid_targets_lengths,
+ valid_sources_lengths) = next(
+    get_batches(valid_target,
+                valid_source,
+                batch_size,
                 source_letter_to_int['<PAD>'],
-                target_letter_to_int['<PAD>']))
+                target_letter_to_int['<PAD>'])
+)
 
 display_step = 50
-
 checkpoint = "data/trained_model.ckpt"
 
 with tf.Session(graph=train_graph) as sess:
     sess.run(tf.global_variables_initializer())
     print()
     for epoch_i in range(1, epochs + 1):
-        for batch_i, (targets_batch, sources_batch, targets_lengths, sources_lengths) in enumerate(get_batches(
-                train_target, train_source, batch_size, source_letter_to_int['<PAD>'],
-                target_letter_to_int['<PAD>']
-        )):
-            _, loss = sess.run([train_op, cost], feed_dict={
+        for batch_i, (targets_batch, sources_batch, targets_lengths, sources_lengths) in enumerate(
+                get_batches(train_target,
+                            train_source,
+                            batch_size,
+                            source_letter_to_int['<PAD>'],
+                            target_letter_to_int['<PAD>'])
+        ):
+            feed_dict= {
                 input_data: sources_batch,
                 targets: targets_batch,
                 lr: learning_rate,
                 target_sequence_length: targets_lengths,
                 source_sequence_length: sources_lengths
-            })
+            }
+
+            _, train_loss = sess.run([train_op, cost], feed_dict=feed_dict)
 
             if batch_i % display_step == 0:
                 # 计算validation loss
@@ -424,23 +489,23 @@ with tf.Session(graph=train_graph) as sess:
                               epochs,
                               batch_i,
                               len(train_source) // batch_size,
-                              loss,
+                              train_loss,
                               validation_loss[0]))
-
+    # 训练完毕
     saver = tf.train.Saver()
     saver.save(sess, checkpoint)
     print('Model Trained and Saved')
 
-
 # 预测
-def source_to_seq(text):
+def source_letter_to_int_seq(text):
     sequence_length = 7
-    return [source_letter_to_int.get(word, source_letter_to_int['<UNK>']) for word in text] + [
-        source_letter_to_int['<PAD>']] * (sequence_length - len(text))
+    return [source_letter_to_int.get(word, source_letter_to_int['<UNK>']) for word in text] \
+           + [ source_letter_to_int['<PAD>']] * (sequence_length - len(text))
 
-
+# 自定义一个对联,测试看看
+# 用训练的模型进行预测
 input_word = '戌岁祝福万事顺'
-text = source_to_seq(input_word)
+text_id = source_letter_to_int_seq(input_word)
 
 checkpoint = "data/trained_model.ckpt"
 loaded_graph = tf.Graph()
@@ -450,22 +515,23 @@ with tf.Session(graph=loaded_graph) as sess:
     loader.restore(sess, checkpoint)
 
     input_data = loaded_graph.get_tensor_by_name('inputs:0')
-    logits = loaded_graph.get_tensor_by_name('predictions:0')
+    predict_sample_ids = loaded_graph.get_tensor_by_name('predictions:0')
     source_sequence_length = loaded_graph.get_tensor_by_name('source_sequence_length:0')
     target_sequence_length = loaded_graph.get_tensor_by_name('target_sequence_length:0')
 
-    answer_logits = sess.run(logits, {input_data: [text] * batch_size,
-                                      target_sequence_length: [len(input_word)] * batch_size,
-                                      source_sequence_length: [len(input_word)] * batch_size})[0]
+    #batch_size=1,若设为1则会出错
+    answer_sample_ids = sess.run(predict_sample_ids, {input_data: [text_id] * batch_size,
+                                                      target_sequence_length: [len(input_word)] * batch_size,
+                                                      source_sequence_length: [len(input_word)] * batch_size})[0]
 
     pad = source_letter_to_int["<PAD>"]
 
     print('原始输入:', input_word)
-
     print('\nSource')
-    print('  Word 编号:    {}'.format([i for i in text]))
-    print('  Input Words: {}'.format(" ".join([source_int_to_letter[i] for i in text])))
+    print('  Word 编号:    {}'.format([i for i in text_id]))
+    print('  Input Words: {}'.format(" ".join([source_int_to_letter[i] for i in text_id])))
 
     print('\nTarget')
-    print('  Word 编号:       {}'.format([i for i in answer_logits if i != pad]))
-    print('  Response Words: {}'.format(" ".join([target_int_to_letter[i] for i in answer_logits if i != pad])))
+    print('  Word 编号:       {}'.format([i for i in answer_sample_ids if i != pad]))
+    print('  Response Words: {}'.format(" ".join([target_int_to_letter[i] for i in answer_sample_ids if i != pad])))
+
