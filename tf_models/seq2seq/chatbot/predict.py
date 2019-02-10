@@ -5,14 +5,14 @@ import sys
 import numpy as np
 
 
-tf.app.flags.DEFINE_integer('rnn_size', 1024, 'Number of hidden units in each layer')
+tf.app.flags.DEFINE_integer('rnn_size', 100, 'Number of hidden units in each layer')
 tf.app.flags.DEFINE_integer('num_layers', 2, 'Number of layers in each encoder and decoder')
-tf.app.flags.DEFINE_integer('embedding_size', 1024, 'Embedding dimensions of encoder and decoder inputs')
+tf.app.flags.DEFINE_integer('embedding_size', 20, 'Embedding dimensions of encoder and decoder inputs')
 
 tf.app.flags.DEFINE_float('learning_rate', 0.0001, 'Learning rate')
-tf.app.flags.DEFINE_integer('batch_size', 128, 'Batch size')
+tf.app.flags.DEFINE_integer('batch_size', 20, 'Batch size')
 tf.app.flags.DEFINE_integer('numEpochs', 30, 'Maximum # of training epochs')
-tf.app.flags.DEFINE_integer('steps_per_checkpoint', 100, 'Save model checkpoint every this iteration')
+tf.app.flags.DEFINE_integer('steps_per_checkpoint', 500, 'Save model checkpoint every this iteration')
 tf.app.flags.DEFINE_string('model_dir', 'model/', 'Path to save model checkpoints')
 tf.app.flags.DEFINE_string('model_name', 'chatbot.ckpt', 'File name used for model checkpoints')
 FLAGS = tf.app.flags.FLAGS
@@ -34,12 +34,22 @@ def predict_ids_to_seq(predict_ids, id2word, beam_szie):
             print(" ".join(predict_seq))
 
 with tf.Session() as sess:
-    model = Seq2SeqModel(FLAGS.rnn_size, FLAGS.num_layers, FLAGS.embedding_size, FLAGS.learning_rate, word2id,
-                         mode='decode', use_attention=True, beam_search=True, beam_size=5, max_gradient_norm=5.0)
+    model = Seq2SeqModel(FLAGS.rnn_size,
+                         FLAGS.num_layers,
+                         FLAGS.embedding_size,
+                         FLAGS.learning_rate,
+                         word2id,
+                         mode='decode',
+                         use_attention=True,
+                         use_beam_search=True,
+                         beam_size=5,
+                         max_gradient_norm=5.0)
+
     ckpt = tf.train.get_checkpoint_state(FLAGS.model_dir)
     if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
-        print('Reloading model parameters..')
-        model.saver.restore(sess, ckpt.model_checkpoint_path)
+        latest_model = ckpt.model_checkpoint_path
+        print('Reloading model parameters, latest_model:'+ latest_model)
+        model.saver.restore(sess, latest_model)
     else:
         raise ValueError('No such file:[{}]'.format(FLAGS.model_dir))
     sys.stdout.write("> ")
@@ -51,7 +61,7 @@ with tf.Session() as sess:
         predicted_ids = model.infer(sess, batch)
         # print(predicted_ids)
         # 将预测的id转换成汉字
-        predict_ids_to_seq(predicted_ids, id2word, 5)
+        predict_ids_to_seq(predicted_ids, id2word, beam_szie=1)
         print("> ", "")
         sys.stdout.flush()
         sentence = sys.stdin.readline()

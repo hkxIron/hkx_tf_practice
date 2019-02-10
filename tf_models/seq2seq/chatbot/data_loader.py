@@ -5,7 +5,7 @@ import random
 
 
 padToken, goToken, eosToken, unknownToken = 0, 1, 2, 3
-
+random.seed(0)
 class Batch:
     #batch类，里面包含了encoder输入，decoder输入以及他们的长度
     def __init__(self):
@@ -14,12 +14,12 @@ class Batch:
         self.decoder_targets = []
         self.decoder_targets_length = []
 
-
-
 def loadDataset(filename):
     """
     :param filename: 数据的路径，数据是一个json结构，包含三部分，分别是word2id，即word到id的转换，
     id2word，即id到word的转换 ，以及训练数据trainingSamples，是一个二维数组，形状为N*2，每一行包含问题和回答
+
+    samples:[[123,45],[78,89,38]],即前一个为question,后一个为answer,training由多个sample组成
     :return: 通过pickle解析我们的数据，返回上述的三部分内容。
     """
     dataset_path = os.path.join(filename)
@@ -29,9 +29,14 @@ def loadDataset(filename):
         word2id = data['word2id']
         id2word = data['id2word']
         trainingSamples = data['trainingSamples']
-    print(word2id)
-    print(id2word)
-    print(trainingSamples)
+    print("word2id:", word2id)
+    print("id2word:", id2word)
+    show_samples = []
+    for sample in trainingSamples[:10]:
+        question = [id2word.get(x, '<unknown>') for x in sample[0]]
+        answer = [id2word.get(x,'<unknown>') for x in sample[1]]
+        show_samples.append([question, answer])
+    print("show samples:", show_samples)
     return word2id, id2word, trainingSamples
 
 def createBatch(samples):
@@ -42,21 +47,21 @@ def createBatch(samples):
     '''
     batch = Batch()
     batch.encoder_inputs_length = [len(sample[0]) for sample in samples]
-    batch.decoder_targets_length = [len(sample[1]) for sample in samples]
+    batch.decoder_targets_length = [len(sample[1])+1 for sample in samples]
 
-    max_source_length = max(batch.encoder_inputs_length)
-    max_target_length = max(batch.decoder_targets_length)
+    max_source_length_in_batch = max(batch.encoder_inputs_length)
+    max_target_length_in_batch = max(batch.decoder_targets_length) # 加一个<eos>
 
     for sample in samples:
-        #将source进行反序并PAD值本batch的最大长度
-        source = list(reversed(sample[0]))
-        pad = [padToken] * (max_source_length - len(source))
+        #将source进行反序并PAD至本batch的最大长度,感觉也可以不需要逆序
+        source = list(reversed(sample[0])) # 注意:此处为逆序序列
+        pad = [padToken] * (max_source_length_in_batch - len(source))
         batch.encoder_inputs.append(pad + source)
 
         #将target进行PAD，并添加END符号
         target = sample[1]
-        pad = [padToken] * (max_target_length - len(target))
-        batch.decoder_targets.append(target + pad)
+        pad = [padToken] * (max_target_length_in_batch - len(target)-1)
+        batch.decoder_targets.append(target + [eosToken] + pad) # 添加eos,pad
         #batch.target_inputs.append([goToken] + target + pad[:-1])
 
     return batch
@@ -94,7 +99,7 @@ def sentence2enco(sentence, word2id):
         return None
     #分词
     #import nltk;tokens = nltk.word_tokenize(sentence)  #分词
-    tokens = sentence.replace("\t"," ").split(" ") # 为了简便,直接用split
+    tokens = sentence.strip().replace("\t"," ").split(" ") # 为了简便,直接用split
     if len(tokens) > 20:
         return None
     #将每个单词转化为id

@@ -180,6 +180,7 @@ def process_decoder_input(data,
     # ending:[batch, decoder_sequence_length-1]
     # batch_size = data.get_shape().as_list()[0]
     # 此处用到batch_size,因此 训练时的batch_size与serving时的必须一样才行
+    # TODO:此处有误,由于已经进行了pad,所以最后一个元素不是<EOS>,而是PAD
     ending = tf.strided_slice(input_=data, begin=[0, 0], end =[batch_size, -1], strides=[1, 1]) # 每个样本中去掉最后一个字符<eos>
     # filled_value:[batch, 1]
     filled_value = tf.fill(dims=[batch_size, 1], value=vocab_to_int['<GO>']) # 每个target序列前面加上<GO>,即begin开始符
