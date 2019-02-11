@@ -1,5 +1,5 @@
 # chat_bot_seq2seq_attention
-# TODO:1.此代码目前target部分padding有问题 2. inference也有问题,batch维度貌似不对
+# TODO: inference也有问题,batch维度貌似不对
 
 # blog: https://www.jianshu.com/p/aab40f439012
 # github: https://github.com/princewen/tensorflow_practice/blob/master/nlp/chat_bot_seq2seq_attention/train.py
