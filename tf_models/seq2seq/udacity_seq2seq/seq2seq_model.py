@@ -28,7 +28,7 @@ source_int_to_letter, source_letter_to_int = extract_character_vocab(source_sent
 target_int_to_letter, target_letter_to_int = extract_character_vocab(target_sentences)
 
 # Convert characters to ids
-source_letter_ids = [[source_letter_to_int.get(letter, source_letter_to_int['<UNK>']) for letter in line] for line in source_sentences.split('\n')]
+source_letter_ids = [[source_letter_to_int.get(letter, source_letter_to_int['<UNK>']) for letter in line]  for line in source_sentences.split('\n')]
 # 在target序列尾部添加 <EOS>
 target_letter_ids = [[target_letter_to_int.get(letter, target_letter_to_int['<UNK>']) for letter in line] + [target_letter_to_int['<EOS>']] for line in target_sentences.split('\n')]
 
@@ -41,7 +41,6 @@ print(target_letter_ids[:3])
 from distutils.version import LooseVersion
 import tensorflow as tf
 from tensorflow.python.layers.core import Dense
-
 
 # Check TensorFlow Version
 assert LooseVersion(tf.__version__) >= LooseVersion('1.1'), 'Please use TensorFlow version 1.1 or newer'
@@ -61,11 +60,11 @@ decoding_embedding_size = 15
 # Learning Rate
 learning_rate = 0.001
 
-
+# input
 def get_model_inputs():
-    # input_data:[batch, encoder_sequence_length]
+    # input_data:[batch, source_sequence_length]
     input_data = tf.placeholder(tf.int32, [None, None], name='input')
-    # targets:[batch, decoder_sequence_length]
+    # targets:[batch, source_sequence_length]
     targets = tf.placeholder(tf.int32, [None, None], name='targets')
     lr = tf.placeholder(tf.float32, name='learning_rate')
 
@@ -76,10 +75,31 @@ def get_model_inputs():
     return input_data, targets, lr, target_sequence_length, max_target_sequence_length, source_sequence_length
 
 
+"""
+Sequence to Sequence Model
+We can now start defining the functions that will build the seq2seq model. We are building it from the bottom up with the following components:
+
+2.1 Encoder
+    - Embedding
+    - Encoder cell
+2.2 Decoder
+    1- Process decoder inputs
+    2- Set up the decoder
+        - Embedding
+        - Decoder cell
+        - Dense output layer
+        - Training decoder
+        - Inference decoder
+2.3 Seq2seq model connecting the encoder and decoder
+2.4 Build the training graph hooking up the model with the 
+    optimizer
+"""
 def encoding_layer(input_data, rnn_size, num_layers,
                    source_sequence_length, source_vocab_size,
                    encoding_embedding_size):
     # Encoder embedding
+    # input_data:[batch, source_sequence_length]
+    # enc_embed_input:[batch, source_sequence_length, embedding_size]
     enc_embed_input = tf.contrib.layers.embed_sequence(input_data, source_vocab_size, encoding_embedding_size)
 
     # RNN cell
@@ -90,17 +110,34 @@ def encoding_layer(input_data, rnn_size, num_layers,
 
     enc_cell = tf.contrib.rnn.MultiRNNCell([make_cell(rnn_size) for _ in range(num_layers)])
 
-    enc_output, enc_state = tf.nn.dynamic_rnn(enc_cell, enc_embed_input, sequence_length=source_sequence_length,
-                                              dtype=tf.float32)
+    # encoder_embed_input:[batch, source_sequence_length, embedding_size]
+    # source_sequence_length:[batch]
 
+    # encoder_output: [batch, source_sequence_length, hidden_size]
+    # encoder_state: [hidden=[batch, hidden_size], cell=[batch, hidden_size]]
+    enc_output, enc_state = tf.nn.dynamic_rnn(enc_cell, enc_embed_input,
+                                              sequence_length=source_sequence_length,
+                                              dtype=tf.float32)
     return enc_output, enc_state
 
 # Process the input we'll feed to the decoder
 def process_decoder_input(target_data, vocab_to_int, batch_size):
-    '''Remove the last word id from each batch and concat the <GO> to the begining of each batch'''
-    ending = tf.strided_slice(target_data, [0, 0], [batch_size, -1], [1, 1])
-    dec_input = tf.concat([tf.fill([batch_size, 1], vocab_to_int['<GO>']), ending], 1)
+    '''Remove the last word id from each batch and concat the <GO> to the begining of each batch,
+    example =>
+    target:
+    [[1,2,3,4,5,6,<EOS>],
+    [1,8,9,7,<EOS>,<PAD>,<PAD>],
+    [2,4,5,<EOS>,<PAD>,<PAD>,<PAD>]]
 
+    decoder input:
+    [[<GO>,1,2,3,4,5,6],
+    [<GO>,1,8,9,7,<EOS>,<PAD>],
+    [<GO>,2,4,5,<EOS>,<PAD>,<PAD>]]
+    '''
+
+    ending = tf.strided_slice(target_data, [0, 0], [batch_size, -1], [1, 1])
+    # dec_input:[batch, target_sequence_length]
+    dec_input = tf.concat([tf.fill([batch_size, 1], vocab_to_int['<GO>']), ending], 1)
     return dec_input
 
 
@@ -108,7 +145,9 @@ def decoding_layer(target_letter_to_int, decoding_embedding_size, num_layers, rn
                    target_sequence_length, max_target_sequence_length, enc_state, dec_input):
     # 1. Decoder Embedding
     target_vocab_size = len(target_letter_to_int)
+    # [vocab_size, embedding_size]
     dec_embeddings = tf.Variable(tf.random_uniform([target_vocab_size, decoding_embedding_size]))
+    # [batch, target_sequence_length, embedding_size]
     dec_embed_input = tf.nn.embedding_lookup(dec_embeddings, dec_input)
 
     # 2. Construct the decoder cell
@@ -121,6 +160,7 @@ def decoding_layer(target_letter_to_int, decoding_embedding_size, num_layers, rn
 
     # 3. Dense layer to translate the decoder's output at each time
     # step into a choice from the target vocabulary
+    # output_layer:[batch, target_sequence_length, target_vocab_size]
     output_layer = Dense(target_vocab_size,
                          kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1))
 
@@ -133,13 +173,21 @@ def decoding_layer(target_letter_to_int, decoding_embedding_size, num_layers, rn
                                                             time_major=False)
 
         # Basic decoder
-        training_decoder = tf.contrib.seq2seq.BasicDecoder(dec_cell,
-                                                           training_helper,
-                                                           enc_state,
-                                                           output_layer)
+        # 注意 (TODO):decoder部分中的initial_state需要以encoder中的最后一个hidden_state作为初始输入,这个是seq2seq的关键
+        training_decoder = tf.contrib.seq2seq.BasicDecoder(cell=dec_cell,
+                                                           helper=training_helper,
+                                                           initial_state=enc_state,
+                                                           output_layer=output_layer)
 
         # Perform dynamic decoding using the decoder
-        training_decoder_output = tf.contrib.seq2seq.dynamic_decode(training_decoder,
+        """
+            dynamic_decode
+            用于构造一个动态的decoder，返回的内容是：(final_outputs, final_state, final_sequence_lengths).
+            其中，final_outputs是一个namedtuple，里面包含两项(rnn_outputs, sample_id)
+            rnn_output: [batch_size, decoder_targets_length, vocab_size]，保存decode每个时刻每个单词的概率，可以用来计算loss
+            sample_id: [batch_size, decoder_targets_length], tf.int32，保存最终的解码结果。可以表示最后的答案
+        """
+        training_decoder_output = tf.contrib.seq2seq.dynamic_decode(decoder=training_decoder,
                                                                     impute_finished=True,
                                                                     maximum_iterations=max_target_sequence_length)[0]
     # 5. Inference Decoder
@@ -149,18 +197,18 @@ def decoding_layer(target_letter_to_int, decoding_embedding_size, num_layers, rn
                                name='start_tokens')
 
         # Helper for the inference process.
-        inference_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(dec_embeddings,
-                                                                    start_tokens,
-                                                                    target_letter_to_int['<EOS>'])
+        inference_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding=dec_embeddings,
+                                                                    start_tokens=start_tokens,
+                                                                    end_token=target_letter_to_int['<EOS>'])
 
         # Basic decoder
-        inference_decoder = tf.contrib.seq2seq.BasicDecoder(dec_cell,
-                                                            inference_helper,
-                                                            enc_state,
-                                                            output_layer)
+        inference_decoder = tf.contrib.seq2seq.BasicDecoder(cell=dec_cell,
+                                                            helper=inference_helper,
+                                                            initial_state=enc_state,
+                                                            output_layer=output_layer)
 
         # Perform dynamic decoding using the decoder
-        inference_decoder_output = tf.contrib.seq2seq.dynamic_decode(inference_decoder,
+        inference_decoder_output = tf.contrib.seq2seq.dynamic_decode(decoder=inference_decoder,
                                                                      impute_finished=True,
                                                                      maximum_iterations=max_target_sequence_length)[0]
 
