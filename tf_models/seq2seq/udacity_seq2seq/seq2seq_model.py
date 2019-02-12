@@ -189,14 +189,16 @@ def decoding_layer(target_letter_to_int, decoding_embedding_size, num_layers, rn
         """
         training_decoder_output = tf.contrib.seq2seq.dynamic_decode(decoder=training_decoder,
                                                                     impute_finished=True,
-                                                                    maximum_iterations=max_target_sequence_length)[0]
+                                                                    maximum_iterations=max_target_sequence_length)[0] # 下标0,只取 final_outputs
     # 5. Inference Decoder
     # Reuses the same parameters trained by the training process
     with tf.variable_scope("decode", reuse=True):
-        start_tokens = tf.tile(tf.constant([target_letter_to_int['<GO>']], dtype=tf.int32), [batch_size],
+        start_tokens = tf.tile(tf.constant([target_letter_to_int['<GO>']], dtype=tf.int32),
+                               multiples=[batch_size],
                                name='start_tokens')
 
         # Helper for the inference process.
+        # 在inference阶段，decoder需要用到上一个timestep的预测输出:pred_y(t-1),而不是像training阶段用的是上一个真实label的embedding输入
         inference_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding=dec_embeddings,
                                                                     start_tokens=start_tokens,
                                                                     end_token=target_letter_to_int['<EOS>'])
@@ -215,12 +217,22 @@ def decoding_layer(target_letter_to_int, decoding_embedding_size, num_layers, rn
     return training_decoder_output, inference_decoder_output
 
 
-def seq2seq_model(input_data, targets, lr, target_sequence_length,
-                  max_target_sequence_length, source_sequence_length,
-                  source_vocab_size, target_vocab_size,
-                  enc_embedding_size, dec_embedding_size,
-                  rnn_size, num_layers):
+def seq2seq_model(input_data,
+                  targets,
+                  lr,
+                  target_sequence_length,
+                  max_target_sequence_length,
+                  source_sequence_length,
+                  source_vocab_size,
+                  target_vocab_size,
+                  enc_embedding_size,
+                  dec_embedding_size,
+                  rnn_size,
+                  num_layers):
     # Pass the input data through the encoder. We'll ignore the encoder output, but use the state
+
+    # input_data:[batch, source_sequence_length]
+    # encoder_state: [hidden=[batch, hidden_size], cell=[batch, hidden_size]]
     _, enc_state = encoding_layer(input_data,
                                   rnn_size,
                                   num_layers,
@@ -229,6 +241,7 @@ def seq2seq_model(input_data, targets, lr, target_sequence_length,
                                   encoding_embedding_size)
 
     # Prepare the target sequences we'll feed to the decoder in training mode
+    # dec_input:[batch, target_sequence_length]
     dec_input = process_decoder_input(targets, target_letter_to_int, batch_size)
 
     # Pass encoder state and decoder inputs to the decoders
@@ -266,18 +279,31 @@ with train_graph.as_default():
                                                                       num_layers)
 
     # Create tensors for the training logits and inference logits
+    # rnn_output: [batch_size, decoder_targets_length, vocab_size]，保存decode每个时刻每个单词的概率，可以用来计算loss
+    # sample_id: [batch_size, decoder_targets_length], tf.int32，保存最终的解码结果。可以表示最后的答案
     training_logits = tf.identity(training_decoder_output.rnn_output, 'logits')
     inference_logits = tf.identity(inference_decoder_output.sample_id, name='predictions')
 
     # Create the weights for sequence_loss
-    masks = tf.sequence_mask(target_sequence_length, max_target_sequence_length, dtype=tf.float32, name='masks')
+    # mask是权重的意思
+    # tf.sequence_mask([1, 3, 2], 5)
+    #  [[True, False, False, False, False],
+    #  [True, True, True, False, False],
+    #  [True, True, False, False, False]]
+
+    # target_sequence_length:[batch, target_sequence_length]
+    # target_sequence_mask:[batch, max_target_sequence_length]
+    target_sequence_mask = tf.sequence_mask(lengths=target_sequence_length,
+                                            maxlen=max_target_sequence_length,
+                                            dtype=tf.float32,
+                                            name='masks')
 
     with tf.name_scope("optimization"):
         # Loss function
         cost = tf.contrib.seq2seq.sequence_loss(
-            training_logits,
-            targets,
-            masks)
+            logits=training_logits,
+            targets=targets,
+            weights=target_sequence_mask)
 
         # Optimizer
         optimizer = tf.train.AdamOptimizer(lr)
@@ -315,10 +341,12 @@ def get_batches(targets, sources, batch_size, source_pad_int, target_pad_int):
 
 
 # Split data to training and validation sets
+valid_source = source_letter_ids[:batch_size] # 用头部的作为训练集
+valid_target = target_letter_ids[:batch_size]
+
 train_source = source_letter_ids[batch_size:]
 train_target = target_letter_ids[batch_size:]
-valid_source = source_letter_ids[:batch_size]
-valid_target = target_letter_ids[:batch_size]
+
 (valid_targets_batch, valid_sources_batch, valid_targets_lengths, valid_sources_lengths) = next(
     get_batches(valid_target, valid_source, batch_size,
                 source_letter_to_int['<PAD>'],
@@ -327,6 +355,7 @@ valid_target = target_letter_ids[:batch_size]
 display_step = 20  # Check training loss after every 20 batches
 
 checkpoint = "model/best_model.ckpt"
+
 with tf.Session(graph=train_graph) as sess:
     sess.run(tf.global_variables_initializer())
 
@@ -376,6 +405,7 @@ def source_to_seq(text):
 
 
 input_sentence = 'hello'
+input_sentence = 'congratulations'
 text = source_to_seq(input_sentence)
 
 #checkpoint = "model/best_model.ckpt"
