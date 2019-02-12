@@ -210,6 +210,7 @@ def decoding_layer(target_letter_to_int, decoding_embedding_size, num_layers, rn
                                                             output_layer=output_layer)
 
         # Perform dynamic decoding using the decoder
+        # 注意:这里使用的是dynamic_decode,而非dynamic_rnn
         inference_decoder_output = tf.contrib.seq2seq.dynamic_decode(decoder=inference_decoder,
                                                                      impute_finished=True,
                                                                      maximum_iterations=max_target_sequence_length)[0]
@@ -328,13 +329,16 @@ def get_batches(targets, sources, batch_size, source_pad_int, target_pad_int):
         pad_sources_batch = np.array(pad_sentence_batch(sources_batch, source_pad_int))
         pad_targets_batch = np.array(pad_sentence_batch(targets_batch, target_pad_int))
 
-        # Need the lengths for the _lengths parameters
+        # Need the lengths for the _lengths parameters,
+        # 原code中pad_targets_lengths里的值为pad_targets_batch的值
+        # 由于已经padding过,因此同一batch内各len(source)均相同
+        # TODO:但我认为,length不应该相同,改成使用targets_batch
         pad_targets_lengths = []
-        for target in pad_targets_batch:
+        for target in targets_batch:
             pad_targets_lengths.append(len(target))
 
         pad_source_lengths = []
-        for source in pad_sources_batch:
+        for source in sources_batch:
             pad_source_lengths.append(len(source))
 
         yield pad_targets_batch, pad_sources_batch, pad_targets_lengths, pad_source_lengths
@@ -361,7 +365,9 @@ with tf.Session(graph=train_graph) as sess:
 
     for epoch_i in range(1, epochs + 1):
         for batch_i, (targets_batch, sources_batch, targets_lengths, sources_lengths) in enumerate(
-                get_batches(train_target, train_source, batch_size,
+                get_batches(train_target,
+                            train_source,
+                            batch_size,
                             source_letter_to_int['<PAD>'],
                             target_letter_to_int['<PAD>'])):
 
