@@ -405,7 +405,7 @@ def source_to_seq(text):
 
 
 input_sentence = 'hello'
-input_sentence = 'congratulations'
+#input_sentence = 'congratulations'
 text = source_to_seq(input_sentence)
 
 #checkpoint = "model/best_model.ckpt"
