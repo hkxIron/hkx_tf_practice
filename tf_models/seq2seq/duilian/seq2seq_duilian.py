@@ -255,6 +255,7 @@ def decoding_layer(target_letter_to_int,
         """
         # training_decoder_output:(rnn_output:[batch_size, decoder_targets_length, vocab_size],
         #                          sample_id:[batch_size, decoder_targets_length])
+        # impute: 归咎于
         training_decoder_output, _, _ = tf.contrib.seq2seq.dynamic_decode(decoder=training_decoder,
                                                                           impute_finished=True,
                                                                           maximum_iterations=max_target_sequence_length)
@@ -285,7 +286,7 @@ def decoding_layer(target_letter_to_int,
                                                              output_layer=output_layer)
         # predicting_decoder_output:(rnn_output:[batch_size, decoder_targets_length, vocab_size],
         #                            sample_id:[batch_size, decoder_targets_length])
-        predicting_decoder_output, _, _ = tf.contrib.seq2seq.dynamic_decode(predicting_decoder,
+        predicting_decoder_output, _, _ = tf.contrib.seq2seq.dynamic_decode(decoder=predicting_decoder,
                                                                             impute_finished=True,
                                                                             maximum_iterations=max_target_sequence_length)
 

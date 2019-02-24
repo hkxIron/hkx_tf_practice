@@ -14,15 +14,29 @@ X[2, 3:] = 0 # 第三个样本长度为3
 X_lengths = [10, 6, 3] # 每个样本的时间长度
 X_tensor = tf.convert_to_tensor(X)
 
-cell_fw = tf.nn.rnn_cell.LSTMCell(num_units=5, state_is_tuple=True)
-cell_bw = tf.nn.rnn_cell.LSTMCell(num_units=5, state_is_tuple=True)
+# cell_fw = tf.nn.rnn_cell.LSTMCell(num_units=5, state_is_tuple=True)
+# cell_bw = tf.nn.rnn_cell.LSTMCell(num_units=5, state_is_tuple=True)
 
-#outputs, states = tf.nn.bidirectional_dynamic_rnn(
+
+def get_lstm_cell(rnn_size):
+    lstm_cell = tf.contrib.rnn.LSTMCell(rnn_size,
+                                        initializer=tf.random_uniform_initializer(-0.1, 0.1, seed=2))
+    return lstm_cell
+
+
+# 多层lstm
+num_layers=4
+cell_fw = tf.contrib.rnn.MultiRNNCell([get_lstm_cell(5) for _ in range(num_layers)])
+cell_bw = tf.contrib.rnn.MultiRNNCell([get_lstm_cell(5) for _ in range(num_layers)])
+
 # output_fw: [batch, input_sequence_length, num_units],它的值为hidden_state
 # output_bw: [batch, input_sequence_length, num_units],它的值为hidden_state
 # (cell_state_fw, hidden_state_fw) = states_fw
 # cell_state: [batch, num_units]
 # hidden_state: [batch, num_units]
+# states_fw: (LSTMTuple(cell_state_fw, hidden_state_fw),LSTMTuple(cell_state_fw, hidden_state_fw), ... ),
+# rnn有n层,state_fw 的tuple的长度就会为n
+
 (output_fw, output_bw), (states_fw, states_bw)= tf.nn.bidirectional_dynamic_rnn(
     cell_fw=cell_fw,
     cell_bw=cell_bw,
