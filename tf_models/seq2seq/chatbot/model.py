@@ -114,6 +114,7 @@ class Seq2SeqModel():
                 # 定义decoder阶段的输入，其实就是在decoder的target开始处添加一个<go>,并删除结尾处的<end>,并进行embedding。
                 # 即将 A,B,C,<end> => <go>,A,B,C
                 # decoder_inputs_embedded的shape为[batch_size, decoder_targets_length, embedding_size]
+
                 # decoder_targets: [batch, decoder_sequence_length]
                 ending = tf.strided_slice(input_=self.decoder_targets, begin=[0, 0], end=[self.batch_size, -1], strides=[1, 1])
                 # decoder_input: [batch, decoder_sequence_length]
