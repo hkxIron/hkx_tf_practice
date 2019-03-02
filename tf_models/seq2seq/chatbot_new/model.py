@@ -127,6 +127,7 @@ class Seq2SeqModel():
                                            kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1))
 
             if self.mode == 'train':
+                print('train model... ...')
                 # 定义decoder阶段的输入input，其实就是在decoder的target开始处添加一个<go>,并删除结尾处的<end>,并进行embedding。
                 # 即将 A,B,C,<end> => <go>,A,B,C
 
@@ -186,6 +187,7 @@ class Seq2SeqModel():
                     self.train_op = optimizer.minimize(loss, global_step = global_step)
                 """
             elif self.mode == 'decode':
+                print('infer model... ...')
                 # start_tokens:[batch, ]
                 start_tokens = tf.ones([self.batch_size, ], tf.int32) * self.word_to_idx['<go>']
                 end_token = self.word_to_idx['<eos>']
@@ -223,6 +225,8 @@ class Seq2SeqModel():
                     self.decoder_predict_decode = decoder_outputs.predicted_ids
                 else:
                     self.decoder_predict_decode = tf.expand_dims(decoder_outputs.sample_id, -1)
+            else:
+                raise ValueError("unknown mode.")
         # =================================4, 保存模型
         self.saver = tf.train.Saver(tf.global_variables())
 
