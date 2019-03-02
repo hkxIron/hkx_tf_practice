@@ -36,7 +36,7 @@ def predict_ids_to_seq(predict_ids, id2word, beam_size):
 
 with tf.Session() as sess:
     model = Seq2SeqModel(FLAGS.rnn_size, FLAGS.num_layers, FLAGS.embedding_size, FLAGS.learning_rate, word2id,
-                         mode='decode', use_attention=True, beam_search=True, beam_size=5, max_gradient_norm=5.0)
+                         mode='decod', use_attention=True, beam_search=True, beam_size=5, max_gradient_norm=5.0)
     ckpt = tf.train.get_checkpoint_state(FLAGS.model_dir)
     if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
         print('Reloading model parameters..', ckpt.model_checkpoint_path)

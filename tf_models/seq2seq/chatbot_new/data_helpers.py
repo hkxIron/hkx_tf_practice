@@ -28,11 +28,19 @@ def loadDataset(filename):
     '''
     dataset_path = os.path.join(filename)
     print('Loading dataset from {}'.format(dataset_path))
+
     with open(dataset_path, 'rb') as handle:
         data = pickle.load(handle)  # Warning: If adding something here, also modifying saveDataset
         word2id = data['word2id']
         id2word = data['id2word']
         trainingSamples = data['trainingSamples']
+
+    show_samples = []
+    for sample in trainingSamples[:10]:
+        question = [id2word.get(x, '<unknown>') for x in sample[0]]
+        answer = [id2word.get(x, '<unknown>') for x in sample[1]]
+        show_samples.append([question, answer])
+    print("show samples:", show_samples)
     return word2id, id2word, trainingSamples
 
 def createBatch(samples):

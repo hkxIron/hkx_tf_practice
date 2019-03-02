@@ -20,7 +20,7 @@ FLAGS = tf.app.flags.FLAGS
 data_path = 'data/dataset-cornell-length10-filter1-vocabSize40000.pkl'
 word2id, id2word, trainingSamples = loadDataset(data_path)
 
-def predict_ids_to_seq(predict_ids, id2word, beam_szie):
+def predict_ids_to_seq(predict_ids, id2word, beam_size):
     '''
     将beam_search返回的结果转化为字符串
     :param predict_ids: 列表，长度为batch_size，每个元素都是decode_len*beam_size的数组
@@ -28,7 +28,7 @@ def predict_ids_to_seq(predict_ids, id2word, beam_szie):
     :return:
     '''
     for single_predict in predict_ids:
-        for i in range(beam_szie):
+        for i in range(beam_size):
             predict_list = np.ndarray.tolist(single_predict[:, :, i])
             predict_seq = [id2word[idx] for idx in predict_list[0]]
             print(" ".join(predict_seq))
@@ -61,7 +61,7 @@ with tf.Session() as sess:
         predicted_ids = model.infer(sess, batch)
         # print(predicted_ids)
         # 将预测的id转换成汉字
-        predict_ids_to_seq(predicted_ids, id2word, beam_szie=1)
+        predict_ids_to_seq(predicted_ids, id2word, beam_size=1)
         print("> ", "")
         sys.stdout.flush()
         sentence = sys.stdin.readline()
