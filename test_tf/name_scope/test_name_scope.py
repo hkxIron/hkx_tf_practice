@@ -35,6 +35,21 @@ def t2():
     print(Weights2.name) # v_scope/Weights:0
     print(bias2.name)    # v_scope_1/bias:0
 
+def t2_1():
+    import tensorflow as tf
+    # 注意， bias1 的定义方式
+    with tf.variable_scope('v_scope') as scope1:
+        Weights1 = tf.get_variable('Weights', shape=[2, 3])
+    #    bias1 = tf.Variable([0.52], name='bias')
+
+    # 下面来共享上面已经定义好的变量
+    # note: 在下面的 scope 中的get_variable()变量必须已经定义过了，才能设置 reuse=True，否则会报错
+    with tf.variable_scope('v_scope2') as scope2:
+        Weights2 = tf.get_variable('Weights', shape=[2,3])
+
+    print(Weights1.name) # v_scope/Weights:0
+    print(Weights2.name) # v_scope/Weights:0
+
 def t3():
     import tensorflow as tf
     import numpy as np
@@ -113,8 +128,10 @@ def test_abs_name_scope():
                     with g.name_scope(""):
                         e = tf.constant(50.0, name="e")
                     assert e.op.name == "e"
+
+t2_1()
 #t2()
-t3()
+#t3()
 #t4()
 
 #test_abs_name_scope()

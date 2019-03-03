@@ -17,12 +17,12 @@ X_tensor = tf.convert_to_tensor(X)
 cell_fw = tf.nn.rnn_cell.LSTMCell(num_units=5, state_is_tuple=True)
 cell_bw = tf.nn.rnn_cell.LSTMCell(num_units=5, state_is_tuple=True)
 
-#outputs, states = tf.nn.bidirectional_dynamic_rnn(
+#(output_fw, output_bw), (state_fw, state_bw) = tf.nn.bidirectional_dynamic_rnn(
 # output_fw: [batch, input_sequence_length, num_units],它的值为hidden_state
 # output_bw: [batch, input_sequence_length, num_units],它的值为hidden_state
 # (cell_state_fw, hidden_state_fw) = states_fw
-# cell_state: [batch, num_units]
-# hidden_state: [batch, num_units]
+# cell_state_fw: [batch, num_units]
+# hidden_state_fw: [batch, num_units]
 (output_fw, output_bw), (states_fw, states_bw)= tf.nn.bidirectional_dynamic_rnn(
     cell_fw=cell_fw,
     cell_bw=cell_bw,
@@ -30,9 +30,6 @@ cell_bw = tf.nn.rnn_cell.LSTMCell(num_units=5, state_is_tuple=True)
     sequence_length=X_lengths,
     inputs=X_tensor # 将numpy 数组转为tensor
 )
-
-#output_fw, output_bw = outputs
-#states_fw, states_bw = states
 
 # tf中的所谓output一般指hidden_state,而非cell_state, cell_state中一般包含所有时记刻的cell_state,hidden_state
 with tf.Session() as sess:
