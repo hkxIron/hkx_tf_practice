@@ -31,7 +31,7 @@ with tf.Session() as sess:
     ckpt = tf.train.get_checkpoint_state(FLAGS.model_dir)
     if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
         print('Reloading model parameters..', ckpt.model_checkpoint_path)
-        model.restore(sess, ckpt.model_checkpoint_path)
+        model.saver.restore(sess, ckpt.model_checkpoint_path)
     else:
         print('Created new model parameters..')
         sess.run(tf.global_variables_initializer())
