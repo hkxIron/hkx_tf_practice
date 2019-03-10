@@ -48,7 +48,7 @@ def t2_1():
         Weights2 = tf.get_variable('Weights', shape=[2,3])
 
     print(Weights1.name) # v_scope/Weights:0
-    print(Weights2.name) # v_scope/Weights:0
+    print(Weights2.name) # v_scope2/Weights:0
 
 def t3():
     import tensorflow as tf
