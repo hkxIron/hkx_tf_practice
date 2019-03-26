@@ -24,5 +24,6 @@ objStr="""
 ]
 """
 jsObj=json.loads(objStr,encoding="utf-8")
+json.dumps()
 
 print jsObj
