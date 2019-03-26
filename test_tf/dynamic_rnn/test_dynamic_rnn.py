@@ -8,6 +8,7 @@ batch_size=2
 hidden_size=3
 timestep_size=10
 input_dim=2
+np.random.seed(0)
 X = np.random.randn(batch_size, timestep_size, input_dim) # X:[batch,timestep,input_dim]
 # 第二个example长度为6
 X[1,6:] = 0
@@ -15,11 +16,13 @@ X_lengths = [timestep_size, 6]
 print("X:",X)
 #sys.exit(-1)
 cell = tf.contrib.rnn.BasicLSTMCell(num_units=hidden_size, state_is_tuple=True)
+initial_state = cell.zero_state(batch_size, dtype=tf.float64)
 
 output_all_hidden_states, last_cell_and_hidden_state = tf.nn.dynamic_rnn(  # 准确的讲是: all_hidden_state, last_cell_and_hidden_state
     cell=cell,
     dtype=tf.float64,
     sequence_length=X_lengths,
+    initial_state=initial_state,
     inputs=X)
 
 # 也可以这样写
@@ -67,5 +70,4 @@ result:  [{'output_all_hidden_states': array([[[-0.01792841,  0.06766472,  0.218
         'last_cell_and_hidden_state': LSTMStateTuple(c=array([[-0.12265607, -0.05301387, -0.23669567],
        [ 0.09114471, -0.20438412, -0.53840047]]), h=array([[-0.0722373 , -0.02494699, -0.10694959],
        [ 0.05865898, -0.09473747, -0.15177235]]))}]
-
 """
