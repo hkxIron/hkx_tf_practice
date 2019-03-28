@@ -201,8 +201,10 @@ with graph.as_default():
     """Create a LSTM cell. See e.g.: http://arxiv.org/pdf/1402.1128v1.pdf
     Note that in this formulation, we omit the various connections between the
     previous state and the gates."""
+
     # input_gate = X*Wix + h(t-1)*Wih + W_bias
-    # input_x:[batch,vocab_size] Wix:[vocab_size,hidden] last_hidden:[batch,hidden] Wih:[hidden,hidden] Wib:[1,hidden]
+    # input_x:[batch,vocab_size] Wix:[vocab_size,hidden]
+    # last_hidden:[batch,hidden] Wih:[hidden,hidden] Wib:[1,hidden]
     input_gate = tf.sigmoid(tf.matmul(input_x, Wix) + tf.matmul(last_hidden, Wih) + Wib) # [batch,hidden]
     forget_gate = tf.sigmoid(tf.matmul(input_x, Wfx) + tf.matmul(last_hidden, Wfh) + Wfb) # [batch,hidden]
     output_gate = tf.sigmoid(tf.matmul(input_x, Wox) + tf.matmul(last_hidden, Woh) + Wob) # [batch,hidden]
@@ -260,8 +262,8 @@ with graph.as_default():
     saved_sample_output.assign(tf.zeros([1, hidden_nodes])),
     saved_sample_state.assign(tf.zeros([1, hidden_nodes])))
   sample_output, sample_state = lstm_cell(sample_input, saved_sample_output, saved_sample_state)
-  with tf.control_dependencies([saved_sample_output.assign(sample_output), # sample_output -> saved_sample_output
-                                saved_sample_state.assign(sample_state)]): # sample_state -> saved_sample_state
+  with tf.control_dependencies([saved_sample_output.assign(value=sample_output), # sample_output -> saved_sample_output
+                                saved_sample_state.assign(value=sample_state)]): # sample_state -> saved_sample_state
     sample_prediction = tf.nn.softmax(tf.nn.xw_plus_b(sample_output, classify_weight, classify_bias))
 
 # -------------------------
