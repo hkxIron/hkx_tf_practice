@@ -39,7 +39,7 @@ class BasicConvLSTMCell(tf.contrib.rnn.RNNCell):
         c, h = tf.split(value=state, num_or_size_splits=2, axis=3)
 
       # inp_channel: channel+num_filter
-      inp_channel = inputs.get_shape().as_list()[-1]+self._num_filters # 相加是啥意思?
+      inp_channel = inputs.get_shape().as_list()[-1]+self._num_filters
       print("inp_channel:", inp_channel)
       # out_channel:4*num_filter
       out_channel = self._num_filters * 4 # i, j, f, o

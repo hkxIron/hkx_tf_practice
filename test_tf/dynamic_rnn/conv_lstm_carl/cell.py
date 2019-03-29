@@ -6,7 +6,13 @@ class ConvLSTMCell(tf.nn.rnn_cell.RNNCell):
     Xingjian, S. H. I., et al. "Convolutional LSTM network: A machine learning approach for precipitation nowcasting." Advances in Neural Information Processing Systems. 2015.
   """
 
-  def __init__(self, shape, filters, kernel, forget_bias=1.0, activation=tf.tanh, normalize=True, peephole=True, data_format='channels_last', reuse=None):
+  def __init__(self, shape, filters, kernel, forget_bias=1.0,
+               activation=tf.tanh,
+               normalize=True,
+               peephole=True,
+               data_format='channels_last',
+               reuse=None):
+
     super(ConvLSTMCell, self).__init__(_reuse=reuse)
     self._kernel = kernel
     self._filters = filters
@@ -14,12 +20,14 @@ class ConvLSTMCell(tf.nn.rnn_cell.RNNCell):
     self._activation = activation
     self._normalize = normalize
     self._peephole = peephole
+
     if data_format == 'channels_last':
-        self._size = tf.TensorShape(shape + [self._filters])
-        self._feature_axis = self._size.ndims
+        # shape:[height, width, num_filter]
+        self._size = tf.TensorShape(shape + [self._filters]) # shape:[height, width], filter:num_filter
+        self._feature_axis = self._size.ndims # 特征维数=3
         self._data_format = None
     elif data_format == 'channels_first':
-        self._size = tf.TensorShape([self._filters] + shape)
+        self._size = tf.TensorShape([self._filters] + shape) # [num_filter, height, width]
         self._feature_axis = 0
         self._data_format = 'NC'
     else:
@@ -35,17 +43,27 @@ class ConvLSTMCell(tf.nn.rnn_cell.RNNCell):
 
   def call(self, x, state):
     c, h = state
-
+    print("input x:", x, " h:", h, " feature_axis:", self._feature_axis)
+    # feature_axis=3
+    # x:[batch, height, width, channel]
+    # h:[batch, height, width, num_filter]
+    # => x:[batch, height, width, channel+num_filter]
     x = tf.concat([x, h], axis=self._feature_axis)
-    n = x.shape[-1].value
-    m = 4 * self._filters if self._filters > 1 else 4
-    W = tf.get_variable('kernel', self._kernel + [n, m])
-    y = tf.nn.convolution(x, W, 'SAME', data_format=self._data_format)
+    n = x.shape[-1].value # n:channel+num_filter
+    m = 4 * self._filters if self._filters > 1 else 4 # 4*num_filter
+    W = tf.get_variable('kernel', self._kernel + [n, m]) # W:[filter_height, filter_width, input_channel=channel+num_filter, output_channel=4*num_filter]
+    # y:[batch, height, width, 4*num_filter]
+    y = tf.nn.convolution(x, W, 'SAME', strides=None, data_format=self._data_format)
     if not self._normalize:
       y += tf.get_variable('bias', [m], initializer=tf.zeros_initializer())
+    # j:[batch, height, width, num_filter]
+    # i:[batch, height, width, num_filter]
+    # f:[batch, height, width, num_filter]
+    # o:[batch, height, width, num_filter]
     j, i, f, o = tf.split(y, 4, axis=self._feature_axis)
 
     if self._peephole:
+      # c:[batch, height, width, num_filter]
       i += tf.get_variable('W_ci', c.shape[1:]) * c
       f += tf.get_variable('W_cf', c.shape[1:]) * c
 

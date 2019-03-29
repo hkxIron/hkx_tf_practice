@@ -1,7 +1,10 @@
+# https://github.com/hkxIron/tensorflow-convlstm-cell
+
 import tensorflow as tf
 import numpy as np
 from cell import ConvLSTMCell
 from cell import ConvGRUCell
+
 
 batch_size = 2
 timesteps = 6
@@ -19,7 +22,7 @@ def t1():
     cell = ConvLSTMCell(shape, filters, kernel)
     outputs, state = tf.nn.dynamic_rnn(cell, inputs, dtype=inputs.dtype)
     with tf.Session() as sess:
-        inp = np.random.normal(size=(timesteps, batch_size, height, width, channels))
+        inp = np.random.normal(size=(batch_size, timesteps, height, width, channels))
         sess.run(tf.global_variables_initializer())
         output, cell_and_hidden_state = sess.run([outputs, state], feed_dict={inputs:inp})
         print("output shape:",output.shape) # output:[time, batch_size, height, width, width, num_filter]
@@ -30,7 +33,7 @@ def t2():
     cell = ConvGRUCell(shape, filters, kernel)
     outputs, state = tf.nn.dynamic_rnn(cell, inputs, dtype=inputs.dtype)
     with tf.Session() as sess:
-        inp = np.random.normal(size=(timesteps, batch_size, height, width, channels))
+        inp = np.random.normal(size=(batch_size, timesteps, height, width, channels))
         sess.run(tf.global_variables_initializer())
         output, cell_and_hidden_state = sess.run([outputs, state], feed_dict={inputs:inp})
         print("output shape:",output.shape) # output:[time, batch_size, height, width, width, num_filter]
@@ -44,7 +47,7 @@ def t3():
     cell = ConvLSTMCell(shape, filters, kernel)
     outputs, state = tf.nn.bidirectional_dynamic_rnn(cell, cell, inputs, dtype=inputs.dtype)
     with tf.Session() as sess:
-        inp = np.random.normal(size=(timesteps, batch_size, height, width, channels))
+        inp = np.random.normal(size=(batch_size, timesteps, height, width, channels))
         sess.run(tf.global_variables_initializer())
         output, cell_and_hidden_state = sess.run([outputs, state], feed_dict={inputs:inp})
         print("output shape:",output.shape) # output:[time, batch_size, height, width, width, num_filter]
@@ -57,7 +60,7 @@ def t4():
     cell = ConvGRUCell(shape, filters, kernel)
     outputs, state= tf.nn.bidirectional_dynamic_rnn(cell, cell, inputs, dtype=inputs.dtype)
     with tf.Session() as sess:
-        inp = np.random.normal(size=(timesteps, batch_size, height, width, channels))
+        inp = np.random.normal(size=(batch_size, timesteps, height, width, channels))
         sess.run(tf.global_variables_initializer())
         output, cell_and_hidden_state = sess.run([outputs, state], feed_dict={inputs:inp})
         print("output shape:",output.shape) # output:[time, batch_size, height, width, width, num_filter]
