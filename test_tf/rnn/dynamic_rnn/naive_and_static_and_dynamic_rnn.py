@@ -124,8 +124,8 @@ def static_rnn():
         output_all_hidden_states, last_cell_and_hidden_state = sess.run([output, state], feed_dict={x: input})
         #result1 = np.asarray(result1)
         #result2 = np.asarray(result2)
-        print("output_hidden:", output_all_hidden_states)
-        print("last_cell_and_hidden:", last_cell_and_hidden_state)
+        print("output_hidden:", output_all_hidden_states) # list, size:time_step* [batch, hidden_size]
+        print("last_cell_and_hidden:", last_cell_and_hidden_state) # c:[batch, hidden_size], h:[batch, hidden_size]
 
 
 """

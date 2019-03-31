@@ -227,6 +227,7 @@ with graph.as_default():
   last_hidden = saved_output # [batch, hidden]
   last_cell_state = saved_state # [batch, hidden]
   for input_index in train_inputs:# num_unrollings个[batch,vocab]，将train_inputs里的每个place_holder作为一个time_step的输入,同时将上一次的输出也作为输入
+    # 注意:这些lstm cell共享同一套参数
     last_hidden, last_cell_state = lstm_cell(input_index, last_hidden, last_cell_state) # input_x:[batch,vocab_size] last_hidden:[batch,hidden] last_cell_state:[batch,hidden]
     last_hidden_outputs.append(last_hidden) # 将time_step个output连接起来, last_hidden:[batch,hidden]
 
