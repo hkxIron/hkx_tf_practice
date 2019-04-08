@@ -1,3 +1,4 @@
+# http://blog.csdn.net/john_xyz/article/details/78933253
 # 该代码是deepfm的严格实现, 只是效率可能有些低
 # coding:utf-8
 import os
