@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 OLD_IFS=$IFS
 IFS=" "
 for x in $(echo "one two three")

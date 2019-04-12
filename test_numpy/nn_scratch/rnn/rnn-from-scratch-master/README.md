@@ -36,7 +36,7 @@ Now use **computation graph** to represent `E1` as an example and calculate `dE1
 
 ![](https://github.com/pangolulu/rnn-from-scratch/raw/master/figures/rnn-compuattion-graph.png)
 
-Note that this is exactly the same as the standard backpropagation algorithm that we use in deep [Feedforward Neural Networks](https://github.com/pangolulu/neural-network-from-scratch). The key difference is that we sum up the gradients for `W` at each time step. In a traditional NN we don’t share parameters across layers, so we don’t need to sum anything.  But in my opinion BPTT is just a fancy name for standard backpropagation on an unrolled RNN.
+Note that this is exactly the same as the standard backpropagation algorithm that we use in deep [Feedforward Neural Networks](https://github.com/pangolulu/neural-network-from-scratch). The key difference is that we sum up the gradients for `W` at each time step. In a traditional nn_scratch we don’t share parameters across layers, so we don’t need to sum anything.  But in my opinion BPTT is just a fancy name for standard backpropagation on an unrolled RNN.
 
 To simplify the **computation graph** to make it efficient, we can integrate some small operation units to a big operation unit. You can have a look the following figure. Note that the operation unit should also implement the `forward` function and `backward` function.
 

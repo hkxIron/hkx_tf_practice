@@ -1,4 +1,5 @@
 import numpy as np
+# 只有前向传播
 X = [1,2]
 state = [0.0, 0.0]
 w_cell_state = np.asarray([[0.1, 0.2], [0.3, 0.4]])

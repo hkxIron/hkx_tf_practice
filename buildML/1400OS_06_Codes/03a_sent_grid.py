@@ -70,7 +70,7 @@ class StructCounter(BaseEstimator):
         for w,t in tagged:
             p, n = 0,0
             sent_pos_type = None
-            if t.startswith("NN"):
+            if t.startswith("nn_scratch"):
                 sent_pos_type = "n"
                 nouns += 1
             elif t.startswith("JJ"):
