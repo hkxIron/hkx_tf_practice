@@ -5,14 +5,11 @@ Implement and train a neural network from scratch in Python for the MNIST datase
 
 
 https://github.com/hkxIron/CS598-Deep-Learning-MPs/blob/master/MP1_FeedForwardWithoutPytorch/NN_MNIST_IE534HW1.py
+本代码基本由hukexin按照自己的思路进行了重构
 
 """
 
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Aug 30 10:01:02 2018
-@author: Rachneet Kaur
-"""
 
 # Library imports
 import numpy as np
@@ -158,7 +155,7 @@ def backward(x, y, Z, H, prob_dist, model, model_grads):
     # C:[hidden_dim, output_dim]
     # dL/dC = dL/dU*dU/dC = dL/dU*H
     # dL/dC = H^T*dL/du
-    dL__dC = np.dot(np.transpose(H), dL__dU)
+    dL__dC = np.dot(np.transpose(H), dL__dU)/ batch_size
     model_grads['C'] = dL__dC
 
     # dL/dH = dL/dU*dU/dH = dL/dU*C
@@ -166,7 +163,7 @@ def backward(x, y, Z, H, prob_dist, model, model_grads):
     # C: [hidden_dim, output_dim]
     # dL_dU: [batch, output_dim]
     # dL_dH: [batch, hidden_dim]
-    dL__dH = np.dot(dL__dU, np.transpose(model["C"]))
+    dL__dH = np.dot(dL__dU, np.transpose(model["C"]))/batch_size
 
     # dL/dZ = dL/dH*dH/dz
     # dL_dZ: [batch, hidden_dim]
@@ -179,7 +176,7 @@ def backward(x, y, Z, H, prob_dist, model, model_grads):
     # X:[batch, input_dim]
     # dL__dw:[input_dim, hidden_dim]
     # dL__dw = dL/dZ*dZ/dx = x^T*dL/dZ
-    dL__dw = np.dot(np.transpose(x), dL__dZ)
+    dL__dw = np.dot(np.transpose(x), dL__dZ)/batch_size # w的更新与batch_size无关
     model_grads['W'] = dL__dw
     # d_H*d dimensional
     return model_grads
@@ -188,10 +185,10 @@ def update_model(model:dict, learning_rate:float, model_grads:dict):
     model['W'] -=  learning_rate * model_grads['W'] # Updating the parameters W, b_1, C and b_2 via the SGD step
     # b1:[batch, hidden_dim]
     # b1:[1, hidden_dim]
-    model['b1'] -= learning_rate * np.sum(model_grads['b1'],axis=0)
+    model['b1'] -= learning_rate * np.mean(model_grads['b1'],axis=0)
     model['C'] -=  learning_rate * model_grads['C']
     # b2:[1, input_dim]
-    model['b2'] -= learning_rate * np.sum(model_grads['b2'],axis=0)
+    model['b2'] -= learning_rate * np.mean(model_grads['b2'],axis=0)
 
 time1 = time.time()
 learning_rate = .01

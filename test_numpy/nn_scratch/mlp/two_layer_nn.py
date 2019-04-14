@@ -1,4 +1,5 @@
 #coding:utf-8
+# author:kexinhu
 import numpy as np
 
 def sigmoid(x, deriv=False):
@@ -91,7 +92,7 @@ for j in range(N):
     # w1:[h0_dim,1]
     # dL__da1:[batch, 1]
     # dL__dz1:[batch, h0_dim]
-    dL__dz1 = dL__da1.dot(w1.T)
+    dL__dz1 = dL__da1.dot(w1.T)/batch
 
     # z1:[batch, h0_dim]
     # dz1__da0:[batch, h0_dim]
@@ -102,11 +103,11 @@ for j in range(N):
     # z1:[batch, h0_dim]
     # dL__da1:[batch, 1]
     # dL__dw1:[h0_dim, 1]
-    dL__dw1 = z1.T.dot(dL__da1)
+    dL__dw1 = z1.T.dot(dL__da1)/batch
     # z0:[batch, x_dim]
     # dL__da0:[batch, h0_dim]
     # g0:[x_dim, h0_dim]
-    dL__dw0 = z0.T.dot(dL__da0)
+    dL__dw0 = z0.T.dot(dL__da0)/batch
 
     w1 -= dL__dw1
     w0 -= dL__dw0
@@ -116,6 +117,7 @@ print("syn0:")
 print(w0)
 print("syn1:")
 print(w1)
+print("y_hat:", y_hat)
 
 """
 batch: 4  x_dim: 3

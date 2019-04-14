@@ -1,3 +1,6 @@
+# coding:utf-8
+# author:kexinhu
+
 import numpy as np
 
 # sigmoid function
@@ -65,7 +68,8 @@ Output After Training:
  [0.99879392]]
 """
 print("square loss")
-x_dim=3
+#x_dim=3
+batch_size, x_dim = X.shape
 N = 1000
 # w:[x_dim, 1]
 w = 2 * np.random.random((x_dim, 1)) - 1
@@ -104,7 +108,7 @@ for iter in range(N):
     # X:[batch, x_dim]
     # l1_delta:[batch, 1]
     # g: [x_dim, 1]
-    g = np.dot(X.T, l1_delta)
+    g = np.dot(X.T, l1_delta)/batch_size
 
     # update weights
     # w: [x_dim, 1]
@@ -130,7 +134,7 @@ for iter in range(N):
     # dL/da = dL/dy_hat* dy_hat/da =
     # (y -y_hat) /[ y_hat(1-y_hat) ] *  dy_hat/da = y_hat - y
 
-    cross_entropy_loss = -np.mean((y*np.log(y_hat+eps) + (1-y)*np.log(1-y_hat + eps)))
+    cross_entropy_loss = -np.mean((y*np.log(y_hat) + (1-y)*np.log(1-y_hat)))
     if iter%100 ==0:
         print("cross_entropy_loss:", cross_entropy_loss)
     # how much did we miss?
@@ -143,7 +147,7 @@ for iter in range(N):
     # l1_delta:[batch, 1]
     # g:[x_dim,1]
     # dL/dw = dL/da*da/dw = (y-y_hat)*x
-    g = np.dot(X.T, l1_delta)
+    g = np.dot(X.T, l1_delta)/batch_size
 
     # update weights
     w -= g
