@@ -48,7 +48,9 @@ x_train = np.array([x.reshape(d, d) for x in x_train])  # Reshaping the image in
 y_train = [y.reshape(-1, 1) for y in y_train]
 
 x_test, y_test = load_mnist("mnist/","t10k")
+# x_test:[batch, width, height]
 x_test = np.array([x.reshape(d, d) for x in x_test])  # Reshaping the image in a matrix format
+# y_test:list of [1,1]
 y_test = [y.reshape(-1, 1) for y in y_test]
 
 print('MNIST Training set shape =', x_train.shape)
@@ -68,10 +70,17 @@ def softmax_function(z):
 
 
 # Defining the convolution function
-def convolution(X, K, iteratable, d_y, d_x):  # X - image, K - filter, (d_x, d_y, channel) = Dimensions of filter K
-    conv_Z = np.array([np.tensordot(K[:, :, tuple_ijk[2]],
-                                    X[tuple_ijk[0]:tuple_ijk[0] + d_y, tuple_ijk[1]:tuple_ijk[1] + d_x],
-                                    axes=((0, 1), (0, 1))) for tuple_ijk in iteratable])
+def convolution(X, K, iteratable):  # X - image, K - filter, (d_x, d_y, channel) = Dimensions of filter K
+    # x: [height, width]
+    # k: [dy, dx, output_channel]
+    # iteratable: list of (i,j,k), len:[height,width, output_channel]
+    d_y, d_x, output_channel = K.shape
+    conv_Z = np.array([np.tensordot(a= K[:, :, ijk[2]], # [dy, dx]
+                                    b= X[ijk[0]:ijk[0] + d_y, ijk[1]:ijk[1] + d_x], # [dy, dx]
+                                    axes=((0, 1), (0, 1))
+                                    ) # tensordot是在模拟卷积过程,但感觉太复杂了,直接用两个向量相乘然后相加不就行了
+                        for ijk in iteratable] # 每次ijk产生的都是一个数
+                      )
     return conv_Z
 
 
@@ -102,26 +111,33 @@ output_dim = 10  # number of output classes = k
 # Dimensions for the Kernel = d_y * d_x * C
 d_y = 5
 d_x = 5
-channel = 5  # No. of channels C
+channel = 5  # output channel dim: C
 # dimensions of hidden units in the hidden layer
-num_hidden_x = d - d_y + 1
+num_hidden_x = d - d_y + 1 # num_hidden_x: (img-filter+2*padding)//stride+1
 num_hidden_y = d - d_x + 1
 
 # Initializing the parameters for the Convolution Neural Network model
 model = {}
-model['K'] = np.random.randn(d_y, d_x, channel) / np.sqrt(d_x * d_y)
-# K = d_y *d_x * C dimensional
-model['W'] = np.random.randn(output_dim, num_hidden_x, num_hidden_y, channel) / np.sqrt(num_hidden_x * num_hidden_y)
-# W = k*(d-d_y+1)*(d-d_x+1)*C dimensional
-model['b'] = np.random.randn(output_dim, 1)
-# b = k*1 dimensional
+# K=[dy, dx, C]
+model['K'] = np.random.randn(d_y, d_x, channel) / np.sqrt(d_x * d_y) #
+# conv = conv(X, K), [num_hidden_x, num_hidden_y, C]
+# W:[output_dim,num_hidden_x, num_hidden_y, channel]
+model['W'] = np.random.randn(output_dim, num_hidden_x, num_hidden_y, channel) / np.sqrt(num_hidden_x * num_hidden_y) # W = k*(d-d_y+1)*(d-d_x+1)*C dimensional
+# z = conv*w, [output_dim, 1]
+model['b'] = np.random.randn(output_dim, 1) # b = k*1 dimensional
 
 model_grads = copy.deepcopy(model)
-
 # Defining the iteratables for the convolution function
 l1 = range(num_hidden_x)
 l2 = range(num_hidden_y)
 l3 = range(channel)
+"""
+itertools会产生排列组合
+[(0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3), (0, 0, 4), 
+(0, 1, 0), (0, 1, 1), (0, 1, 2), (0, 1, 3), (0, 1, 4), 
+(0, 2, 0), (0, 2, 1), (0, 2, 2), (0, 2, 3), (0, 2, 4), 
+...
+"""
 iteratable_forward = list(itertools.product(l1, l2, l3))
 
 i1 = range(d_y)
@@ -131,7 +147,9 @@ iteratable_backward = list(itertools.product(i1, i2, l3))
 
 # Defining the forward step of the Convolution Neural Network model
 def forward(x, y, model):
-    Z = convolution(x, model['K'], iteratable_forward, d_y, d_x).reshape(num_hidden_x, num_hidden_y, channel)
+    # K:[dy, dx, C]
+    # x: [height, width]
+    Z = convolution(x, model['K'], iteratable_forward).reshape(num_hidden_x, num_hidden_y, channel)
     # Z = X convolution K = d-d_y+1*d-d_x+1*channel dim.
     H = tanh_activation(Z)  # H = activation(Z) - (d-d_y+1)*(d-d_x+1)*channel dimensional
     U = np.tensordot(model['W'], H, axes=((1, 2, 3), (0, 1, 2))).reshape(-1, 1) + model['b']  # U = W.H + b - k dimensional
@@ -156,8 +174,7 @@ def backward(x, y, Z, H, prob_dist, model, model_grads):
     # delta = (d-d_y+1)* (d-d_x+1)* C dimensional
     model_grads['K'] = convolution(x, np.multiply(delta, tanh_activation(Z, 1)),
                                    iteratable_backward,
-                                   d - d_y + 1,
-                                   d - d_x + 1).reshape(d_y, d_x, channel)
+                                   ).reshape(d_y, d_x, channel)
     # Gradient(W) = X convolution delta.derivative of activation(Z)
     # Using the dimensions of np.multiply(delta, activation(Z, 1)) as an input to the convolution function
     # model_grads['K'] = d_y*d_x*C dimensional
@@ -184,7 +201,9 @@ for epochs in range(num_epochs):
     acc = []
     for n in range(len(x_train)):
         n_random = randint(0, len(x_train) - 1)  # SGD step
+        # y:[1, 1]
         y = y_train[n_random]
+        # x:[width, height]
         x = x_train[n_random][:]
         Z, H, prob_dist, loss = forward(x, y, model)
         prediction = np.argmax(prob_dist)
