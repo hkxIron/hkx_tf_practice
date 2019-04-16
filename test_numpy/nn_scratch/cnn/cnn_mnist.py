@@ -35,7 +35,6 @@ from mnist.read_mnist import load_mnist
 # MNIST dataset
 # MNIST_data = h5py.File(path + 'MNISTdata.hdf5', 'r')
 d = 28  # number of input features for each image = 28*28  = d * d
-EPS=1e-5
 
 # Training set
 #x_train = np.float32(MNIST_data['x_train'][:])  # x_train.shape = (60000, 784)
@@ -65,7 +64,10 @@ print('MNIST Test set shape =', x_test.shape)
 
 # Defining the softmax function for the output layer
 def softmax_function(z):
-    softmax = np.exp(z) / np.sum(np.exp(z))
+    # z:[k, 1]
+    z_max=np.max(z)
+    z_slide = z- z_max # 减去最大值,以防溢出
+    softmax = np.exp(z_slide) / np.sum(np.exp(z_slide))
     return softmax
 
 
@@ -75,13 +77,17 @@ def convolution(X, K, iteratable):  # X - image, K - filter, (d_x, d_y, channel)
     # k: [dy, dx, output_channel]
     # iteratable: list of (i,j,k), len:[height,width, output_channel]
     d_y, d_x, output_channel = K.shape
-    conv_Z = np.array([np.tensordot(a= K[:, :, ijk[2]], # [dy, dx]
-                                    b= X[ijk[0]:ijk[0] + d_y, ijk[1]:ijk[1] + d_x], # [dy, dx]
-                                    axes=((0, 1), (0, 1))
-                                    ) # tensordot是在模拟卷积过程,但感觉太复杂了,直接用两个向量相乘然后相加不就行了
-                        for ijk in iteratable] # 每次ijk产生的都是一个数
-                      )
-    return conv_Z
+    conv_list = []
+    for ijk in iteratable:
+       kernel = K[:, :, ijk[2]] # [dy, dx]
+       slide_img = X[ijk[0]:ijk[0] + d_y, ijk[1]:ijk[1] + d_x] # [dy, dx]
+       # 终于明白这里的tensordot的作用,
+       # axes=((0,1), # a
+       #       (0,1)),# b, 指 a中的第0维与b中的第0维相乘,a中的第一维与b中的第一维相乘,最后所有维相加得到一个 scalar
+       #conv_result = np.tensordot(a=kernel, b=slide_img, axes=((0, 1), (0, 1))) # tensordot是在模拟卷积过程,但感觉太复杂了,直接用两个向量相乘然后相加不就行了
+       conv_result = np.sum(kernel*slide_img)
+       conv_list.append(conv_result)
+    return np.array(conv_list)
 
 
 # Defining the activation function and it's derivative if flag derivative = 1
@@ -90,21 +96,6 @@ def tanh_activation(Z, derivative=0):
         return 1.0 - np.tanh(Z) ** 2  # Derivative of tanh(z) applied elementwise
     else:
         return np.tanh(Z)  # tanh(z) as activation function applied elementwise
-
-
-# Function to compute the accuracy on the testing dataset
-def compute_accuracy(x_series, y_series, model):
-    total_correct = 0
-    for index in range(len(x_series)):
-        y = y_series[index]  # True label
-        x = x_series[index][:]  # Input
-        Z, H, p, loss = forward(x, y, model)
-        prediction = np.argmax(p)  # Predicting the label based on the input
-        if (prediction == y):  # Checking if True label == Predicted label
-            total_correct += 1
-    accuracy = total_correct / np.float(len(x_series))
-    return accuracy
-
 
 # Shape parameters for the layers
 output_dim = 10  # number of output classes = k
@@ -117,11 +108,12 @@ num_hidden_x = d - d_y + 1 # num_hidden_x: (img-filter+2*padding)//stride+1
 num_hidden_y = d - d_x + 1
 
 # Initializing the parameters for the Convolution Neural Network model
+np.random.seed(0)
 model = {}
 # K=[dy, dx, C]
 model['K'] = np.random.randn(d_y, d_x, channel) / np.sqrt(d_x * d_y) #
 # conv = conv(X, K), [num_hidden_x, num_hidden_y, C]
-# W:[output_dim,num_hidden_x, num_hidden_y, channel]
+# W:[output_dim, num_hidden_x, num_hidden_y, channel]
 model['W'] = np.random.randn(output_dim, num_hidden_x, num_hidden_y, channel) / np.sqrt(num_hidden_x * num_hidden_y) # W = k*(d-d_y+1)*(d-d_x+1)*C dimensional
 # z = conv*w, [output_dim, 1]
 model['b'] = np.random.randn(output_dim, 1) # b = k*1 dimensional
@@ -130,7 +122,7 @@ model_grads = copy.deepcopy(model)
 # Defining the iteratables for the convolution function
 l1 = range(num_hidden_x)
 l2 = range(num_hidden_y)
-l3 = range(channel)
+l3 = range(channel) # channel
 """
 itertools会产生排列组合
 [(0, 0, 0), (0, 0, 1), (0, 0, 2), (0, 0, 3), (0, 0, 4), 
@@ -144,42 +136,87 @@ i1 = range(d_y)
 i2 = range(d_x)
 iteratable_backward = list(itertools.product(i1, i2, l3))
 
-
 # Defining the forward step of the Convolution Neural Network model
 def forward(x, y, model):
     # K:[dy, dx, C]
     # x: [height, width]
+    # Z: [d-d_y+1, d-d_x+1, channel]
     Z = convolution(x, model['K'], iteratable_forward).reshape(num_hidden_x, num_hidden_y, channel)
-    # Z = X convolution K = d-d_y+1*d-d_x+1*channel dim.
-    H = tanh_activation(Z)  # H = activation(Z) - (d-d_y+1)*(d-d_x+1)*channel dimensional
-    U = np.tensordot(model['W'], H, axes=((1, 2, 3), (0, 1, 2))).reshape(-1, 1) + model['b']  # U = W.H + b - k dimensional
+    # H: [d-d_y+1, d-d_x+1, channel]
+    H = tanh_activation(Z)
+    # W:[output_dim, num_hidden_x=d-d_y+1, num_hidden_y=d-d_x+1, channel]
+    # U:[k=output_dim, 1]
+    U = np.tensordot(a=model['W'], b=H, axes=((1, 2, 3), (0, 1, 2))).reshape(-1, 1) \
+        + model['b']  # U = W.H + b - k dimensional
+    # U:[k, 1]
+    # prob_dist:[k, 1]
     prob_dist = softmax_function(U)  # Prob_distribution of classes = F_softmax(U) - k dimensional
     y_one_hot = np.zeros((output_dim,1))
-    y_one_hot[y,0] =1
-    loss = np.sum(-y_one_hot*np.log(prob_dist+EPS))
+    y_one_hot[y, 0] = 1
+    # cross-entropy-loss
+    loss = np.sum(-y_one_hot*np.log(prob_dist))
+    # Z: [d-d_y+1, d-d_x+1, channel]
+    # H: [d-d_y+1, d-d_x+1, channel]
     return Z, H, prob_dist, loss
-
 
 # Defining the backpropogation step of the Convolution Neural Network model
 def backward(x, y, Z, H, prob_dist, model, model_grads):
-    dZ = -1.0 * prob_dist
-    dZ[y] = (dZ[y] + 1.0)
-    dZ = -dZ
+    # x:[width, height]
+    # Z: [d-d_y+1, d-d_x+1, channel]
+    # H: [d-d_y+1, d-d_x+1, channel]
+    # prob_dist:[k, 1]
+    y_one_hot = np.zeros_like(prob_dist)
+    y_one_hot[y,0]=1
+    """
+    forward:
+    Z = conv(x, k)
+    H = tanh(Z)
+    U = H*W+b
+    prob = softmax(U) 
+    L= loss(prob, y)
+    
+    """
+    # dZ= dL/dU
+    # dZ:[k,1]
+    dZ = prob_dist - y_one_hot # prob - label
     # Gradient(log(F_softmax)) wrt U = Indicator Function - F_softmax
+    # dL/db:[k,1]
     model_grads['b'] = dZ  # Gradient(b) = Gradient(log(F_softmax)) wrt U
     # Gradient_b = k*1 dimensional
-    model_grads['W'] = np.tensordot(dZ.T, H, axes=0)[0]
+    # dL/dW = dL/dU*dU/dW = dL/dU * H
+    # U = H*W+b
+    # H: [d-d_y+1, d-d_x+1, channel]
+    # W:[output_dim=k, num_hidden_x=d-d_x+1, num_hidden_y=d-d_y+1, channel]
+    # dZ:[k=output_dim,1]
+    # dL__dw:[k=output_dim, d-dx+1, d-dy+1, channel]
+    # axes=0,计算a与b的外积,即最后的维度为concat
+    dL__dW = np.tensordot(a=dZ.T, b=H, axes=0) # [1, output_dim, d-dx+1, d-dy+1, channel]
+    model_grads['W'] = dL__dW[0]
     # Gradient_W = k*(d-d_y+1)*(d-d_x+1)*C dimensional
-    delta = np.tensordot(dZ.T, model['W'], axes=1)[0]  # delta_{i,j,p} = Gradient(H) = (Gradient(log(F_softmax)) wrt U)*W_{:,i,j,p}
-    # delta = (d-d_y+1)* (d-d_x+1)* C dimensional
-    model_grads['K'] = convolution(x, np.multiply(delta, tanh_activation(Z, 1)),
-                                   iteratable_backward,
-                                   ).reshape(d_y, d_x, channel)
+    # dZ:[k=output_dim,1]
+    # W:[output_dim=k, num_hidden_x=d-d_x+1, num_hidden_y=d-d_y+1, channel]
+    # dL__dH: [d-d_y+1, d-d_x+1, channel]
+    # axes=1时,计算的是a与b的内积
+    dL__dH = np.tensordot(dZ.T, model['W'], axes=1)[0]  # delta_{i,j,p} = Gradient(H) = (Gradient(log(F_softmax)) wrt U)*W_{:,i,j,p}
+    # dL/dZ = dL/dH*dH/dZ = dL/dH*tanh'
+    # dL__dH: [d-d_y+1, d-d_x+1, channel]
+    # Z: [d-d_y+1, d-d_x+1, channel]
+    # dL__dZ: [d-d_y+1, d-d_x+1, channel]
+    dL__dZ = np.multiply(dL__dH, tanh_activation(Z, derivative=1))
+    # x:[width, height]
+    # dL__dZ: [d-d_y+1, d-d_x+1, channel]
+    # dL/dk = dL/dZ*dZ/dk =dL/dZ*X
+    model_grads['K'] = convolution(x, dL__dZ, iteratable_backward)\
+        .reshape(d_y, d_x, channel)
     # Gradient(W) = X convolution delta.derivative of activation(Z)
     # Using the dimensions of np.multiply(delta, activation(Z, 1)) as an input to the convolution function
     # model_grads['K'] = d_y*d_x*C dimensional
     return model_grads
 
+def update_model(model, learning_rate, model_grads):
+    model['W'] -= learning_rate * model_grads['W']  # Updating the parameters W, b, and K via the SGD step
+    model['b'] -= learning_rate * model_grads['b']
+    model['K'] -= learning_rate * model_grads['K']
 
 learning_rate = .01
 num_epochs = 10  # No. of epochs we are training the model
@@ -205,6 +242,10 @@ for epochs in range(num_epochs):
         y = y_train[n_random]
         # x:[width, height]
         x = x_train[n_random][:]
+        # Z: [d-d_y+1, d-d_x+1, channel]
+        # H: [d-d_y+1, d-d_x+1, channel]
+        # prob_dist:[k, 1]
+        # loss:scalar
         Z, H, prob_dist, loss = forward(x, y, model)
         prediction = np.argmax(prob_dist)
         losses.append(loss)
@@ -213,14 +254,28 @@ for epochs in range(num_epochs):
             print("iter:", n, "avg loss:", np.mean(losses), " avg acc:", np.mean(acc))
             losses=[]
             acc = []
-        if (prediction == y):
-            total_correct += 1
+        if (prediction == y): total_correct += 1
+        # x:[width, height]
+        # Z: [d-d_y+1, d-d_x+1, channel]
+        # H: [d-d_y+1, d-d_x+1, channel]
+        # prob_dist:[k, 1]
+        # loss:scalar
         model_grads = backward(x, y, Z, H, prob_dist, model, model_grads)
-        model['W'] = model['W'] - learning_rate * model_grads['W']  # Updating the parameters W, b, and K via the SGD step
-        model['b'] = model['b'] - learning_rate * model_grads['b']
-        model['K'] = model['K'] - learning_rate * model_grads['K']
+        update_model(model, learning_rate, model_grads)
     print('In epoch ', epochs, ', accuracy in training set = ', total_correct / np.float(len(x_train)))
 
+# Function to compute the accuracy on the testing dataset
+def compute_accuracy(x_series, y_series, model):
+    total_correct = 0
+    for index in range(len(x_series)):
+        y = y_series[index]  # True label
+        x = x_series[index][:]  # Input
+        Z, H, p, loss = forward(x, y, model)
+        prediction = np.argmax(p)  # Predicting the label based on the input
+        if (prediction == y):  # Checking if True label == Predicted label
+            total_correct += 1
+    accuracy = total_correct / np.float(len(x_series))
+    return accuracy
 # Calculating the test accuracy
 test_accuracy = compute_accuracy(x_test, y_test, model)
 print('Accuracy in testing set =', test_accuracy)

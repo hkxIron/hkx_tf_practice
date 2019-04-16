@@ -99,6 +99,7 @@ output_dim = 10  # number of output classes = k
 hidden_dim = 140  # number of hidden units in the hidden layer = d_H
 
 # Initializing the parameters for the Neural Network model
+np.random.seed(0)
 model = {}
 model['W'] = np.random.randn(hidden_dim, input_dim) / np.sqrt(input_dim) # [hidden_dim, input_dim] dimensional
 model['b1'] = np.random.randn(hidden_dim, 1) # [hidden_dim], d_H dimensional
@@ -126,12 +127,15 @@ def forward(x, y, model):
 
 # Defining the backpropogation step of the Neural Network model
 def backward(x, y, Z, H, prob_dist, model, model_grads):
+    # x:[width*height,1]
     x = x.reshape(-1, 1)
-    y = y.reshape(-1, 1)
-    dZ = -1.0 * prob_dist
-    dZ[y] = 1+dZ[y]
-    #dZ = np.copy(prob_dist)
-    #dZ[y] = 1 - dZ[y]
+    # y:[output_dim,1]
+    #y = y.reshape(-1, 1)
+    #dZ = -1.0 * prob_dist
+    #dZ[y] = 1+dZ[y]
+    y_one_hot = np.zeros_like(prob_dist)
+    y_one_hot[y,0] = 1
+    dZ = prob_dist - y_one_hot
     # Gradient(log(F_softmax)) wrt U = Indicator Function - F_softmax
     model_grads['b2'] = dZ  # Gradient(b_2) = Gradient(log(F_softmax)) wrt U
     # k*1 dimensional
@@ -147,10 +151,10 @@ def backward(x, y, Z, H, prob_dist, model, model_grads):
     return model_grads
 
 def update_model(model:dict, learning_rate:float, model_grads:dict):
-    model['W'] = model['W'] + learning_rate * model_grads['W']  # Updating the parameters W, b_1, C and b_2 via the SGD step
-    model['b1'] = model['b1'] + learning_rate * model_grads['b1']
-    model['C'] = model['C'] + learning_rate * model_grads['C']
-    model['b2'] = model['b2'] + learning_rate * model_grads['b2']
+    model['W'] = model['W'] - learning_rate * model_grads['W']  # Updating the parameters W, b_1, C and b_2 via the SGD step
+    model['b1'] = model['b1'] - learning_rate * model_grads['b1']
+    model['C'] = model['C'] - learning_rate * model_grads['C']
+    model['b2'] = model['b2'] - learning_rate * model_grads['b2']
 
 time1 = time.time()
 learning_rate = .01
