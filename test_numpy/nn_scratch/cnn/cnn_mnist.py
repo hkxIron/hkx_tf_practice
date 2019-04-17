@@ -132,9 +132,9 @@ itertools会产生排列组合
 """
 iteratable_forward = list(itertools.product(l1, l2, l3))
 
-i1 = range(d_y)
-i2 = range(d_x)
-iteratable_backward = list(itertools.product(i1, i2, l3))
+i1 = range(d_y) # 5
+i2 = range(d_x) # 5
+iteratable_backward = list(itertools.product(i1, i2, l3)) # 5
 
 # Defining the forward step of the Convolution Neural Network model
 def forward(x, y, model):
@@ -176,36 +176,38 @@ def backward(x, y, Z, H, prob_dist, model, model_grads):
     L= loss(prob, y)
     
     """
-    # dZ= dL/dU
-    # dZ:[k,1]
-    dZ = prob_dist - y_one_hot # prob - label
+    # dZ = dL/dU
+    # dL__dU :[k,1]
+    dL__dU = prob_dist - y_one_hot # prob - label
     # Gradient(log(F_softmax)) wrt U = Indicator Function - F_softmax
     # dL/db:[k,1]
-    model_grads['b'] = dZ  # Gradient(b) = Gradient(log(F_softmax)) wrt U
+    model_grads['b'] = dL__dU   # Gradient(b) = Gradient(log(F_softmax)) wrt U
     # Gradient_b = k*1 dimensional
     # dL/dW = dL/dU*dU/dW = dL/dU * H
     # U = H*W+b
     # H: [d-d_y+1, d-d_x+1, channel]
     # W:[output_dim=k, num_hidden_x=d-d_x+1, num_hidden_y=d-d_y+1, channel]
-    # dZ:[k=output_dim,1]
+    # dL__dU :[k=output_dim,1]
     # dL__dw:[k=output_dim, d-dx+1, d-dy+1, channel]
-    # axes=0,计算a与b的外积,即最后的维度为concat
-    dL__dW = np.tensordot(a=dZ.T, b=H, axes=0) # [1, output_dim, d-dx+1, d-dy+1, channel]
+    # axes=0,计算a与b的外积,即最后的维度为concat,要理解此dot,可将H看成一维长向量(忽略其多维)
+    dL__dW = np.tensordot(a=dL__dU.T, b=H, axes=0) # [1, output_dim, d-dx+1, d-dy+1, channel]
     model_grads['W'] = dL__dW[0]
+    # U = H*W+b
     # Gradient_W = k*(d-d_y+1)*(d-d_x+1)*C dimensional
-    # dZ:[k=output_dim,1]
+    # dL__dU :[k=output_dim,1]
     # W:[output_dim=k, num_hidden_x=d-d_x+1, num_hidden_y=d-d_y+1, channel]
     # dL__dH: [d-d_y+1, d-d_x+1, channel]
     # axes=1时,计算的是a与b的内积
-    dL__dH = np.tensordot(dZ.T, model['W'], axes=1)[0]  # delta_{i,j,p} = Gradient(H) = (Gradient(log(F_softmax)) wrt U)*W_{:,i,j,p}
-    # dL/dZ = dL/dH*dH/dZ = dL/dH*tanh'
+    dL__dH = np.tensordot(dL__dU.T, model['W'], axes=1)[0]  # delta_{i,j,p} = Gradient(H) = (Gradient(log(F_softmax)) wrt U)*W_{:,i,j,p}
+    # dL/dZ  = dL/dH*dH/dZ  = dL/dH*tanh'
     # dL__dH: [d-d_y+1, d-d_x+1, channel]
     # Z: [d-d_y+1, d-d_x+1, channel]
     # dL__dZ: [d-d_y+1, d-d_x+1, channel]
     dL__dZ = np.multiply(dL__dH, tanh_activation(Z, derivative=1))
+    # Z = conv(x, k)
     # x:[width, height]
     # dL__dZ: [d-d_y+1, d-d_x+1, channel]
-    # dL/dk = dL/dZ*dZ/dk =dL/dZ*X
+    # dL/dk = dL/dZ * dZ/dk = conv(dL/dZ, X)
     model_grads['K'] = convolution(x, dL__dZ, iteratable_backward)\
         .reshape(d_y, d_x, channel)
     # Gradient(W) = X convolution delta.derivative of activation(Z)
