@@ -72,12 +72,17 @@ def train(model, X_train, y_train, X_valid, y_valid):
         tot_loss = 0
         acc = 0
 
+        iter=0
         for X_batch, y_batch in batches:
             loss, _ = model.train_step(X_batch, y_batch)
-            tot_loss += loss
-
             opt.update(model)
-            acc += accuracy(y_batch, model.predict(X_batch))
+            acc_iter = accuracy(y_batch, model.predict(X_batch))
+            tot_loss += loss
+            acc += acc_iter
+            # cnn 在cpu上运行很慢,但准确率很快上来了
+            if iter%10==0:
+                print("epoch:{0:>2} iter: {1:>4}, train loss: {2:>6.4f}, acc: {3:>6.3%}".format(i, iter, loss, acc_iter))
+            iter+=1
 
         train_loss = tot_loss / len(batches)
 

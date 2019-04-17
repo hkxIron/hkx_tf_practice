@@ -4,7 +4,6 @@ import numpy as np
 import h5py
 from cnn.mnist.read_mnist import load_mnist
 
-
 def one_hot_encoder(labels, dim=10):
     '''
     one hot encoder function

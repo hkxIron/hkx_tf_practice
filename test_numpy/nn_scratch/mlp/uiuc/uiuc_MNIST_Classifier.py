@@ -6,7 +6,7 @@ Objective : Implement and train a neural network from scratch in Python for the 
 
 Implementation : The model I have designed is inspired from Tensorflows Layes API (specifically, fullyconnected API, Optimizer API and activationtion functions). I have written the code which is generalized for any number of hidden layers and activation function. The following is the overall layout of the model :
 
-The entire pipeline is defined in the three layer of abstraction : MNIST_Classifier.py ​(main), data_tools.py (helper module for main) and Network. Main handles the high ​level pipeline of the loading data, training and testing the model. Network is the module consisting of 3 classes and utility functions. Classes are : Perceptron (class to build network), Layers (Class to build one layer i.e. Hidden layers) and StochasticGradientDescent (Class to update weights and biases through optimizer). Utility functions are loss functions, derivative of loss functions, activation functions and their derivatives.
+The entire pipeline is defined in the three layer of abstraction : uiuc_mnist_classifier.py ​(main), data_tools.py (helper module for main) and Network. Main handles the high ​level pipeline of the loading data, training and testing the model. Network is the module consisting of 3 classes and utility functions. Classes are : Perceptron (class to build network), Layers (Class to build one layer i.e. Hidden layers) and StochasticGradientDescent (Class to update weights and biases through optimizer). Utility functions are loss functions, derivative of loss functions, activation functions and their derivatives.
 
 Network 1: Double Hidden Layers : 128 units, 32 units Activations : Relu, Relu
 """
@@ -133,7 +133,10 @@ def main():
     model = nn.Perceptron(input_dim=features_dims,
                           output_dim=labels_dims,
                           hidden_dims=[128, 32],
-                          activ_funcs=[nn.relu, nn.relu])
+                          #activ_funcs=[nn.relu, nn.relu]
+                          #activ_funcs=[nn.sigmoid, nn.sigmoid]
+                          activ_funcs=[nn.tanh, nn.tanh]
+                          ) # 直接将函数对象作为参数传进去
 
     # Model Training
     print('-' * 20 + 'Started Training' + '-' * 20 + '\n')

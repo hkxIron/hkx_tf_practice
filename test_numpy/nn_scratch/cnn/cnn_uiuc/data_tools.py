@@ -3,6 +3,7 @@ import os
 import h5py
 import gzip
 import numpy as np
+from cnn.mnist.read_mnist import load_mnist
 
 def accuracy(y_true, y_pred):
     return np.mean(y_pred == y_true)
@@ -54,14 +55,18 @@ def loader(path, num_training=None, num_test=None):
         Training and Testing sets (tuples)
     '''
 
-    MNIST_data = h5py.File(path, 'r')
+    # MNIST_data = h5py.File(path, 'r')
 
     # Loading test and training
+    """
     X_train = np.float32(MNIST_data['x_train'][:])
     y_train = np.int32(np.array(MNIST_data['y_train'][:, 0]))
 
     X_test = np.float32(MNIST_data['x_test'][:])
     y_test = np.int32(np.array(MNIST_data['y_test'][:, 0]))
+    """
+    X_train, y_train = load_mnist("../mnist", 'train')
+    X_test, y_test = load_mnist("../mnist", 'train')
 
     shape = (-1, 1, 28, 28)
     X_train = X_train.reshape(shape)

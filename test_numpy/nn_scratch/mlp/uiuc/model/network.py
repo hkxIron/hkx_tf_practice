@@ -11,7 +11,7 @@ def linear(x):
     "linear function"
     return x
 
-def d_linear(a=None, x=None):
+def d_linear(activate_value=None, x=None):
     "Derivative of linear function"
     return 1.0
 
@@ -20,38 +20,37 @@ def sigmoid(x):
     "The sigmoid function."
     return 1 / (1 + np.exp(-x))
 
-
-def d_sigmoid(x):
+def d_sigmoid(activated_value=None, x=None):
     "Derivative of sigmoid function"
-    return sigmoid(x) * (1 - sigmoid(x))
-
+    if activated_value is not None:
+        return activated_value*(1-activated_value)
+    else:
+        return sigmoid(x) * (1 - sigmoid(x))
 
 def relu(x):
     "The rectified linear activation function."
-    return np.clip(x, 0.0, None)
+    return np.clip(x, a_min=0.0, a_max=None)
 
-
-def d_relu(a=None, x=None):
+def d_relu(activated_value=None, x=None):
     "Derivative of RELU given activation (a) or input (x)."
-    if a is not None:
-        d = np.zeros_like(a)
-        d[np.where(a > 0.0)] = 1.0
+    # 对于relu, activated与x的导数计算是一样的
+    if activated_value is not None:
+        d = np.zeros_like(activated_value)
+        d[np.where(activated_value > 0.0)] = 1.0
         return d
     else:
-        return d_relu(a=relu(x))
+        return d_relu(activated_value=relu(x))
 
 def tanh(x):
     "The tanh activation function."
     return np.tanh(x)
 
-
-def d_tanh(a=None, x=None):
+def d_tanh(activate_value=None, x=None):
     "The derivative of the tanh function."
-    if a is not None:
-        return 1 - a ** 2
+    if activate_value is not None:
+        return 1 - activate_value ** 2
     else:
-        return d_tanh(a=tanh(x))
-
+        return d_tanh(activate_value=tanh(x))
 
 def softmax(x):
     "Softmax function"
@@ -62,49 +61,50 @@ def softmax(x):
     p = f / np.sum(f, axis=1, keepdims=True)
     return p
 
+# d_softmax比较复杂
+# delta(k,k')*y(k)-y(k)*y(k')
 
 def mean_cross_entropy(p, y):
     "Mean cross entropy"
     n = y.shape[0]
-    return - np.sum(y * np.log(p)) / n
-
+    return - np.sum(y * np.log(np.clip(p, a_min=1e-5, a_max=None))) / n
 
 def mean_cross_entropy_softmax(logits, y):
     "Mean cross entropy with the softmax function"
     return mean_cross_entropy(softmax(logits), y)
 
-
 def d_mean_cross_entropy_softmax(logits, y):
     "derivative of the Error w.r.t Mean cross entropy with the softmax function"
     return softmax(logits) - y
 
-
 # Mapping from activation functions to its derivatives.
 # 用函数名作key来查找对应的导数
-d_fun = {relu: d_relu,
-         tanh: d_tanh,
-         sigmoid: d_sigmoid,
-         linear: d_linear}
+fun_to_d_fun = {relu: d_relu,
+                tanh: d_tanh,
+                sigmoid: d_sigmoid,
+                linear: d_linear}
 
 class Layer(object):
     "Implements a layer of a NN."
 
     def __init__(self, shape, activ_func):
 
+        input_dim = shape[0]
+        output_dim = shape[1]
         # Weight matrix of dims[L-1, L]
         # w:[L-1, L]
-        self.w = np.random.uniform(-np.sqrt(2.0 / shape[0]),
-                                   np.sqrt(2.0 / shape[1]),
+        self.w = np.random.uniform(-np.sqrt(2.0 / input_dim),
+                                   np.sqrt(2.0 / output_dim),
                                    size=shape)
 
         # Bias marix of dims[1, L]
-        self.b = np.zeros((1, shape[1]))
+        self.b = np.zeros((1, output_dim))
 
         # The activation function
-        self.activate = activ_func
+        self.activate_func = activ_func
 
         # The derivative of the activation function.
-        self.d_activate = d_fun[activ_func] # 获取导数
+        self.d_activate = fun_to_d_fun[activ_func] # 获取导数
 
     def forward(self, inputs):
         '''
@@ -119,12 +119,15 @@ class Layer(object):
 
         # Linear score
         # inputs:[batch, inputs=L-1]
+        # w:[L-1, L]
         # score:[batch, outputs=L]
+        # b:[1, L]
         score = np.dot(inputs, self.w) + self.b
+        self.score = score
 
         # Activation
         # score:[batch, outputs=L]
-        outputs = self.activate(score)
+        outputs = self.activate_func(score)
 
         # cache for backward
         self.activate_value = outputs # 激活后的输出
@@ -146,19 +149,31 @@ class Layer(object):
         # outputs = activate_value = f(scores)
 
         # backward:
-        # d_scores = dL/dscores = dL/d_a{i+1}*d_a{i+1}/dscores
+        # d_scores = dL/d_scores =
+        #          = dL/d_activate{i+1}*d_activate{i+1}/d_scores
+        #          = dL/d_activate{i+1}*f'(scores)
+        #          = d_outputs*f'(scores)
         # d_outputs = dL/d_a{i+1}, shape=[batch, L]
         # d_activate:[batch,L]
         # d_scores:[batch, L]
-        d_scores = d_outputs * self.d_activate(self.activate_value)
+        # d_scores = d_outputs * self.d_activate(self.score) # 我感觉这里有些问题,这里应该是激活前的值吧
 
         # Derivatives of the loss w.r.t the bias, averaged over all data points.
         # 注意,对于b而言,此处是batch里的平均值
-        # d_b = dL/db = dL/dscores*dscores/db = dL/dscores*1
-        # d_b:[1, L]
+        """
+        原始是激活后的值,
+        d_scores = d_outputs * self.d_activate(activate_value=self.activate_value)
+        或者用激活前的值,可与公式保持一致,如下:
+        """
+        d_scores = d_outputs * self.d_activate(x=self.score)
+
+        # dL/d_scores:[batch, L]
+        # d_b = dL/db = dL/d_scores*d_scores/db = dL/d_scores*1
+        # d_b:[1, L], 必须与batch无关,因此平均
         self.d_b = np.mean(d_scores, axis=0, keepdims=True)
 
         # Derivatives of the loss w.r.t the weight matrix, averaged over all data points.
+        # scores = input*w
         # inputs:[batch, L-1]
         # d_scores:[batch, L]
         # d_w:[L-1, L], dL/dw = dL/d_score*d_scores/dw =dL/d_score* inputs
@@ -172,7 +187,7 @@ class Layer(object):
         # d_inputs: [batch, L-1]
         d_inputs = np.dot(d_scores, self.w.T)
 
-        return d_inputs
+        return d_inputs  # 对x的梯度,将会传入下一层中
 
 # 多层感知机, MLP
 class Perceptron(object):
@@ -190,7 +205,7 @@ class Perceptron(object):
         """
 
         self.units = [input_dim] + hidden_dims[:] + [output_dim]
-        self.activ_funcs = activ_funcs[:] + [linear]
+        self.activ_funcs = activ_funcs[:] + [linear] # 最后一层需要加上线性层,其实是为了凑数,直接返回的
 
         self.shapes = [] # 各层的shape num
         self.layers = []
