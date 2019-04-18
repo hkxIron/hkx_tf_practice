@@ -105,23 +105,39 @@ class Flatten():
 class FullyConnected():
 
     def __init__(self, in_size, out_size):
+        # W:[in_size, out_size]
         self.W = np.random.randn(in_size, out_size) / np.sqrt(in_size / 2.)
+        # b:[1, out_size]
         self.b = np.zeros((1, out_size))
         self.params = [self.W, self.b]
 
     def forward(self, X):
         """ Forward propogation """
+        """
+        X:[batch,*,in_size]
+        W:[in_size, out_size]
+        out:[batch,*,out_size]
+        out = X*W+b
+        """
         self.X = X
         out = self.X @ self.W + self.b
         return out
 
     def backward(self, dout):
-        """ Back propogation """
-        dW = self.X.T @ dout # 矩阵相乘
-        db = np.sum(dout, axis=0)
-        dX = dout @ self.W.T
-        return dX, [dW, db]
+        """ Back propogation
+        :param dout: top层的梯度
+        :return: 下一层的梯度, 模型需要更新的参数
 
+        dL/dW =dL/dout*dout/dW
+              =X.T*dL/dout
+        dout:[batch, *, out_size]
+        W:[in_size, out_size]
+        X:[batch,*,in_size]
+        """
+        dW = self.X.T @ dout # 矩阵相乘,注意:在batch维度,梯度是相加的
+        db = np.sum(dout, axis=0) # 因此b也要相加
+        dX = dout @ self.W.T # 对X的梯度,传入下一层
+        return dX, [dW, db]
 
 class ReLU():
     def __init__(self):
@@ -161,8 +177,6 @@ class sigmoid():
     link : https://github.com/ShibiHe/Stanford-CS231n-assignments/blob/master/assignment3/cs231n/im2col.py
     I have used comments to explain the flow of the methods.
 '''
-
-
 def get_im2col_indices(x_shape, field_height=3, field_width=3, padding=1, stride=1):
     # First figure out what the size of the output should be
     N, C, H, W = x_shape
