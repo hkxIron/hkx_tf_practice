@@ -53,6 +53,9 @@ def dynamic_loop_net_torch():
     x = torch.randn(T, D)
     w = torch.randn(D)
 
+    """
+    y(t) = y(t-1) + x(t)*w
+    """
     y=[y0]
     for t in range(T):
         prev_y = y[-1]
