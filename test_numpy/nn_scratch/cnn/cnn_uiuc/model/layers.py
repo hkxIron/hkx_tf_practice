@@ -2,13 +2,13 @@ import numpy as np
 
 class Conv():
 
-    def __init__(self, X_dim, channels, K_height, K_width, stride, padding):
+    def __init__(self, X_dim, out_channels, K_height, K_width, stride, padding):
         """
         Constructor for Convolution Inititalization
 
         Input:
             X_dim   : Dimensions of the image (tuple)
-            channels: Number of channels (int)
+            channels: Number of channels for output (int)
             K_height: Height of filter (int)
             K_width : Width of filter (int)
             stride  : stride value (int)
@@ -20,16 +20,17 @@ class Conv():
         self.padding = padding
 
         # Kernel dimensions
-        self.channels = channels
+        self.out_channels = out_channels
         self.K_height = K_height
         self.K_width = K_width
 
         # Image tensor dimensions
-        self.d_X, self.h_X, self.w_X = X_dim
+        self.d_X, self.h_X, self.w_X = X_dim # [input_channel, height, width]
 
         # Init kernel
-        self.K = np.random.randn(channels, self.d_X, K_height, K_width) / np.sqrt(channels / 2.)
-        self.b = np.zeros((self.channels, 1))
+        # K:[out_channel, input_channel, height, width]
+        self.K = np.random.randn(out_channels, self.d_X, K_height, K_width) / np.sqrt(out_channels / 2.)
+        self.b = np.zeros((self.out_channels, 1))
         self.params = [self.K, self.b]
 
         #### DEBUG -->
@@ -38,25 +39,27 @@ class Conv():
 
         # Output dimensions
         self.h_out, self.w_out = int(self.h_out), int(self.w_out)
-        self.out_dim = (self.channels, self.h_out, self.w_out)
+        self.out_dim = (self.out_channels, self.h_out, self.w_out)
 
     def forward(self, X):
         """ Forward propogation """
 
+        # X:[batch, input_dim=1, height=28, width=28]
         # Number of samples cache
         self.n_X = X.shape[0]
 
+        # 将卷积转化为两矩阵相乘
         # receptive field for the images 'X'
         self.X_col = image2field_index(X, self.K_height, self.K_width, stride=self.stride, padding=self.padding)
 
         # Flat the Kernel matrix
-        Flat_K = self.K.reshape(self.channels, -1)
+        Flat_K = self.K.reshape(self.out_channels, -1)
 
         # Receptor field index with kernel multiplication
         out = np.matmul(Flat_K, self.X_col) + self.b
 
         # Reshaping the output to the calculated output
-        out = out.reshape(self.channels, self.h_out, self.w_out, self.n_X)
+        out = out.reshape(self.out_channels, self.h_out, self.w_out, self.n_X)
         out = out.transpose(3, 0, 1, 2)
         return out
 
@@ -64,15 +67,15 @@ class Conv():
         """ Back propogation """
 
         # Flatten the derivative matrix
-        dout_flat = dout.transpose(1, 2, 3, 0).reshape(self.channels, -1)
+        dout_flat = dout.transpose(1, 2, 3, 0).reshape(self.out_channels, -1)
 
         # Calculate the Kernel grad and bias grad
         dK = np.matmul(dout_flat, self.X_col.T)
         dK = dK.reshape(self.K.shape)
-        db = np.sum(dout, axis=(0, 2, 3)).reshape(self.channels, -1)
+        db = np.sum(dout, axis=(0, 2, 3)).reshape(self.out_channels, -1)
 
         # Flat the kernel
-        K_flat = self.K.reshape(self.channels, -1)
+        K_flat = self.K.reshape(self.out_channels, -1)
 
         # Calulate the grad wrt X (image)
         dX_col = np.matmul(K_flat.T, dout_flat)

@@ -8,7 +8,7 @@ def softmax(x):
 
 
 def mean_cross_entropy_with_softmax(model_out, y_gt):
-    m = y_gt.shape[0]
+    m = y_gt.shape[0] # m:batch
     p = softmax(model_out)
     log_likelihood = -np.log(p[range(m), y_gt])
     loss = np.sum(log_likelihood) / m
@@ -37,7 +37,9 @@ def delta_l2_regularization(layers, grads, lam=0.001):
 class CNN:
     """ Convolution Neural Net model"""
 
-    def __init__(self, X_dim, num_class,
+    def __init__(self,
+                 X_dim,
+                 num_class,
                  loss_func=mean_cross_entropy_with_softmax):
 
         # Builds the model and save the components
@@ -58,15 +60,19 @@ class CNN:
         # 3. Flat the output
         # 4. Fullyconnected layer
 
-        conv = Conv(X_dim,
-                    channels=32,
+        # X:[batch, input_dim=1, height=28, width=28]
+        # conv:[batch, output_dim, height - K_height+2*pad+1, width-K_width+2*pad+1]
+        conv = Conv(X_dim=X_dim,
+                    out_channels=32, # output channel
                     K_height=7,
                     K_width=7,
                     stride=1,
                     padding=1)
 
+        # relu_conv:[batch, output_dim, height - K_height+1, width-K_width+1]
         relu_conv = ReLU()
 
+        # flat:[batch, output_dim*(height - K_height+1)*(width-K_width+1)]
         flat = Flatten()
 
         fc = FullyConnected(np.prod(conv.out_dim), num_class)
@@ -75,6 +81,7 @@ class CNN:
 
     def forward(self, X):
         """ Forward propogation """
+        # X:[batch, input_dim=1, height=28, width=28]
         for layer in self.layers:
             X = layer.forward(X)
         return X

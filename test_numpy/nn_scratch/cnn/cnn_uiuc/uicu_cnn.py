@@ -108,10 +108,10 @@ def main():
     X_test, y_test = test_set
 
     # Dimensions
-    mnist_dims = (1, 28, 28)
+    mnist_dims = (1, 28, 28) # [channel, height, width]
 
     # Model Initialization
-    model = nn.CNN(mnist_dims, num_class=10)
+    model = nn.CNN(X_dim=mnist_dims, num_class=10)
 
     print('-' * 20 + 'Started Training' + '-' * 20 + '\n')
     train(model, X, y, X_test, y_test)
