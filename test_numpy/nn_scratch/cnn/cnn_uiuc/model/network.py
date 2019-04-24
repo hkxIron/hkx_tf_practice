@@ -3,6 +3,7 @@ from model.layers import *
 
 # Utility function for the network
 def softmax(x):
+    # x:[batch, num_class]
     exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))
     return exp_x / np.sum(exp_x, axis=1, keepdims=True)
 
@@ -60,8 +61,8 @@ class CNN:
         # 3. Flat the output
         # 4. Fullyconnected layer
 
-        # X:[batch, input_dim=1, height=28, width=28]
-        # conv:[batch, output_dim, height - K_height+2*pad+1, width-K_width+2*pad+1]
+        # X:[batch, channel=input_dim, height=28, width=28]
+        # conv:[batch, output_channel, height - K_height+2*pad+1, width-K_width+2*pad+1]
         conv = Conv(X_dim=X_dim,
                     out_channels=32, # output channel
                     K_height=7,
@@ -69,19 +70,20 @@ class CNN:
                     stride=1,
                     padding=1)
 
-        # relu_conv:[batch, output_dim, height - K_height+1, width-K_width+1]
+        # relu_conv:[batch, output_channel, height - K_height+1, width-K_width+1]
         relu_conv = ReLU()
 
-        # flat:[batch, output_dim*(height - K_height+1)*(width-K_width+1)]
+        # flat:[batch, output_channel*(height - K_height+1)*(width-K_width+1)]
         flat = Flatten()
 
-        fc = FullyConnected(np.prod(conv.out_dim), num_class)
+        # fc:[batch, num_class]
+        fc = FullyConnected(in_size=np.prod(conv.out_dim), out_size=num_class)
 
         return [conv, relu_conv, flat, fc]
 
     def forward(self, X):
         """ Forward propogation """
-        # X:[batch, input_dim=1, height=28, width=28]
+        # X:[batch, channel, height=28, width=28]
         for layer in self.layers:
             X = layer.forward(X)
         return X
@@ -89,6 +91,9 @@ class CNN:
     def backward(self, dout):
         """ Back propogation """
         grads = []
+        """
+        dout是对该层输入的x的梯度,grad是对参数w的梯度
+        """
         for layer in reversed(self.layers):
             dout, grad = layer.backward(dout)
             grads.append(grad)
@@ -97,6 +102,8 @@ class CNN:
     def train_step(self, X, y):
 
         # Forward (Inference)
+        # X:[batch, channel, height, width]
+        # out:[batch, num_class]
         out = self.forward(X)
 
         # Loss and grad calc

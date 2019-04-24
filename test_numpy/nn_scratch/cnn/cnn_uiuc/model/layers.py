@@ -28,8 +28,9 @@ class Conv():
         self.d_X, self.h_X, self.w_X = X_dim # [input_channel, height, width]
 
         # Init kernel
-        # K:[out_channel, input_channel, height, width]
+        # K:[out_channel, input_channel, k_height, k_width]
         self.K = np.random.randn(out_channels, self.d_X, K_height, K_width) / np.sqrt(out_channels / 2.)
+        # b:[out_channel, 1]
         self.b = np.zeros((self.out_channels, 1))
         self.params = [self.K, self.b]
 
@@ -50,16 +51,24 @@ class Conv():
 
         # 将卷积转化为两矩阵相乘
         # receptive field for the images 'X'
+        # X_col:[input_channel*field_height*field_width, out_height*out_width*batch]
+        #   即=>:[input_channel*K_height*K_width, out_height*out_width*batch]
         self.X_col = image2field_index(X, self.K_height, self.K_width, stride=self.stride, padding=self.padding)
 
         # Flat the Kernel matrix
+        # K:[out_channel, input_channel, k_height, k_width]
+        # Flat_K:[out_channel, input_channel*k_height*k_width]
         Flat_K = self.K.reshape(self.out_channels, -1)
 
         # Receptor field index with kernel multiplication
+        # Flat_K:[out_channel, input_channel*K_height*K_width]
+        # out: [out_channel, out_height*out_width*batch]
         out = np.matmul(Flat_K, self.X_col) + self.b
 
         # Reshaping the output to the calculated output
+        # out: [out_channel, out_height, out_width, batch]
         out = out.reshape(self.out_channels, self.h_out, self.w_out, self.n_X)
+        # out: [batch, out_channel, out_height, out_width]
         out = out.transpose(3, 0, 1, 2)
         return out
 
@@ -93,16 +102,22 @@ class Flatten():
 
     def forward(self, X):
         """ Forward propogation """
+        # X:[batch, input_dim, height, width]
         self.X_shape = X.shape
+        # out_shape:[batch, input_dim*height*width]
         self.out_shape = (self.X_shape[0], -1)
+        # np.ravel()
         out = X.ravel().reshape(self.out_shape)
+        # out_shape:[batch, input_dim*height*width]
         self.out_shape = self.out_shape[1]
         return out
 
     def backward(self, dout):
         """ Back propogation """
+        # out_shape:[batch, input_dim*height*width]
+        # out:[batch, input_dim, height, width]
         out = dout.reshape(self.X_shape)
-        return out, ()
+        return out, () # 本身没有参数
 
 
 class FullyConnected():
@@ -117,9 +132,9 @@ class FullyConnected():
     def forward(self, X):
         """ Forward propogation """
         """
-        X:[batch,*,in_size]
+        X:[batch,in_size]
         W:[in_size, out_size]
-        out:[batch,*,out_size]
+        out:[batch,out_size]
         out = X*W+b
         """
         self.X = X
@@ -133,9 +148,9 @@ class FullyConnected():
 
         dL/dW =dL/dout*dout/dW
               =X.T*dL/dout
-        dout:[batch, *, out_size]
+        dout:[batch, out_size]
         W:[in_size, out_size]
-        X:[batch,*,in_size]
+        X:[batch, in_size]
         """
         dW = self.X.T @ dout # 矩阵相乘,注意:在batch维度,梯度是相加的
         db = np.sum(dout, axis=0) # 因此b也要相加
@@ -148,6 +163,7 @@ class ReLU():
 
     def forward(self, X):
         """ Forward propogation """
+        # X:[batch, input_dim, height, width]
         self.X = X
         return np.maximum(0, X)
 
@@ -155,7 +171,7 @@ class ReLU():
         """ Back propogation """
         dX = dout.copy()
         dX[self.X <= 0] = 0
-        return dX, []
+        return dX, [] # relu没有w参数更新,因此为空
 
 
 class sigmoid():
@@ -164,14 +180,20 @@ class sigmoid():
 
     def forward(self, X):
         """ Forward propogation """
+        # X:[batch, input_dim, height, width]
         out = 1.0 / (1.0 + np.exp(X))
         self.out = out
         return out
 
     def backward(self, dout):
         """ Back propogation """
+        """
+        out=f(X) = sigmoid(x)
+        dL/dX = dL/dout* dout/dX
+              = dL/dout* f(x)*(1-f(x))
+        """
         dX = dout * self.out * (1 - self.out)
-        return dX, []
+        return dX, [] # sigmoid本身没有参数需要更新
 
 
 '''
@@ -179,6 +201,8 @@ class sigmoid():
     also explained in the UIUC CS446 as receptive field explaination.
     link : https://github.com/ShibiHe/Stanford-CS231n-assignments/blob/master/assignment3/cs231n/im2col.py
     I have used comments to explain the flow of the methods.
+    
+    获取重排X矩阵时对应的下标元素, 分别包括: (channel,  height, width)
 '''
 def get_im2col_indices(x_shape, field_height=3, field_width=3, padding=1, stride=1):
     # First figure out what the size of the output should be
@@ -189,23 +213,23 @@ def get_im2col_indices(x_shape, field_height=3, field_width=3, padding=1, stride
     out_width = (W + 2 * padding - field_width) // stride + 1
 
     # introducing i, j, k
-    # ->k is of shape (C field_height field_width, 1)
-    # ->i is of shape (C field_height field_width, out_heightout_width)
-    # ->j is of shape (C field_height field_width, out_heightout_width)
+    # ->k is of shape (C*field_height*field_width, 1)
+    # ->i is of shape (C*field_height*field_width, out_height*out_width)
+    # ->j is of shape (C*field_height*field_width, out_height*out_width)
 
-    # The i1, j1 in functionget_im2col_indices is used to tuned the width
-    # and height index positionS according to different neurons
+    # The i1, j1 in function get_im2col_indices is used to tuned the width
+    # and height index position S according to different neurons
 
     i0 = np.repeat(np.arange(field_height, dtype='int32'), field_width)
 
     # Because we also traverse width side first for all neurons in each
-    # filter, so we use np.tile for j1(row), np.repeat for i1(column).
+    # filter, so we use np.tile for j1(column), np.repeat for i1(row).
     i0 = np.tile(A=i0, reps=C)
     i1 = stride * np.repeat(np.arange(out_height, dtype='int32'), out_width)
     j0 = np.tile(np.arange(field_width), field_height * C)
-    j1 = stride * np.tile(np.arange(out_width, dtype='int32'), int(out_height))
-    i = i0.reshape(-1, 1) + i1.reshape(1, -1)
-    j = j0.reshape(-1, 1) + j1.reshape(1, -1)
+    j1 = stride * np.tile(np.arange(out_width, dtype='int32'), out_height)
+    i = i0.reshape(-1, 1) + i1.reshape(1, -1) # x的行下标
+    j = j0.reshape(-1, 1) + j1.reshape(1, -1) # x的列下标
 
     k = np.repeat(np.arange(C, dtype='int32'), field_height * field_width).reshape(-1, 1)
 
@@ -231,21 +255,27 @@ def image2field_index(x, field_height=3, field_width=3, padding=1, stride=1):
                       mode='constant')
 
     # x:[batch, input_dim=1, height=28, width=28]
+    # ->k is of shape (C*field_height*field_width, 1)
+    # ->i is of shape (C*field_height*field_width, out_height*out_width)
+    # ->j is of shape (C*field_height*field_width, out_height*out_width)
     k, i, j = get_im2col_indices(x.shape,
                                  field_height,
                                  field_width,
                                  padding,
                                  stride)
 
-    # we are extract out a matrix of 3-D (N, C field_height field_width,
-    # out_heightout_width), the broadcasted index matrix is of dimension
-    # (C field_height field_width, out_heightout_width)
+    # we are extract out a matrix of 3-D (N, C*field_height*field_width,out_height*out_width),
+    # the broadcasted index matrix is of dimension (C*field_height*field_width, out_height*out_width)
+    # cols:[batch, C*field_height*field_width, out_height*out_width]
     cols = x_padded[:, k, i, j]
 
     # Reshaping it to columns indx
     C = x.shape[1]
     # np.transpose()
     # cols: 交换不同的index:1,2,0
+    # cols:[batch, C*field_height*field_width, out_height*out_width]
+    #   =>transpose:[C*field_height*field_width, out_height*out_width, batch]
+    #   =>  reshape:[C*field_height*field_width, out_height*out_width* batch]
     cols = cols.transpose(1, 2, 0).reshape(field_height * field_width * C, -1)
     return cols
 
@@ -274,6 +304,8 @@ if __name__ == "__main__":
 
     X = np.arange(np.prod([N, C, H, W])).reshape((N, C, H, W))
     k, i, j = get_im2col_indices((N, C, H, W), field_height=2, field_width=2, padding=0, stride=1)
+    print("indices_k shape:\n", k.shape) # [4, 1]
+    print("indices_i shape:\n", i.shape) # [4, 4]
     print("indices_k:\n", k)
     print("indices_i:\n", i)
     print("indices_j:\n", j)
