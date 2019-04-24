@@ -38,7 +38,7 @@ class Conv():
         self.w_out = (self.w_X - K_width + 2 * padding) / stride + 1
 
         # Output dimensions
-        self.h_out, self.w_out = int(self.h_out), int(self.w_out)
+        self.h_out, self.w_out = int(self.h_out), int(self.w_out) # 整除
         self.out_dim = (self.out_channels, self.h_out, self.w_out)
 
     def forward(self, X):
@@ -185,8 +185,8 @@ def get_im2col_indices(x_shape, field_height=3, field_width=3, padding=1, stride
     N, C, H, W = x_shape
     assert (H + 2 * padding - field_height) % stride == 0
     assert (W + 2 * padding - field_height) % stride == 0
-    out_height = (H + 2 * padding - field_height) / stride + 1
-    out_width = (W + 2 * padding - field_width) / stride + 1
+    out_height = (H + 2 * padding - field_height) // stride + 1
+    out_width = (W + 2 * padding - field_width) // stride + 1
 
     # introducing i, j, k
     # ->k is of shape (C field_height field_width, 1)
@@ -200,8 +200,7 @@ def get_im2col_indices(x_shape, field_height=3, field_width=3, padding=1, stride
 
     # Because we also traverse width side first for all neurons in each
     # filter, so we use np.tile for j1(row), np.repeat for i1(column).
-
-    i0 = np.tile(i0, C)
+    i0 = np.tile(A=i0, reps=C)
     i1 = stride * np.repeat(np.arange(out_height, dtype='int32'), out_width)
     j0 = np.tile(np.arange(field_width), field_height * C)
     j1 = stride * np.tile(np.arange(out_width, dtype='int32'), int(out_height))
@@ -213,14 +212,29 @@ def get_im2col_indices(x_shape, field_height=3, field_width=3, padding=1, stride
     return (k, i, j)
 
 
+"""
+注意：
+此处的field_height, field_width分别针对kernel而言
+
+将X重排成矩阵,以适应kernel
+"""
 def image2field_index(x, field_height=3, field_width=3, padding=1, stride=1):
     """ An implementation of im2col based on some fancy indexing """
 
     # Zero-pad the input
-    p = padding
-    x_padded = np.pad(x, ((0, 0), (0, 0), (p, p), (p, p)), mode='constant')
+    # x:[batch, input_dim=1, height=28, width=28]
+    x_padded = np.pad(array=x,
+                      pad_width=((0, 0), # 对于batch axis插入before, after padding
+                                 (0, 0), # 对于input_dim axis插入before, after padding
+                                 (padding, padding), #对于 height axis插入before, after padding
+                                 (padding, padding)),
+                      mode='constant')
 
-    k, i, j = get_im2col_indices(x.shape, field_height, field_width, padding,
+    # x:[batch, input_dim=1, height=28, width=28]
+    k, i, j = get_im2col_indices(x.shape,
+                                 field_height,
+                                 field_width,
+                                 padding,
                                  stride)
 
     # we are extract out a matrix of 3-D (N, C field_height field_width,
@@ -230,10 +244,15 @@ def image2field_index(x, field_height=3, field_width=3, padding=1, stride=1):
 
     # Reshaping it to columns indx
     C = x.shape[1]
+    # np.transpose()
+    # cols: 交换不同的index:1,2,0
     cols = cols.transpose(1, 2, 0).reshape(field_height * field_width * C, -1)
     return cols
 
 
+"""
+将kernel重排成矩阵，以适应X
+"""
 def field2image_index(cols, x_shape, field_height=3, field_width=3, padding=1,
                       stride=1):
     """ An implementation of col2im based on fancy indexing and np.add.at """
@@ -248,3 +267,19 @@ def field2image_index(cols, x_shape, field_height=3, field_width=3, padding=1,
     if padding == 0:
         return x_padded
     return x_padded[:, :, padding:-padding, padding:-padding]
+
+if __name__ == "__main__":
+    np.random.seed(0)
+    N, C, H, W = 1, 1, 3, 3
+
+    X = np.arange(np.prod([N, C, H, W])).reshape((N, C, H, W))
+    k, i, j = get_im2col_indices((N, C, H, W), field_height=2, field_width=2, padding=0, stride=1)
+    print("indices_k:\n", k)
+    print("indices_i:\n", i)
+    print("indices_j:\n", j)
+
+    print("-------")
+    # 将图像重排以适应 kernel
+    indexs = image2field_index(X, field_height=2, field_width=2, padding=0, stride=1)
+    print("index:\n", indexs)
+    print("index shape:\n",indexs.shape) # (4,4),理论上说是一个(4,9)列的重排矩阵

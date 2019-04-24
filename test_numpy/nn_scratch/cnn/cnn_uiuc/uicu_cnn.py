@@ -5,6 +5,10 @@ import numpy as np
 import model.network as nn
 from data_tools import loader, accuracy, make_batches
 
+"""
+如果报路径错误 ，需要将 nn_scratch设为“Make director as source root” 
+"""
+
 parser = argparse.ArgumentParser(description='MNIST Classification')
 
 # HYPERPARAMETERS
