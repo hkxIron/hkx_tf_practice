@@ -66,7 +66,7 @@ def loader(path, num_training=None, num_test=None):
     y_test = np.int32(np.array(MNIST_data['y_test'][:, 0]))
     """
     X_train, y_train = load_mnist("../mnist", 'train')
-    X_test, y_test = load_mnist("../mnist", 'train')
+    X_test, y_test = load_mnist("../mnist", 't10k')
 
     shape = (-1, 1, 28, 28)
     X_train = X_train.reshape(shape)

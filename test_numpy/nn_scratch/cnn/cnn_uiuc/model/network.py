@@ -9,6 +9,7 @@ def softmax(x):
 
 
 def mean_cross_entropy_with_softmax(model_out, y_gt):
+    # model_out:[batch, num_class]
     m = y_gt.shape[0] # m:batch
     p = softmax(model_out)
     log_likelihood = -np.log(p[range(m), y_gt])
@@ -103,6 +104,7 @@ class CNN:
 
         # Forward (Inference)
         # X:[batch, channel, height, width]
+        # y:[batch]
         # out:[batch, num_class]
         out = self.forward(X)
 

@@ -108,6 +108,8 @@ def main():
     # Data Loading and Processing
     print('Loading Data...' + '\n')
     training_set, test_set = loader(args.data_path)
+    # X:[batch, channel, height, width]
+    # y:[batch]
     X, y = training_set
     X_test, y_test = test_set
 
@@ -118,6 +120,8 @@ def main():
     model = nn.CNN(X_dim=mnist_dims, num_class=10)
 
     print('-' * 20 + 'Started Training' + '-' * 20 + '\n')
+    # X_test:[batch, channel, height, width]
+    # y_test:[batch]
     train(model, X, y, X_test, y_test)
 
 
