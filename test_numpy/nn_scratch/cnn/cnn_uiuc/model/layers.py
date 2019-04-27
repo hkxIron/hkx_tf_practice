@@ -51,8 +51,9 @@ class Conv():
 
         # 将卷积转化为两矩阵相乘,注意:此处的重点是对X进行重排,而不是对kernel重排
         # receptive field for the images 'X'
+        # X:[batch, input_channel, height=28, width=28]
         # X_col:[input_channel*field_height*field_width, out_height*out_width*batch]
-        #   即 =>:[input_channel*K_height*K_width, out_height*out_width*batch]
+        #   即:[input_channel*K_height*K_width, out_height*out_width*batch]
         self.X_col = image2field_index(X, self.K_height, self.K_width, stride=self.stride, padding=self.padding)
 
         # Flat the Kernel matrix
@@ -63,6 +64,7 @@ class Conv():
         # Receptor field index with kernel multiplication
         # Flat_K:[out_channel, input_channel*K_height*K_width]
         # out: [out_channel, out_height*out_width*batch]
+        # b:[out_channel, 1], 偏置为:[out_channel, 1]
         out = np.matmul(Flat_K, self.X_col) + self.b
 
         # Reshaping the output to the calculated output
@@ -117,9 +119,7 @@ class Conv():
                                self.K_width,
                                self.padding,
                                self.stride)
-
         return dX, [dK, db]
-
 
 class Flatten():
 
@@ -244,19 +244,18 @@ def get_im2col_indices(x_shape, field_height=3, field_width=3, padding=1, stride
     # The i1, j1 in function get_im2col_indices is used to tuned the width
     # and height index position S according to different neurons
 
-    i0 = np.repeat(np.arange(field_height, dtype='int32'), field_width)
+    i0 = np.repeat(np.arange(field_height, dtype='int32'), field_width) # repeat是每个元素直接复制n次
 
     # Because we also traverse width side first for all neurons in each
     # filter, so we use np.tile for j1(column), np.repeat for i1(row).
     i0 = np.tile(A=i0, reps=C)
     i1 = stride * np.repeat(np.arange(out_height, dtype='int32'), out_width)
-    j0 = np.tile(np.arange(field_width), field_height * C)
+    j0 = np.tile(np.arange(field_width), field_height * C) # tile:整体复制n次
     j1 = stride * np.tile(np.arange(out_width, dtype='int32'), out_height)
     i = i0.reshape(-1, 1) + i1.reshape(1, -1) # x的行下标
     j = j0.reshape(-1, 1) + j1.reshape(1, -1) # x的列下标
 
     k = np.repeat(np.arange(C, dtype='int32'), field_height * field_width).reshape(-1, 1)
-
     return (k, i, j)
 
 
@@ -275,7 +274,7 @@ def image2field_index(x, field_height=3, field_width=3, padding=1, stride=1):
                       pad_width=((0, 0), # 对于batch axis插入before, after padding
                                  (0, 0), # 对于input_dim axis插入before, after padding
                                  (padding, padding), #对于 height axis插入before, after padding
-                                 (padding, padding)),
+                                 (padding, padding)),#对于 width axis插入before, after padding
                       mode='constant')
 
     # x:[batch, input_channel=1, height=28, width=28]
