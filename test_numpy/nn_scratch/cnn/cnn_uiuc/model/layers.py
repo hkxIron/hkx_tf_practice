@@ -45,11 +45,11 @@ class Conv():
     def forward(self, X):
         """ Forward propogation """
 
-        # X:[batch, input_dim=1, height=28, width=28]
+        # X:[batch, input_channel=1, height=28, width=28]
         # Number of samples cache
         self.n_X = X.shape[0]
 
-        # 将卷积转化为两矩阵相乘
+        # 将卷积转化为两矩阵相乘,注意:此处的重点是对X进行重排,而不是对kernel重排
         # receptive field for the images 'X'
         # X_col:[input_channel*field_height*field_width, out_height*out_width*batch]
         #   即 =>:[input_channel*K_height*K_width, out_height*out_width*batch]
@@ -76,21 +76,47 @@ class Conv():
         """ Back propogation """
 
         # Flatten the derivative matrix
+        # dout: [batch, out_channel, out_height, out_width]
+        # => [out_channel, out_height, out_width, batch]
+        # dout_flat=>[out_channel, out_height*out_width*batch]
         dout_flat = dout.transpose(1, 2, 3, 0).reshape(self.out_channels, -1)
 
+        """
+        out = flat_k * X_col
+        d_(flat_k) = d_out* X_col.T
+        """
         # Calculate the Kernel grad and bias grad
+        # dout_flat:[out_channel, out_height*out_width*batch]
+        # X_col:[input_channel*field_height*field_width, out_height*out_width*batch]
+        # X_col.T:[out_height*out_width*batch, input_channel*field_height*field_width]
+        # dK:[out_channel, input_channel*field_height*field_width]
         dK = np.matmul(dout_flat, self.X_col.T)
+        # dK:[out_channel, input_channel, k_height=field_height, k_width=field_width]
         dK = dK.reshape(self.K.shape)
+        # dout: [batch, out_channel, out_height, out_width]
+        #    np.sum=>[1,out_channel,1,1]
+        #    reshape=>[out_channel,1]
+        # db:[out_channel,1]
         db = np.sum(dout, axis=(0, 2, 3)).reshape(self.out_channels, -1)
 
         # Flat the kernel
+        # K:[out_channel, input_channel, k_height, k_width]
+        # K_flat:[out_channel, input_channel*k_height*k_width]
         K_flat = self.K.reshape(self.out_channels, -1)
 
         # Calulate the grad wrt X (image)
+        # K_flat.T:[input_channel*k_height*k_width, out_channel]
+        # dout_flat=>[out_channel, out_height*out_width*batch]
+        # dX_col:[input_channel*k_height*k_width, out_height*out_width*batch]
         dX_col = np.matmul(K_flat.T, dout_flat)
-        shape = (self.n_X, self.d_X, self.h_X, self.w_X)
-        dX = field2image_index(dX_col, shape, self.K_height,
-                               self.K_width, self.padding, self.stride)
+        shape = (self.n_X, self.d_X, self.h_X, self.w_X) # [batch, input_channel, height, width]
+        # dX:[batch, input_channel, height, width]
+        dX = field2image_index(dX_col,
+                               shape,
+                               self.K_height,
+                               self.K_width,
+                               self.padding,
+                               self.stride)
 
         return dX, [dK, db]
 
@@ -173,7 +199,6 @@ class ReLU():
         dX[self.X <= 0] = 0
         return dX, [] # relu没有w参数更新,因此为空
 
-
 class sigmoid():
     def __init__(self):
         self.params = []
@@ -194,7 +219,6 @@ class sigmoid():
         """
         dX = dout * self.out * (1 - self.out)
         return dX, [] # sigmoid本身没有参数需要更新
-
 
 '''
     Utility functions were provided by Stanford CS 231 and 
@@ -240,13 +264,13 @@ def get_im2col_indices(x_shape, field_height=3, field_width=3, padding=1, stride
 注意：
 此处的field_height, field_width分别针对kernel而言
 
-将X重排成矩阵,以适应kernel
+将X重排成矩阵,以适应kernel,这样的话,重排后的矩阵为dense而非spare矩阵
 """
 def image2field_index(x, field_height=3, field_width=3, padding=1, stride=1):
     """ An implementation of im2col based on some fancy indexing """
 
     # Zero-pad the input
-    # x:[batch, input_dim=1, height=28, width=28]
+    # x:[batch, input_channel=1, height=28, width=28]
     x_padded = np.pad(array=x,
                       pad_width=((0, 0), # 对于batch axis插入before, after padding
                                  (0, 0), # 对于input_dim axis插入before, after padding
@@ -254,10 +278,10 @@ def image2field_index(x, field_height=3, field_width=3, padding=1, stride=1):
                                  (padding, padding)),
                       mode='constant')
 
-    # x:[batch, input_dim=1, height=28, width=28]
-    # ->k is of shape (C*field_height*field_width, 1)
-    # ->i is of shape (C*field_height*field_width, out_height*out_width)
-    # ->j is of shape (C*field_height*field_width, out_height*out_width)
+    # x:[batch, input_channel=1, height=28, width=28]
+    # k:[input_channel*field_height*field_width, 1]
+    # i:[input_channel*field_height*field_width, out_height*out_width]
+    # j:[input_channel*field_height*field_width, out_height*out_width]
     k, i, j = get_im2col_indices(x.shape,
                                  field_height,
                                  field_width,
@@ -266,34 +290,47 @@ def image2field_index(x, field_height=3, field_width=3, padding=1, stride=1):
 
     # we are extract out a matrix of 3-D (N, C*field_height*field_width,out_height*out_width),
     # the broadcasted index matrix is of dimension (C*field_height*field_width, out_height*out_width)
-    # cols:[batch, C*field_height*field_width, out_height*out_width]
+    # cols:[batch, input_channel*field_height*field_width, out_height*out_width]
     cols = x_padded[:, k, i, j]
 
     # Reshaping it to columns indx
     C = x.shape[1]
     # np.transpose()
     # cols: 交换不同的index:1,2,0
-    # cols:[batch, C*field_height*field_width, out_height*out_width]
-    #   =>transpose:[C*field_height*field_width, out_height*out_width, batch]
-    #   =>  reshape:[C*field_height*field_width, out_height*out_width* batch]
+    # cols:[batch, input_channel*field_height*field_width, out_height*out_width]
+    #   =>transpose:[input_channel*field_height*field_width, out_height*out_width, batch]
+    #   =>  reshape:[input_channel*field_height*field_width, out_height*out_width* batch]
     cols = cols.transpose(1, 2, 0).reshape(field_height * field_width * C, -1)
     return cols
 
 
-"""
-将kernel重排成矩阵，以适应X
-"""
 def field2image_index(cols, x_shape, field_height=3, field_width=3, padding=1,
                       stride=1):
     """ An implementation of col2im based on fancy indexing and np.add.at """
+
+    # 注意:在此处, cols为dL/dout,即后层网络对此层的梯度,需要求梯度dL/dx, dL/dK
+    # cols:[input_channel*k_height*k_width, out_height*out_width*batch]
+    # x_shape:[batch, input_channel, height, width]
     N, C, H, W = x_shape
     H_padded, W_padded = H + 2 * padding, W + 2 * padding
     x_padded = np.zeros((N, C, H_padded, W_padded), dtype=cols.dtype)
+
+    # x_shape:[batch, input_channel=1, height=28, width=28]
+    # k:[input_channel*field_height*field_width, 1]
+    # i:[input_channel*field_height*field_width, out_height*out_width]
+    # j:[input_channel*field_height*field_width, out_height*out_width]
     k, i, j = get_im2col_indices(x_shape, field_height, field_width, padding,
                                  stride)
+    # cols:[input_channel*k_height*k_width, out_height*out_width*batch]
+    # cols_reshaped:[input_channel*k_height*k_width, out_height*out_width, batch]
     cols_reshaped = cols.reshape(C * field_height * field_width, -1, N)
+    # cols_reshaped:[input_channel*k_height*k_width, out_height*out_width, batch]
+    #            => [batch, input_channel*k_height*k_width, out_height*out_width]
     cols_reshaped = cols_reshaped.transpose(2, 0, 1)
-    np.add.at(x_padded, (slice(None), k, i, j), cols_reshaped)
+    # x_padded:[batch, input_channel, height, width]
+    # cols_reshaped:[batch, input_channel*k_height*k_width, out_height*out_width]
+    # indices:[batch, input_channel*k_height*k_width, out_height*out_width], 正好与cols_reshaped的维度一致
+    np.add.at(a=x_padded, indices=(slice(None), k, i, j), b=cols_reshaped)
     if padding == 0:
         return x_padded
     return x_padded[:, :, padding:-padding, padding:-padding]

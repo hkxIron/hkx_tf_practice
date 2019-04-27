@@ -7,7 +7,6 @@ def softmax(x):
     exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))
     return exp_x / np.sum(exp_x, axis=1, keepdims=True)
 
-
 def mean_cross_entropy_with_softmax(model_out, y_gt):
     # model_out:[batch, num_class]
     # y:[batch]
@@ -47,7 +46,7 @@ class CNN:
                  loss_func=mean_cross_entropy_with_softmax):
 
         # Builds the model and save the components
-        self.layers = self._build_network(X_dim, num_class)
+        self.layers = self._build_network_layers(X_dim, num_class)
         self.params = []
 
         # Cache the parameters
@@ -57,7 +56,7 @@ class CNN:
         # Loss function
         self.loss_func = loss_func
 
-    def _build_network(self, X_dim, num_class):
+    def _build_network_layers(self, X_dim, num_class):
 
         # 1. Convolution layer
         # 2. Relu
@@ -126,7 +125,7 @@ class CNN:
         """ Prediction """
 
         X = self.forward(X)
-        return np.argmax(softmax(X), axis=1)
+        return np.argmax(softmax(X), axis=1) # [batch, 1]
 
 
 class GradientDescentOptimizer(object):
@@ -141,7 +140,7 @@ class GradientDescentOptimizer(object):
         self.decay_rate = decay_rate
 
     def update(self, model):
-
+        # params为按层正序,而grads为按层逆序
         for param, grad in zip(model.params, reversed(model.grads)):
             for i in range(len(grad)):
                 param[i] += - self.learning_rate * grad[i]

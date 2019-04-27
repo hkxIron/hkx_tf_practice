@@ -6,6 +6,7 @@ import numpy as np
 from cnn.mnist.read_mnist import load_mnist
 
 def accuracy(y_true, y_pred):
+    # y_true:[batch, 1]
     return np.mean(y_pred == y_true)
 
 def make_batches(X, y, batch_size, shuffle=True, seed=None):
