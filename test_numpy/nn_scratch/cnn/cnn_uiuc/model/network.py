@@ -10,31 +10,33 @@ def softmax(x):
 
 def mean_cross_entropy_with_softmax(model_out, y_gt):
     # model_out:[batch, num_class]
+    # y:[batch]
     m = y_gt.shape[0] # m:batch
+    # p:[batch, num_class]
     p = softmax(model_out)
-    log_likelihood = -np.log(p[range(m), y_gt])
-    loss = np.sum(log_likelihood) / m
+    # p:[batch, num_class]
+    # loss: - sum_i{ yi*log(pi) } = - sum_i{ log(pi) } where yi=1
+    # 由于yi = {0,1}, yi为0时,对于loss无影响,因此只需要取yi=1的元素
+    negative_log_likelihood = -np.log(p[range(m), y_gt])
+    loss = np.sum(negative_log_likelihood) / m
 
     dx = p.copy()
+    # dx = d model_out = p - y
+    # 由于yi = {0,1}, yi=0时, dx = p, yi=1时, dx = p - 1
     dx[range(m), y_gt] -= 1
     dx /= m
+    # loss:scalar
+    # dx:[batch, num_class]
     return loss, dx
 
-
-def l2_regularization(layers, lam=0.001):
+def l2_regularization(layers, reversed_grads, lam=0.001):
+    # reversed_grads: 按层逆序后的梯度
     reg_loss = 0.0
-    for layer in layers:
+    for layer, grad in zip(layers, reversed(reversed_grads)):
         if hasattr(layer, 'W'):
             reg_loss += 0.5 * lam * np.sum(layer.W * layer.W)
-    return reg_loss
-
-
-def delta_l2_regularization(layers, grads, lam=0.001):
-    for layer, grad in zip(layers, reversed(grads)):
-        if hasattr(layer, 'W'):
-            grad[0] += lam * layer.W
-    return grads
-
+            grad[0] += lam * layer.W # grad = [dw, db], bias不需要梯度
+    return reg_loss, reversed_grads
 
 class CNN:
     """ Convolution Neural Net model"""
@@ -91,7 +93,7 @@ class CNN:
 
     def backward(self, dout):
         """ Back propogation """
-        grads = []
+        grads = [] # 后面层的梯度放在前面
         """
         dout是对该层输入的x的梯度,grad是对参数w的梯度
         """
@@ -107,12 +109,14 @@ class CNN:
         # y:[batch]
         # out:[batch, num_class]
         out = self.forward(X)
-
-        # Loss and grad calc
+        # dout:[batch, num_class]
+        # loss:scalar
         loss, dout = self.loss_func(out, y)
-        loss += l2_regularization(self.layers)
+        # grads: 后面层的梯度放在前面
         grads = self.backward(dout)
-        grads = delta_l2_regularization(self.layers, grads)
+        reg_loss, grads = l2_regularization(self.layers, grads)
+        #grads = delta_l2_regularization(self.layers, grads)
+        loss += reg_loss
 
         # cache
         self.loss, self.grads = loss, grads

@@ -52,7 +52,7 @@ class Conv():
         # 将卷积转化为两矩阵相乘
         # receptive field for the images 'X'
         # X_col:[input_channel*field_height*field_width, out_height*out_width*batch]
-        #   即=>:[input_channel*K_height*K_width, out_height*out_width*batch]
+        #   即 =>:[input_channel*K_height*K_width, out_height*out_width*batch]
         self.X_col = image2field_index(X, self.K_height, self.K_width, stride=self.stride, padding=self.padding)
 
         # Flat the Kernel matrix
