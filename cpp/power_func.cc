@@ -3,7 +3,7 @@
 	[数值的整数次方]
 
     [题目]
-	给定一个double类型的浮点数base和int类型的整数exponent。求base的exponent次方。
+	给定一个double类型的浮点数base和int类型的整数exponent。求base的exponent次方(尽可能高效快速)。
     [解析]
     主要是要注意边界条件的处理。
 */
@@ -31,6 +31,9 @@ public:
         return ans;
     }
 
+    /**
+    *  递归计算方式
+    */
     double PowerPositive(double base, int exponent){
         if(exponent == 0) return 1;
         if(exponent == 1) return base;
@@ -38,7 +41,7 @@ public:
         // x^5= x^2 * x^2 *x
         // x^4 = x^2 * x^2
         double temp = PowerPositive(base, exponent/2);
-        bool is_even = (exponent&1) == 1; // 是否是偶数
+        bool is_even = (exponent&1) == 1; // 是否是奇数
         if(is_even){
             return temp*temp*base;
         }else{
@@ -47,6 +50,8 @@ public:
     }
 
     /**
+     * 非递归计算方式
+     * 
      * 1.全面考察指数的正负、底数是否为零等情况。
      * 2.写出指数的二进制表达，例如13的二进制, 13=8+4+0+1 = 1101。
      * 3.举例10的13次方:10^13=10^(1101) = 10^0001*10^0100*10^1000。
@@ -61,6 +66,7 @@ public:
         int exponent =abs(n);
 
         double res = 1,curr = base;
+	// exponent一直右移除2    
         while(exponent!=0){
             if((exponent&1)==1) // 当前最低为1
                 res*=curr;// 有1时，就将结果乘进去
