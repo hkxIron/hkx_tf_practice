@@ -64,14 +64,19 @@ public:
         if(n == 0) return 1;
         if(n == 1) return base;
         int exponent =abs(n);
-
-        double res = 1,curr = base;
+	
+	// 2^13, curr_base=2, exponent=5=4+0+1 = 101 
+	// exponent最低位为1, curr_base = 2 , res=2 , curr_base=4, exponent右移1位= 2 = 10
+	// exponent最低位为0, curr_base =4, res不变,curr_base=16, exponent右移1位= 1
+	// exponent最低位为1, curr_base =16, res=res*16=32, exponent右移1位= 0
+	// 退出
+        double res = 1,curr_base = base;
 	// exponent一直右移除2    
         while(exponent!=0){
             if((exponent&1)==1) // 当前最低为1
-                res*=curr;// 有1时，就将结果乘进去
+                res*=curr_base;// 有1时，就将结果乘进去
 
-            curr*=curr;// 当前的cur翻倍，而不是res翻倍
+            curr_base*=curr_base;// 当前的乘以的基数翻倍，而不是res翻倍
             exponent>>=1;// 右移一位,除2
         }
         return n>=0?res:1/res;
