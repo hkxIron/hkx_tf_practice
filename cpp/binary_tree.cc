@@ -10,13 +10,14 @@
 #include<queue>
 using namespace std;
 
+// 注意:此处可以不用 typedef
 struct tree{
     char data;
     struct tree* left; // 这里的struct关键字不可少
     struct tree* right;
 };
 
-// 从先序序列（含有#）中建立二叉树
+// 从先序序列（含有#）建立二叉树
 // str = "abc##de#g##f###";
 tree* create_tree(char *& p_str ){
     if(*p_str=='#'||*p_str=='\0') {
@@ -32,14 +33,12 @@ tree* create_tree(char *& p_str ){
     }
 }
 
-
-
 void visit(tree* root){
     cout<<root->data<<" ";
 }
 
 void swap_child(tree* root){
-    std::swap(root->left,root->right);
+    std::swap(root->left, root->right);
 }
 
 void delete_tree(tree* root){
@@ -48,44 +47,46 @@ void delete_tree(tree* root){
 }
 
 // 前序遍历
-void pre_order_visit(tree* root,void(*fun)(tree*)){ // 函数指针
+void pre_order_visit(tree* root, void(*fun)(tree*)){ // 函数指针
     if(root==NULL) return;
     fun(root);
-    pre_order_visit(root->left,fun);
-    pre_order_visit(root->right,fun);
+    pre_order_visit(root->left, fun);
+    pre_order_visit(root->right, fun);
 }
 
 // 中序遍历
-void in_order_visit(tree* root,void(*fun)(tree*)){
+void in_order_visit(tree* root, void(*fun)(tree*)){
     if(root==NULL) return;
-    in_order_visit(root->left,fun);
+    in_order_visit(root->left, fun);
     fun(root);
-    in_order_visit(root->right,fun);
+    in_order_visit(root->right, fun);
 }
 
+// 结论:如果在算法中暂且抹去和递归无关的Visit语句, 则3个遍历算法完全相同。
 
 // 前序非递归遍历
 /*
-　根据前序遍历访问的顺序，优先访问根结点，然后再分别访问左孩子和右孩子。即对于任一结点，其可看做是根结点，因此可以直接访问，访问完之后，若其左孩子不为空，按相同规则访问它的左子树；当访问其左子树时，再访问它的右子树。因此其处理过程如下：
+　根据前序遍历访问的顺序，优先访问根结点，然后再分别访问左孩子和右孩子。即对于任一结点，其可看做是根结点，因此可以直接访问，
+    访问完之后，若其左孩子不为空，按相同规则访问它的左子树；当访问其左子树时，再访问它的右子树。因此其处理过程如下：
 　　对于任一结点P：
      1)访问结点P，并将结点P入栈;
-     2)判断结点P的左孩子是否为空，若为空，则取栈顶结点并进行出栈操作，并将栈顶结点的右孩子置为当前的结点P，循环至1);若不为空，则将P的左孩子置为当前的结点P;
+     2)判断结点P的左孩子是否为空，若为空，则取栈顶结点并进行出栈操作，并将栈顶结点的右孩子置为当前的结点P，循环至1);
+        若不为空，则将P的左孩子置为当前的结点P;
      3)直到P为NULL并且栈为空，则遍历结束。
-
 */
 void pre_order_non_recursive(tree* root){ // 该程序与 in_order_non_recursive2只有visit的位置不一样
     stack<tree*> s;
     tree *p=root;
     while(p||!s.empty()) {
-        while(p){
-            visit(p); // 先访问，再入栈
+        while(p) {
+            visit(p); // 左子树while访问到底, 先访问，再入栈
             s.push(p);
             p=p->left;
         }
-        // p遇到了空指针,弹出元素，并转向他的右孩子
+        // p向右访问遇到了空指针, 弹出元素，并转向他的右孩子
         if(!s.empty()) {
-            p=s.top();
-            s.pop();
+            p=s.top(); // 取(但并未弹出)栈顶元素
+            s.pop(); // 弹出
             p=p->right;
         }
     }
@@ -101,20 +102,19 @@ void pre_order_non_recursive(tree* root){ // 该程序与 in_order_non_recursive
  　 2)若其左孩子为空，则取栈顶元素并进行出栈操作，访问该栈顶结点，然后将当前的P置为栈顶结点的右孩子；
   　3)直到P为NULL并且栈为空则遍历结束。
 */
-// 推荐此种中序遍历: 左根右
+// 推荐此种非递归中序遍历: 左根右
 void in_order_non_recursive2(tree *root){
     stack<tree*> s;
     tree *p=root;
-    while(p||!s.empty())
-    {
+    while(p||!s.empty()) {
         while(p) {
             s.push(p);
             p=p->left; // 向左走到底
         }
         if (!s.empty()) { // 取出栈顶并访问后，再转向右孩子，（即只在出栈时才访问）
             p=s.top(); // 只取出栈顶元素，但并不出栈该元素
-            visit(p);
-            s.pop();
+            visit(p); // 出栈时才访问
+            s.pop(); //弹出
             p=p->right;
         }
     }
@@ -130,17 +130,18 @@ void in_order_non_recursive(tree *root){
             st.push(p);
             p = p->left;// 先将左边的入栈
         }
-        else{
+        else{ // 左子树遇到空指针
             p=st.top(); //top会返回元素
             st.pop(); // 注意:c++ pop时不会返回元素
             visit(p); // 元素出栈时立即访问
-            p = p->right;
+            p = p->right; //需要转右子树
         }
     }
 }
 
-//后序非递归遍历
-/* 第二种思路：要保证根结点在左孩子和右孩子访问之后才能访问，因此对于任一结点P，先将其入栈。
+// 后序非递归遍历
+/* 第二种思路：
+要保证根结点在左孩子和右孩子访问之后才能访问，因此对于任一结点P，先将其入栈。
 如果P不存在左孩子和右孩子，则可以直接访问它；
 或者P存在左孩子或者右孩子，但是其左孩子和右孩子都已被访问过了，
 则同样可以直接访问该结点。
@@ -154,20 +155,20 @@ void post_order_non_recursive(tree*root){
     stack<tree*> s;
     tree *cur;                      // 当前结点
     tree *pre=NULL;                 // 需要存储前一次访问的结点
-    s.push(root); // 只有后序非递归遍历需要事先入栈
+    if(root!=NULL) s.push(root); // 只有后序非递归遍历需要事先入栈(不能先访问,而是先入栈)
     while(!s.empty()) {
-        cur=s.top(); // 只取元素，但并未出栈
+        cur = s.top(); // 只取元素，但并未出栈
         if((cur->left==NULL&&cur->right==NULL)|| // P不存在左孩子和右孩子，则可以直接访问它
-           (pre!=NULL&&(pre==cur->left||pre==cur->right))) //（前一次访问的是它的左右孩子）或 P存在左孩子或者右孩子，但是其左孩子和右孩子都已被访问过了
+           (pre!=NULL&&(pre==cur->left||pre==cur->right))) //或 P存在左孩子或者右孩子，但是其左孩子和右孩子都已被访问过了（前一次访问的是它的左右孩子）
         {
             visit(cur);  //如果当前结点没有孩子结点或者孩子节点都已被访问过
             s.pop(); // 出栈只有一个地方
             pre=cur;
-        }
-        else {
-            //注意，二者顺序不可改变
-            //P的右孩子和左孩子依次入栈，这样就保证了每次取栈顶元素的时候，左孩子在右孩子前面被访问，左孩子和右孩子都在根结点前面被访问
-            if(cur->right!=NULL) s.push(cur->right);
+        } else {
+            // P的右孩子和左孩子依次入栈，这样就保证了每次取栈顶元素的时候，
+            // 左孩子在右孩子前面被访问，左孩子和右孩子都在根结点前面被访问
+            // 注意，二者顺序不可改变
+            if(cur->right!=NULL) s.push(cur->right); // 先存右孩子,保证访问时 先出并访问左孩子
             if(cur->left!=NULL) s.push(cur->left);
         }
     }
@@ -184,6 +185,7 @@ void post_order_visit(tree* root,void(*fun)(tree*)){
 // 二叉树的镜像
 void post_mirror(tree* root){
     if(root==NULL) return;
+    // 后序遍历
     post_mirror(root->left);
     post_mirror(root->right);
     std::swap(root->left,root->right);
@@ -192,7 +194,7 @@ void post_mirror(tree* root){
 // 二叉树镜像(前序遍历)
 void pre_mirror(tree* root){
     if(root==NULL) return;
-    std::swap(root->left,root->right);
+    std::swap(root->left, root->right);
     pre_mirror(root->left);
     pre_mirror(root->right);
 }
@@ -206,15 +208,55 @@ int depth(tree* root){
     return std::max(left_depth, right_depth) + 1;
 }
 
+   /*
+          a
+         /
+        b
+       / \
+      c   d
+         / \
+        e   f
+         \
+          g
+    */
+// 普通树的求公共结点,请见 ../CommonParentInTree
 // 求p,q的最近公共祖先
 // root:为根节点， p,q为两个输入的最近公共祖先
 tree* lowest_common_ancestor(tree* root, tree* p, tree* q) {
-    if(root==NULL||root==p||root==q) return root;
-    tree* left = lowest_common_ancestor(root->left,p,q); // 它们返回时，返回的是输入的p或者q
-    tree* right =lowest_common_ancestor(root->right,p,q);
+    if(root==NULL||root==p||root==q) return root; // 返回p或者q
+    tree* left = lowest_common_ancestor(root->left, p, q); // 它们返回时，返回的是输入的p或者q或者null
+    tree* right = lowest_common_ancestor(root->right, p, q);
     if(left!=NULL&&right!=NULL) return root; // 当前节点为公共,因为两边的子节点里包含p和q, 只有当左右孩子都不为空时，才返回当前结点
-    return left?left:right; // 否则，返回两边非空的那边
+    return left?left:right; // 否则，返回两边非空的那边, 比如从g返回到结点e
 }
+
+/**
+
+ 求p,q的最近公共祖先
+ 二叉排序树:
+            5
+           / \
+          3   8
+         /\  / \
+        1 4 6  9
+       / \
+      0  2
+
+ 1.如果树是搜索二叉树(即排序二叉树, 位于左子树的节点都比父节点小点,位于右子树的节点都比节点大),
+     我们只需要从树的根节点r开始与两个输入节点p,q进行比较.
+     如果p,q都小于r,那么最低的公共祖先在r的左子树中,
+     如果p,q都大于r,那么最低的公共祖先在r的右子树中,
+     如果r介于p,q之间,那么当前r就是最低公共祖先
+
+ 2.如果不是二叉树,只是普通的树
+    问是二叉树中的结点是否有指向父结点的指针
+    如果有指向父结点的指针,那么这些链表的尾指针都是指向根结点,
+    它们的最低公共祖先就是这两个链表的第一个公共节点,因此转化为求两个相交链表的公共节点,比较简单
+
+ 3.如果只是普通的树,且没有指向父结点的指针
+    遍历时将父结点存储起来, 然后求公共结点.
+
+*/
 
 /*
 	[对称的二叉树]
@@ -302,7 +344,7 @@ void level_visit_tree(tree* root, void(*fun)(tree *)) {
   }
 }
 
-// 好像有bug,但并未找到bug在哪里
+// TODO: 好像有bug,但并未找到bug在哪里
 void zig_zag_visit_tree(tree* root, void(*fun)(tree *)) {
   tree*p = root;
   if(p == nullptr) return;
@@ -428,7 +470,10 @@ int main(){
     tree* p_c = root->left->left;
     tree* p_g = root->left->right->left->right;
     tree * p_common = lowest_common_ancestor(root, p_c, p_g);
-    cout<<"\ncommon ancesor:"<<p_common->data<<endl; // b
+    cout<<"\ncommon ancesor1:"<<p_common->data<<endl; // b
+    tree* p_a = root;
+    tree * p_common2 = lowest_common_ancestor(root, p_a, p_g);
+    cout<<"\ncommon ancesor2:"<<p_common2->data<<endl; // a
     //--------------------------
     cout<<"\ndelete tree:"<<endl;
     post_order_visit(root,delete_tree);
