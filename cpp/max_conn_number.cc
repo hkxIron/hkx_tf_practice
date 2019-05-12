@@ -19,6 +19,19 @@
         s2--------------e2
           s4--------------e4
                 s5------------------e5
+
+思路1:
+1.先对所有记录按开始时间排序
+2.当遍历到某条记录时, cur_cnt++，将记录的end_time加入一个有序队列（插入排序）
+3.判断当前开始时间是否大于end_time里最小的元素，若是将所有end_time小于cur_time的元素出队，同时 cur_cnt --
+4.max_cnt = std::(max_cnt, cur_cnt)
+
+思路2(比第一种方法好理解):
+1.先对所有记录按开始时间排序,
+2.每遍历一个数, 则检查开始或者结束状态,如果是开始则+1,如果是结束则-1,并记录当前值cur_cnt
+3.max_cnt =std::(max_cnt, cur_cnt)
+
+
 */
 
 #include <iostream>
@@ -39,7 +52,7 @@ int qs=0, qe=0; // 头尾指针相等，说明队列为空
 
 void print_arr(Link arr[], int len){
     for(int i=0;i<len;i++){
-        Link ele =arr[i];
+        Link ele = arr[i];
         cout<<"id:"<<ele.id<< " start_time:"<<ele.start_time<< " end_time:"<< ele.end_time <<endl;
     }
 }
@@ -78,7 +91,7 @@ int dequeue(int x){
 // 4.max_cnt =std::(max_cnt, cur_cnt)
 int max_conn(Link arr[], int len){
     int max_cnt = 0;
-    sort(arr, arr + len, [](Link a, Link b){ return a.start_time<=b.start_time; }); // 调用c++默认的排序函数进行排序
+    std::sort(arr, arr + len, [](Link a, Link b){ return a.start_time<=b.start_time; }); // 调用c++默认的排序函数进行排序
     cout<<"arr after sorted"<<endl;
     print_arr(arr,len);
     //
