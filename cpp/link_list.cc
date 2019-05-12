@@ -1,4 +1,4 @@
-// g++ -std=c++11 -o tree binary_tree.cc &&./tree.exe
+// g++ -std=c++11 -o link_list link_list.cc &&./link_list
 // author: kexinhu
 #include<iostream>
 #include<iterator>
@@ -13,10 +13,10 @@ struct node{
 // 头插法建立链表, 建立后的链表是反序
 node* head_insert(int* arr, int length){
    if(length == 0) return nullptr;
-   node* head = new node();
-   head->data= arr[0];
-   head->next=nullptr;
-   for(int i=1;i<length;i++){
+   node* head = nullptr;
+   //head->data= arr[0];
+   //head->next=nullptr;
+   for(int i=0; i<length; i++){
        node* p = new node();
        p->data = arr[i];
        p->next= head;
@@ -67,19 +67,22 @@ node* reverse_link_list(node* head){
 
 // 链表反转 
 // 下面的代码必须注意一点，跳出while循环的时候，最后一个结点的next域别忘记指向前一个结点，否则就会导致“断链”。
+// 1  ->2->3->4->5
+// pre->p
+// 1<-2<-3<-4<-5
 node* reverse_link_list2(node* pHead) {
-    node *root=pHead; 
+    node *p=pHead;
     node *pre=NULL;  
     node *next=NULL;
     if(pHead==NULL) return NULL; 
-    while(root->next){  
-        next=root->next; // 暂存下一下节点
-        root->next=pre; // 更改当前节点的next
-        pre=root; // pre指针移动
-        root=next; // 当前指针移动
+    while(p->next){
+        next=p->next; // 暂存下一结点的下节点
+        p->next=pre; // 更改当前节点的next
+        pre=p; // pre指针移动
+        p=next; // 当前指针移动
     }    
-    root->next=pre;  // 最后节点next指向pre
-    return root; 
+    p->next=pre;  // 最后节点next指向pre, 最后一步要小心,非常容易出错
+    return p;
 }
 
 int main(){
@@ -107,6 +110,7 @@ int main(){
        int len = sizeof(arr)/sizeof(int);
        cout<<"arr size:"<<len<<endl;
 
+       // 头插法建立链表, 建立后的链表是反序
        cout<<"create link list:"<<endl;
        node* list = head_insert(arr, len);
 

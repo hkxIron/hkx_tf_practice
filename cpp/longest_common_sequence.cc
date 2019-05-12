@@ -6,6 +6,9 @@
 #include <vector>
 using namespace std;
 
+/**
+    举个例子，如：有两条随机序列，如 1 3 4 5 7 5 ，and 2 4 5 3 5 7 6，则它们的最长公共子序列便是：4 5 5。
+*/
 // 最长公共子序列
 int LCSLength(char* str1, char* str2, int **b)
 {
