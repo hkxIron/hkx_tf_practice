@@ -27,24 +27,17 @@ int LCSLength(char* str1, char* str2, int **b)
     for(j = 0; j < length2+1; j++)
         c[0][j]=0;        //第0行都初始化为0
 
-    for(i = 1; i < length1+1; i++)
-    {
-        for(j = 1; j < length2+1; j++)
-        {
-            if(str1[i-1]==str2[j-1])//由于c[][]的0行0列没有使用，c[][]的第i行元素对应str1的第i-1个元素
-            {
+    for(i = 1; i < length1+1; i++) {
+        for(j = 1; j < length2+1; j++) {
+            if(str1[i-1]==str2[j-1]) { //由于c[][]的0行0列没有使用，c[][]的第i行元素对应str1的第i-1个元素
                 c[i][j]=c[i-1][j-1]+1;
-                b[i][j]=0;          // ↖" ，输出公共子串时的搜索方向, 对角线
-            }
-            else if(c[i-1][j]>c[i][j-1]) // 上方的串长度大于左方的串长度
-            {
-                c[i][j]=c[i-1][j];
-                b[i][j]=1;  // "↑" ，上边的元素大
-            }
-            else // 上方的串长度小于左方的串长度
-            {
-                c[i][j]=c[i][j-1];
-                b[i][j]=-1; // "←"，左边的元素大
+                b[i][j]='\';          // ↖" ，输出公共子串时的搜索方向, 对角线
+            } else if (c[i-1][j]>c[i][j-1]) { // 上方的元素大于左方的元素
+                c[i][j]=c[i-1][j]; // 选择上方的元素
+                b[i][j]='|';  // "↑" ，上边的元素大
+            } else { // 上方的元素小于左方的元素
+                c[i][j]=c[i][j-1]; // 选择左方的元素
+                b[i][j]= '-'; // "←"，左边的元素大
             }
         }
     }
@@ -62,18 +55,19 @@ int LCSLength(char* str1, char* str2, int **b)
     delete[] c;
     return len;
 }
+
 void PrintLCS(int **b, char *str1, int i, int j)
 {
     if(i==0 || j==0)
         return ;
-    if(b[i][j]==0)
+    if(b[i][j]=='\') // 左上方
     {
         PrintLCS(b, str1, i-1, j-1);//从后面开始递归，所以要先递归到子串的前面，然后从前往后开始输出子串
         printf("%c",str1[i-1]);//c[][]的第i行元素对应str1的第i-1个元素
     }
-    else if(b[i][j]==1) // 上方
+    else if(b[i][j]=='|') // 上方
         PrintLCS(b, str1, i-1, j);
-    else
+    else // '-'
         PrintLCS(b, str1, i, j-1); // 左边
 }
 
