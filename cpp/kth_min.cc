@@ -1,3 +1,7 @@
+/*
+g++ -std=c++11 -o kth_min kth_min.cc &&./kth_min
+*/
+
 // blog:https://github.com/hkxIron/algorithm/blob/master/sword_offer/src/034.cpp
 /*
 	[最小k个数]
@@ -7,7 +11,7 @@
     [解析]
     方法0: 直接排序然后返回前k个，最好的时间复杂度为 O(nlog(n))
     方法1: 快排的变种，时间复杂度 O(n)，缺点：原址，需要把所有数都 load 到内存中
-    方法2: 利用最大堆作为辅助，时间复杂度 O(n*lg(k))，适用于处理数据量很大的情况。
+    方法2: 利用 最大堆 作为辅助，时间复杂度 O(n*log(k))，适用于处理数据量很大的情况。
 */
 
 #include <iostream>
@@ -24,12 +28,12 @@ public:
         if(k > input.size()){
             return ans;
         }
-
+        cout<<"method:"+method<<endl;
         if (method=="heap"){
             return GetLeastNumbersHeap(input, k);
         }else{
             GetLeastNumbersPartition(input, 0, input.size()-1, k);
-            for(int i=0; i<k; i++) ans.push_back(input[i]);
+            for(int i=0; i<k; i++) ans.push_back(input[i]); // 数据的前k个即 最小的k个数
             return ans;
         }
     }
@@ -54,7 +58,7 @@ public:
     /**
     *  交换顺序表a中的区间[low,hight]中的记录，枢轴记录到位，并返回其所在的位置，
     *  此时，在它之前的记录均小于它，在它之后的均大于它
-       这个是数据结构一书中的划分·
+       这个是《数据结构》一书中的划分·
     */
     int partition_book(vector<int> &a, int low, int high){
         int pivot = a[low] ;
@@ -96,18 +100,19 @@ public:
         vector<int> ans(input.begin(), input.begin()+k); // max heap, 只有k个元素
         make_heap(ans.begin(), ans.end(), comp); // 将这k个元素建立一个堆
 
+        // 从第k+1个元素开始遍历
         for(int i=k; i<input.size(); i++){
-            // 若当前元素比堆顶元素小，而堆里只有k个元素，因此当前元素可能是前k小中的一个，则入堆
+            // 若当前元素比堆顶元素小(最大堆的堆顶元素是堆里最大的元素)，而堆里只有k个元素，因此当前元素可能是前k小中的一个，则入堆
             if(input[i] < ans.front()){ // the current value less than the maximun of heap
                 pop_heap(ans.begin(), ans.end(), comp); // 弹出heap顶元素, 将其放置于区间末尾. O(logN)
-                ans.pop_back(); //
+                ans.pop_back(); // 弹出
 
                 ans.push_back(input[i]);// 将当前元素入堆
                 push_heap(ans.begin(), ans.end(), comp);
             }
         }
 
-        sort(ans.begin(), ans.end());// 对堆调整
+        //sort(ans.begin(), ans.end());// 为了使元素间有序,但并非必要的步骤
 
         return ans;
     }
@@ -120,7 +125,6 @@ public:
 
 int main()
 {
-    vector<int> input={1,-3,8,9,3,0,-2,10,-4,7,20,-21,3,10};
     /*freopen("in.txt", "r", stdin);
     cin >> k;
     int cur;
@@ -128,17 +132,32 @@ int main()
         input.push_back(cur);
     }
     */
-    int k=6;
-    vector<int> ans = Solution().GetLeastNumbers_Solution(input, k,"part");
+    {
+        vector<int> input={1,-3,8,9,3,0,-2,10,-4,7,20,-21,3,10, -4,-7};
+        int k=6;
+        vector<int> ans = Solution().GetLeastNumbers_Solution(input, k,"partition");
 
-    cout<<k<<"-th min:";
-    for(int n : ans) cout << n << " "; cout << endl; // 注意，此处ans只是部分有序
-    cout<<"array after partition:"<<endl;
-    copy(input.begin(), input.end(), std::ostream_iterator<int>(std::cout, " ")); // algorithm,iterator
-    cout<<endl;
+        cout<<k<<"-th min:";
+        for(int n : ans) cout << n << " "; cout << endl; // 注意，此处ans只是部分有序
+        cout<<"array after partition:"<<endl;
+        copy(input.begin(), input.end(), std::ostream_iterator<int>(std::cout, " ")); // algorithm,iterator
+        cout<<endl<<endl;
+    }
+    {
+        vector<int> input={1,-3,8,9,3,0,-2,10,-4,7,20,-21,3,10, -4,-7};
+        int k=6;
+        vector<int> ans = Solution().GetLeastNumbers_Solution(input, k,"heap");
+
+        cout<<k<<"-th min:";
+        for(int n : ans) cout << n << " "; cout << endl; // 注意，此处ans只是部分有序
+        cout<<"array after partition:"<<endl;
+        copy(input.begin(), input.end(), std::ostream_iterator<int>(std::cout, " ")); // algorithm,iterator
+        cout<<endl<<endl;
+    }
     //-----------------------
     {
-       std::sort (input.begin(), input.end());
+       vector<int> input={1,-3,8,9,3,0,-2,10,-4,7,20,-21,3,10, -4,-7};
+       std::sort(input.begin(), input.end());
        cout<<"standard result:"<<endl;
        //for(auto n : input) cout << n << " "; cout << endl;
        copy(input.begin(), input.end(), std::ostream_iterator<int>(std::cout, " ")); // algorithm,iterator

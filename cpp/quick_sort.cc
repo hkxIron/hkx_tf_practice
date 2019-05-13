@@ -1,20 +1,24 @@
+/*
+g++ -std=c++11 -o qsort quick_sort.cc &&./qsort
+*/
 #include <iostream>
 #include <stdlib.h>
 using namespace std;
 
 /**
-*  交换顺序表a中的区间[low,hight]中的记录，枢轴记录到位，并返回其所在的位置，
-*  此时，在它之前的记录均小于它，在它之后的均大于它
+   划分函数:
+   交换顺序表a中的区间[low,hight]中的记录，枢轴记录到位，并返回其所在的位置，
+   此时，在它之前的记录均小于它，在它之后的均大于它
 */
 int partition(int a[], int low, int high){
     int pivot = a[low] ;
-    while(low<high){
+    while (low<high) { // 直到两个指针相遇
         while(low<high&&a[high]>=pivot) --high; // 将右边小于pivot的找出来
         a[low] = a[high];
         while(low<high&&a[low]<=pivot) ++low; // 将左边大于pivot的找出来
         a[high] = a[low];
     }
-    a[low] = pivot;
+    a[low] = pivot; // 此时指针相遇,low=high
     return low; // pivotIndex, 此时low=high相等, 且值为pivot所在的index
 }
 
