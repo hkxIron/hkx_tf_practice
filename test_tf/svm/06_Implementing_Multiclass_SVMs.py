@@ -97,8 +97,7 @@ loss = tf.reduce_sum(-(first_term - second_term))
 # Gaussian (RBF) prediction kernel
 rA = tf.reshape(tf.reduce_sum(tf.square(x_data), 1), [-1, 1])
 rB = tf.reshape(tf.reduce_sum(tf.square(prediction_grid), 1), [-1, 1])
-pred_sq_dist = tf.add(tf.subtract(rA, tf.multiply(2., tf.matmul(x_data, tf.transpose(prediction_grid)))),
-                      tf.transpose(rB))
+pred_sq_dist = rA - 2*tf.matmul(x_data, tf.transpose(prediction_grid))+ tf.transpose(rB)
 pred_kernel = tf.exp(tf.multiply(gamma, tf.abs(pred_sq_dist)))
 
 prediction_output = tf.matmul(tf.multiply(y_target, b), pred_kernel)

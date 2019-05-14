@@ -49,13 +49,14 @@ alpha = tf.Variable(tf.random_normal(shape=[1, batch_size])) #　注意，仅有
 # my_kernel = tf.matmul(x_data, tf.transpose(x_data))
 
 # Gaussian (RBF) kernel
-gamma = tf.constant(-50.0)
+gamma = tf.constant(50.0) # gamma 越大, 其峰越尖
 x_square = tf.reduce_sum(tf.square(x_data), axis=1, keepdims=True) # dist:[N, 1]
 x_x_cross = tf.matmul(x_data, tf.transpose(x_data)) # linear_kernel:[N, N]
 
 # 类比: (xi - xj)^2 = xi^2+xj^2 - 2*xi*xj
+# 计算任意两点之间的 距离 dist:[N, N]
 square_dists = x_square - 2 * x_x_cross + tf.transpose(x_square) # square_dists:[N, N]
-rbf_kernel = tf.exp(gamma * tf.abs(square_dists)) #  rbf: [N, N]
+rbf_kernel = tf.exp(-gamma * tf.abs(square_dists)) #  rbf: [N, N]
 
 # Compute SVM Model
 first_term = tf.reduce_sum(alpha) # scalar
@@ -63,13 +64,16 @@ alpha_vec_cross = tf.matmul(tf.transpose(alpha), alpha) # bi*bj,  [N, N]
 y_target_cross = tf.matmul(y_target, tf.transpose(y_target)) #　yi*yj, [N, N]
 
 # 注意:此处的目标函数是对偶函数,而非原始的函数
-second_term = tf.reduce_sum(rbf_kernel* alpha_vec_cross*y_target_cross)
-loss = -(first_term - second_term)
+cross_term = tf.reduce_sum(rbf_kernel * alpha_vec_cross * y_target_cross)
+loss = cross_term - first_term
 
 # w_j = sum_i{yi*alpha_i* kernel(i, j)}
+# b* = yj - sum_i{yi*alpha_i* kernel(xi, xj)}
+"""
+下面计算b的方式有误?
 w_j = y_target*tf.transpose(alpha)*tf.reduce_sum(rbf_kernel, axis=1, keepdims=True) # w:[N, 1]
-#bias = tf.reduce_mean(y_target - w_j)
-
+bias = tf.reduce_mean(y_target - w_j)
+"""
 # Create Prediction Kernel
 # Linear prediction kernel
 # my_kernel = tf.matmul(x_data, tf.transpose(prediction_grid))
@@ -80,9 +84,10 @@ rB = tf.reshape(tf.reduce_sum(tf.square(prediction_grid), 1), [-1, 1])
 x_pred_cross = tf.matmul(x_data, tf.transpose(prediction_grid))
 
 pred_sq_dist = rA - 2*x_pred_cross + tf.transpose(rB) # [N,N]
-pred_kernel = tf.exp(gamma*tf.abs(pred_sq_dist)) # exp(-r*dist^2) , [N, N]
+pred_kernel = tf.exp(-gamma*tf.abs(pred_sq_dist)) # exp(-r*dist^2) , [N, N]
 
 prediction_output = tf.matmul(tf.transpose(y_target)*alpha, pred_kernel) # [1, N]
+# TODO: 这里bias的计算一直未想明白
 prediction = tf.sign(prediction_output - tf.reduce_mean(prediction_output)) # ?不知为何此处这样处理
 #prediction = tf.sign(prediction_output - bias) # bias好像计算有误, 暂未查到原因
 #prediction = tf.sign(prediction_output)

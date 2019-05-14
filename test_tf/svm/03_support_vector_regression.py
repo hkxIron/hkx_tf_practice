@@ -48,14 +48,14 @@ A = tf.Variable(tf.random_normal(shape=[1, 1]))
 b = tf.Variable(tf.random_normal(shape=[1, 1]))
 
 # Declare model operations
-model_output = tf.add(tf.matmul(x_data, A), b)
+model_output = tf.matmul(x_data, A) + b
 
 # Declare loss function
-# = max(0, abs(target - predicted) + epsilon)
+# loss = max(0, abs(target - predicted) - epsilon)
 # 1/2 margin width parameter = epsilon
 epsilon = tf.constant([0.5])
 # Margin term in loss
-loss = tf.reduce_mean(tf.maximum(0., tf.subtract(tf.abs(tf.subtract(model_output, y_target)), epsilon)))
+loss = tf.reduce_mean(tf.maximum(0., tf.abs(model_output-y_target)-epsilon))
 
 # Declare optimizer
 my_opt = tf.train.GradientDescentOptimizer(0.075)

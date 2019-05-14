@@ -56,6 +56,7 @@ A = tf.Variable(tf.random_normal(shape=[2, 1]))
 b = tf.Variable(tf.random_normal(shape=[1, 1]))
 
 # Declare model operations
+# 此处是 y = wx-b,这样截距就是b, 一般是wx+b
 model_output = tf.matmul(x_data, A) - b
 
 # Declare vector L2 'norm' function squared
@@ -63,10 +64,11 @@ l2_norm = tf.reduce_sum(tf.square(A))
 
 # Declare loss function
 # Loss = max(0, 1-pred*actual) + alpha * L2_norm(A)^2
+# loss 见李航的统计机器学习
 # L2 regularization parameter, alpha
 alpha = tf.constant([0.01])
 # Margin term in loss
-classification_term = tf.reduce_mean(tf.maximum(0., 1.-model_output * y_target)) # 此处是 -, 一般的都是+ bias
+classification_term = tf.reduce_mean(tf.maximum(0., 1-model_output * y_target)) # 此处是 -, 一般的都是+ bias
 # Put terms together
 loss = classification_term + alpha*l2_norm #
 
