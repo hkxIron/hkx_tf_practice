@@ -2,7 +2,7 @@
 
 #define BITSPERWORD 32
 #define SHIFT 5
-#define MASK 0x1F // 值为31= 32 -1
+#define MASK 0x1F // 对32求余,其就就是和 31(=32-1)进行与操作
 #define N 10000000
 
 int a[1 + N/BITSPERWORD];//申请内存的大小
@@ -11,6 +11,10 @@ int a[1 + N/BITSPERWORD];//申请内存的大小
 //clr 初始化所有的bit位为0
 //test 测试所在的bit为是否为1
 
+/**
+i>>SHIFT: 指是在哪一个 BIT_WORD 中
+i&MASK: 在 BIT_WORD中的偏移量
+*/
 void set(int i) {
    a[i>>SHIFT] |=  (1<<(i & MASK)); // 32位一起设置的
 }
