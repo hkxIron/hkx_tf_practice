@@ -66,9 +66,9 @@ l2_norm = tf.reduce_sum(tf.square(A))
 # L2 regularization parameter, alpha
 alpha = tf.constant([0.01])
 # Margin term in loss
-classification_term = tf.reduce_mean(tf.maximum(0., tf.subtract(1., tf.multiply(model_output, y_target))))
+classification_term = tf.reduce_mean(tf.maximum(0., 1.-model_output * y_target)) # 此处是 -, 一般的都是+ bias
 # Put terms together
-loss = tf.add(classification_term, tf.multiply(alpha, l2_norm))
+loss = classification_term + alpha*l2_norm #
 
 # Declare prediction function
 prediction = tf.sign(model_output)
