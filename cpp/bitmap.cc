@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 #define BITSPERWORD 32
-#define SHIFT 5
+#define SHIFT 5　// 2^5 = 32
 #define MASK 0x1F // 对32求余,其就就是和 31(=32-1)进行与操作
 #define N 10000000
 
@@ -16,14 +16,21 @@ i>>SHIFT: 指是在哪一个 BIT_WORD 中
 i&MASK: 在 BIT_WORD中的偏移量
 */
 void set(int i) {
-   a[i>>SHIFT] |=  (1<<(i & MASK)); // 32位一起设置的
+   int index = i>>SHIFT;
+   int offset = i&MASK;
+   a[index] |=  (1<<offset); // 32位一起设置的
+   // 为何不直接用 =，因为要保持以前原有的值
 }
 void clear(int i) {
-   a[i>>SHIFT] &= ~(1<<(i & MASK));
+   int index = i>>SHIFT;
+   int offset = i&MASK;
+   a[index] &= ~(1<<offset);
 }
 
 int contains(int i){
-    return a[i>>SHIFT] &(1<<(i & MASK));
+   int index = i>>SHIFT;
+   int offset = i&MASK;
+   return a[index] &(1<<(offset));
 }
 
 int main()
