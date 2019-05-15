@@ -31,11 +31,11 @@ bool GetNodePath(const TreeNode* pRoot, const TreeNode* pNode, list<const TreeNo
 {
     if(pRoot == pNode)
         return true;
-
+    // 当前节点入队
     path.push_back(pRoot);
 
     bool found = false;
-
+    // pRoot->m_vChildren.size()
     vector<TreeNode*>::const_iterator i = pRoot->m_vChildren.begin();
     while(!found && i < pRoot->m_vChildren.end())
     {

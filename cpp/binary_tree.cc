@@ -220,13 +220,19 @@ int depth(tree* root){
           g
     */
 // 普通树的求公共结点,请见 ../CommonParentInTree
+/*
+如果只是一般的二叉树，不是搜索树的话 可以用递归的方法,
+方法思路如下：首先看root是否为公共祖先，不是的话，则递归到左右节点（可能效率不怎么好）
+*/
 // 求p,q的最近公共祖先
 // root:为根节点， p,q为两个输入的最近公共祖先
 tree* lowest_common_ancestor(tree* root, tree* p, tree* q) {
-    if(root==NULL||root==p||root==q) return root; // 返回p或者q
+    if(root==NULL||root==p||root==q) return root; // 返回p或者q或者null
     tree* left = lowest_common_ancestor(root->left, p, q); // 它们返回时，返回的是输入的p或者q或者null
     tree* right = lowest_common_ancestor(root->right, p, q);
-    if(left!=NULL&&right!=NULL) return root; // 当前节点为公共,因为两边的子节点里包含p和q, 只有当左右孩子都不为空时，才返回当前结点
+
+    // 当前节点为公共,因为两边的子节点里包含p和q, 只有当左右孩子都不为空时，才返回当前结点
+    if(left!=NULL&&right!=NULL) return root;
     return left?left:right; // 否则，返回两边非空的那边, 比如从g返回到结点e
 }
 
