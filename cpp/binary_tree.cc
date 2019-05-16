@@ -300,20 +300,45 @@ bool is_symmetrical(tree* root){
     return is_symmetrical(root->left,root->right);
 }
 
+// 层次遍历
+void level_visit_tree(tree* root, void(*fun)(tree *)) {
+  tree*p = root;
+  if(p == nullptr) return;
+  vector<tree*> que;
+  que.push_back(p);
+  int level = 0;
+  while (!que.empty()) {
+    int count_in_level = que.size(); //本层需要遍历节点的个数
+    for(int i=0;i<count_in_level;i++) {
+        p = que.front(); // 获取队首
+        fun(p); // 访问当前节点
+        que.erase(que.begin(), que.begin()+1); // 弹出队首
+        if(p->left) que.push_back(p->left); // 将当前结点的左孩子队尾后插
+        if(p->right) que.push_back(p->right); // 将当前结点的右孩子队尾后插
+    }
+    cout<<endl;
+    level++;
+  }
+}
+
 /* z字型遍历二叉树,如：
-         8
+         8     左到右遍历,先插左边的到栈(前插)
        /  \
-      6    9
+      6    9   右到左遍历,先插右边的到stack
       \   / \
       7  4   5
+     /\ / \   \
+    2 3 1  0  -1
 其序列顺序为:
  8 
  9 6 
  7 4 5
+ -1 0 1 3 2
 思想是层次遍历，加上方向判断
 
 queue的用法：
-queue与stack模版非常类似，queue模版也需要定义两个模版参数，一个是元素类型，一个是容器类型，元素类型是必要的，容器类型是可选的，默认为dqueue类型。
+queue与stack模版非常类似，queue模版也需要定义两个模版参数，
+一个是元素类型，一个是容器类型，元素类型是必要的，容器类型是可选的，默认为dqueue类型。
 
 定义queue对象的示例代码如下：
 queue<int>q1;
@@ -321,41 +346,19 @@ queue<double>q2;
 queue的基本操作有：
 1.入队：如q.push(x):将x元素接到队列的末端；
 2.出队：如q.pop() 弹出队列的第一个元素，并不会返回元素的值；
-3,访问队首元素：如q.front()
-4,访问队尾元素，如q.back();
-5,访问队中的元素个数，如q.size();
+3.访问队首元素：如q.front()
+4.访问队尾元素，如q.back();
+5.访问队中的元素个数，如q.size();
 
 由于需要前插，此处使用vector
 
 */ 
 
-// 层次遍历
-void level_visit_tree(tree* root, void(*fun)(tree *)) {
-  tree*p = root;
-  if(p == nullptr) return;
-  vector<tree*> que;
-  que.push_back(p);   
-  int level = 0;
-  while(!que.empty()){
-    int count_in_level = que.size(); //本层需要遍历节点的个数
-    for(int i=0;i<count_in_level;i++){
-        p = que.front(); // 获取队首
-        fun(p); // 访问当前节点
-        que.erase(que.begin(), que.begin()+1); // 弹出队首
-        if(p->left) que.push_back(p->left); //后插
-        if(p->right) que.push_back(p->right);
-    }
-    cout<<endl;
-    level++;
-  }
-}
-
-// TODO: 好像有bug,但并未找到bug在哪里
 void zig_zag_visit_tree(tree* root, void(*fun)(tree *)) {
   tree*p = root;
   if(p == nullptr) return;
   vector<tree*> que;
-  que.push_back(p);   
+  que.push_back(p); // 因为要前插,所以此处用队列模拟栈
   int level = 0;
   while(!que.empty()){
     int count_in_level = que.size(); //本层需要遍历节点的个数
@@ -364,17 +367,21 @@ void zig_zag_visit_tree(tree* root, void(*fun)(tree *)) {
         p = que.front(); // 获取队首
         fun(p); // 访问当前节点
         que.erase(que.begin(), que.begin()+1); // 弹出队首
-        int num_of_last_level = count_in_level - i - 1;
+        int remain_node_num_of_last_level = count_in_level - i - 1; // 上一层结点在队列中剩余的元素
         if(level%2==0){
-            //if(p->left) que.push_back(p->left); //后插
-            //if(p->right) que.push_back(p->right);
+            //if(p->right) que.push_back(p->right); // 插入右孩子
+            //if(p->left) que.push_back(p->left); //插入左孩子
+
             //不管是否逆序,都需要前插,达到类似于stack的效果
-            if(p->left) que.insert(que.begin()+num_of_last_level, p->left); // 前插时，要在上一层之后的元素后面开始插入
-            if(p->right) que.insert(que.begin()+num_of_last_level, p->right);
+            if(p->left) que.insert(que.begin()+remain_node_num_of_last_level, p->left); // 前插时，要在上一层之后的元素后面开始插入
+            if(p->right) que.insert(que.begin()+remain_node_num_of_last_level, p->right);
         }else{
             // 当上一层是逆序时,本层需要从右孩子前插
-            if(p->right) que.insert(que.begin()+num_of_last_level, p->right);
-            if(p->left) que.insert(que.begin()+num_of_last_level, p->left); // 前插时，要在上一层之后的元素后面开始插入
+            //if(p->left) que.push_back(p->left); //插入左孩子
+            //if(p->right) que.push_back(p->right); // 插入右孩子
+            //不管是否逆序,都需要前插,达到类似于stack的效果
+            if(p->right) que.insert(que.begin()+remain_node_num_of_last_level, p->right);
+            if(p->left) que.insert(que.begin()+remain_node_num_of_last_level, p->left); // 前插时，要在上一层之后的元素后面开始插入
         }
     }
     level++;
