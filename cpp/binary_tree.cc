@@ -360,10 +360,10 @@ void zig_zag_visit_tree(tree* root, void(*fun)(tree *)) {
   vector<tree*> que;
   que.push_back(p); // 因为要前插,所以此处用队列模拟栈
   int level = 0;
-  while(!que.empty()){
+  while(!que.empty()){ // 如果队列不为空
     int count_in_level = que.size(); //本层需要遍历节点的个数
     cout<<"level count:"<<count_in_level<<endl;
-    for(int i=0;i<count_in_level;i++){
+    for(int i=0;i<count_in_level;i++){ // 遍历本层的所有节点
         p = que.front(); // 获取队首
         fun(p); // 访问当前节点
         que.erase(que.begin(), que.begin()+1); // 弹出队首
