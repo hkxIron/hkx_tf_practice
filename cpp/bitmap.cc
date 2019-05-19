@@ -24,7 +24,7 @@ void set(int i) {
 void clear(int i) {
    int index = i>>SHIFT;
    int offset = i&MASK;
-   a[index] &= ~(1<<offset);
+   a[index] &= ~(1<<offset); //注意这里是取反后与
 }
 
 int contains(int i){

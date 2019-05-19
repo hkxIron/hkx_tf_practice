@@ -1,4 +1,5 @@
 package com.hankcs.algorithm;
+// 以此为教程
 // blog:http://www.cnblogs.com/skyme/p/4651331.html
 
 /**
