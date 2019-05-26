@@ -208,6 +208,19 @@ int depth(tree* root){
     return std::max(left_depth, right_depth) + 1;
 }
 
+// 树的深度(将父节点深度+1得到当前节点的深度)
+
+int max_depth = 0;
+void depth2(tree * root, int depth){
+    if(root == NULL) return;
+    int cur_depth = depth + 1;
+    if(cur_depth>max_depth){
+        max_depth =cur_depth;
+    }
+    depth2(root->left, cur_depth);
+    depth2(root->right, cur_depth);
+}
+
    /*
           a
          /
@@ -453,6 +466,9 @@ int main(){
     pre_order_visit(root,visit);
     //----树的深度
     cout<<"\ntree depth:"<<depth(root)<<endl;
+    max_depth = 0;
+    depth2(root, 0);
+    cout<<"\ntree depth2:"<<max_depth<<endl;
     cout<<"\nin order non recursive visit:"<<endl;
     in_order_non_recursive(root);
     cout<<"\nin order recursive visit:"<<endl;
