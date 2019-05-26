@@ -151,6 +151,7 @@ void print_array(int length, int* used_value){
     printf("\n");
 }
 
+// 典例的背包问题
 void get_combination(int cur_num, int length, int remain_sum, int* used_value){
     if(cur_num>remain_sum||cur_num > length){
         return;
@@ -215,6 +216,7 @@ int main(int argc, char* argv[])
         bool* used = new bool[len1];
         for(int i=0;i<len1;i++) used[i] = false;
         permutaion2(str1, str2, str2, used, 0, len1);
+        delete[] used;
     }
 
     char str_orgin[] = "abcd";
@@ -225,7 +227,7 @@ int main(int argc, char* argv[])
     printf("组合数:%d\n", count); // 2^4 = 16
 
     int sum = 8;
-    printf("求指定和:%d\n", sum);
+    printf("求数组中的指定和:%d\n", sum);
     get_all_combinations(7, sum); // 8= 1+2 +5 = 1+3 +4 = 1+7 = 2+6 =3+ 5
     return 0;
 }
