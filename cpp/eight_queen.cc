@@ -126,12 +126,20 @@ void swap(int* a, int* b){
     *a = *b;
     *b = temp;
 }
+
 /*
 TODO:此算法目前还有些问题,数目不对
 使用排列法解8皇后问题,
 利用枚举所有1~n的排列, 从中选出满足约束条件的解来,
 注意:此时,约束条件就只有"皇后不在同一对角线上",而不需要"皇后在不同列"的约束了
 */
+// 输出解
+void output2(int*a, int len){
+  for(int i=1;i<=len;i++) {
+    printf("%d ", a[i]);
+  }
+  printf("\n");
+}
 void try_permutaion(
     int queen_index,
     int queen_num,
@@ -146,8 +154,9 @@ void try_permutaion(
     }else{
         for(int j=queen_index;j<queen_num;j++){ // 第queen_index个皇后有n个可能的位置
           //swap(a+queen_index, a+j);
-          swap(a[queen_index], a[j]);
-          if(major_diag[queen_index-a[queen_index]+queen_num]==0&&minor_diag[queen_index+a[queen_index]]==0){ // 判断位置是否冲突,若无冲突
+          swap(a[queen_index], a[j]); // 交换queen_index与j位置上的皇后
+          if(major_diag[queen_index-a[queen_index]+queen_num]==0\
+                &&minor_diag[queen_index+a[queen_index]]==0){ // 判断位置是否冲突,若无冲突
 
             major_diag[queen_index-a[queen_index]+queen_num]=1; // 占领主对角线
             minor_diag[queen_index+a[queen_index]]=1; // 占领次对角线
@@ -165,7 +174,7 @@ void try_permutaion(
 
 int main(int argc, char* argv[]){
     {
-       printf("\n=====1=======\n");
+       printf("\n=====1回溯法(非递归)解8皇后=======\n");
        int queen_num=8;
        int* a = new int[queen_num];
        for(int i=0;i<queen_num;i++){
@@ -177,7 +186,7 @@ int main(int argc, char* argv[]){
    }
 
    {
-       printf("\n=====2=======\n");
+       printf("\n=====2递归回溯法解8皇后=======\n");
        int queen_num=8;
        int* a = new int[queen_num];
        int* col = new int[queen_num];
@@ -202,25 +211,25 @@ int main(int argc, char* argv[]){
    }
 
    {
-       printf("\n=====3=======\n");
+       printf("\n=====3排列法解8皇后=======\n");
        int queen_num=8;
        int* a = new int[queen_num];
        int* major_diag = new int[2*queen_num];
        int* minor_diag = new int[2*queen_num];
        for(int i=0;i<queen_num;i++){
-         a[i]=0;
+         a[i]=i; // 每个位置上放一个皇后i
          major_diag[i]=0;
          major_diag[i+queen_num]=0;
          minor_diag[i]=0;
          minor_diag[i+queen_num]=0;
        }
        int count =0;
-       try_permutaion(0, queen_num, count, a, major_diag, minor_diag);
+       int start_index=0;
+       try_permutaion(start_index, queen_num, count, a, major_diag, minor_diag);
        printf("queue:%d total:%d", queen_num, count);
        delete[] a;
        delete[] major_diag;
        delete[] minor_diag;
-
    }
 }
 

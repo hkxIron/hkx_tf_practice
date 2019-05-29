@@ -8,6 +8,7 @@ g++ -std=c++11 -o horse_traverse horse_traverse.cc &&./horse_traverse
 #include <iostream>
 #include <cstring>
 #include<algorithm>
+#include<math.h>
 using namespace std;
 
 /*
@@ -104,33 +105,68 @@ class Prime{
         int N;
         int* a;
         int count;
-        Prime(int n):N(0),count(0){
+        Prime(int n):N(n),count(0){
             a = new int[N];
+            for(int i=0;i<N;i++) {
+                a[i] = 0;
+            }
+            a[0] = 1;
         }
 
         ~Prime(){
-            delete[] a;
+            if(a!=NULL){
+                delete[] a;
+            }
+        }
+
+        // 判断当前num是否与前面 (<position)的位置元素有重复
+        bool check_no_duplicated(int num, int position){
+            for(int i=0;i<position;i++){
+                if(a[i]==num) return false;
+            }
+            return true;
+        }
+
+        bool check_prime(int num) {
+            int limit = sqrt(num);
+            for(int i=2;i<=limit;i++){
+                if(num%i==0)  return false;
+            }
+            return true;
+        }
+
+        // 判断相邻的两个元素之和是否为素数
+        bool check_all_prime(int num, int position){
+            if(position==N-1) { // 最后一个元素需要检查与第1个元素之和
+               return check_prime(num+a[position-1])&&check_prime(num+a[0]);
+            }else{
+               return check_prime(num+a[position-1]);
+            }
+        }
+
+        bool output(){
+            for(int i=0;i<N;i++){
+                printf("%d ", a[i]);
+            }
+            printf("\n");
         }
 
         void try_prime(int position){
-            for(num=2; num<= N; num++){
-               if(check_no_duplicated(num, position)&&check_all_prime()){
+            for(int num=2; num<= N; num++){
+               if (check_no_duplicated(num, position)&&check_all_prime(num, position)) {
                     a[position] = num;
                     if(position==N-1){
-                        count++;
-                        output();
+                        this->count++;
+                        this->output();
                     }else{
                         try_prime(position+1);
                     }
+                    // 恢复现场
                     a[position] = 0;
                }
             }
         }
-}
-
-
-
-
+};
 
 int main(int argc, char* argv[]){
    {
@@ -158,6 +194,13 @@ int main(int argc, char* argv[]){
         int direction_num = sizeof(move)/sizeof(Move);
         search(a, count, 0, 0, row, col, direction_num, step+1, move);
         printf("direction_num:%d count:%d\n", direction_num, count);
+   }
+
+   {
+        printf("\n素数环问题\n");
+        Prime prime = Prime(8);
+        prime.try_prime(1);
+        printf("N:%d count:%d\n", prime.N, prime.count);
    }
 }
 
