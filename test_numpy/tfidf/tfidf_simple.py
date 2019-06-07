@@ -33,5 +33,12 @@ print("tfidf:")
 print(tfidf("a", a, D)) # a在每个doc里都有,且在a只含"a",所以tfidf=0
 print(tfidf("b", abb, D)) # b夺abb中出现2次,所以tfidf较小
 print(tfidf("a", abc, D)) # abc中出山现a一次,所以tfidf
-print(tfidf("b", abc, D))
+print(tfidf("b", abc, D)) #
 print(tfidf("c", abc, D)) # c只在abc中出现,所以较大
+"""
+0.0
+0.27031007207210955
+0.0
+0.13515503603605478
+0.3662040962227032
+"""

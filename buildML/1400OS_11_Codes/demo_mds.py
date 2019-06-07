@@ -26,7 +26,7 @@ def plot_demo_1():
     ax = fig.add_subplot(121, projection='3d')
     ax.set_axis_bgcolor('white')
 
-    mds = manifold.MDS(n_components=3)
+    mds = manifold.MDS(n_components=3) # Multidimensional scaling
     Xtrans = mds.fit_transform(X)
 
     for cl, color, marker in zip(np.unique(y), colors, markers):
@@ -51,8 +51,9 @@ def plot_demo_1():
 def plot_iris_mds():
 
     iris = datasets.load_iris()
-    X = iris.data
-    y = iris.target
+    X = iris.data # X:(150,4)
+    y = iris.target # Y:(150,)
+    print("x shape:", X.shape, " y shape:", y.shape)
 
     # MDS
 

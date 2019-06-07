@@ -8,13 +8,21 @@ from sklearn import linear_model, decomposition
 logistic = linear_model.LogisticRegression()
 
 
-CHART_DIR = os.path.join("..", "charts")
+CHART_DIR = os.path.join(".", "charts")
 
 np.random.seed(3)
 
 x1 = np.arange(0, 10, .2)
 # x2在x1的基础上进行扰动
 x2 = x1 + np.random.normal(loc=0, scale=1, size=len(x1))
+
+def my_pca(X):
+    """
+    X = U*S*(V^T)
+    pca需要分析X的协方差的主成份
+    :param X: N*D
+    :return:
+    """
 
 
 def plot_simple_demo_1():
