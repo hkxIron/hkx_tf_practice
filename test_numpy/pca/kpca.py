@@ -69,8 +69,8 @@ def compare_KPCA():
         plt.subplot(1, 4, k)
         k += 1
         kpca = decomposition.KernelPCA(n_components=2, kernel=kernel)
-        data2 = kpca.fit_transform(data)
-        plt.scatter(data2[:, 0], data2[:, 1], c=[color[i] for i in target])
+        data_reduced = kpca.fit_transform(data)
+        plt.scatter(data_reduced[:, 0], data_reduced[:, 1], c=[color[i] for i in target])
         plt.title(kernel)
     plt.suptitle('The Comparasion Between KPCA')
     plt.show()

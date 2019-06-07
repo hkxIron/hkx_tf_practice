@@ -1,4 +1,4 @@
-#coding:gbk
+#coding:utf-8
 '''
 Created on Mar 8, 2011
 
@@ -29,42 +29,42 @@ def loadExData2():
            [0, 0, 0, 3, 0, 0, 0, 0, 4, 5, 0],
            [1, 1, 2, 1, 1, 2, 1, 0, 4, 5, 0]]
     
-def ecludSim(inA,inB): #Å·ÊÏÏàËÆ¶È
+def ecludSim(inA,inB): #æ¬§æ°ç›¸ä¼¼åº¦
     return 1.0/(1.0 + la.norm(inA - inB))
 
-def pearsSim(inA,inB):#Æ¤¶ûÑ·ÏßĞÔÏà¹ØÏàËÆ¶È
+def pearsSim(inA,inB):#çš®å°”é€Šçº¿æ€§ç›¸å…³ç›¸ä¼¼åº¦
     if len(inA) < 3 : return 1.0
     return 0.5+0.5*corrcoef(inA, inB, rowvar = 0)[0][1]
 
-def cosSim(inA,inB):#ÓàÏÒÏàËÆ¶È
+def cosSim(inA,inB):#ä½™å¼¦ç›¸ä¼¼åº¦
     num = float(inA.T*inB)
     denom = la.norm(inA)*la.norm(inB)
     return 0.5+0.5*(num/denom)
 
-def standEst(dataMat, user, simMeas, item):#ÔÚ¸ø¶¨ÏàËÆ¶È¼ÆËã·½·¨µÄÌõ¼şÏÂ£¬ÓÃ»§¶ÔÎïÆ·µÄ¹À¼ÆÆÀ·ÖÖµ(¼´¸ÃÓÃ»§Ä¿Ç°Î´¶Ô¸ÃÎïÆ·´ò¹ı·Ö)
-    n = shape(dataMat)[1]  #ÎïÆ·¸öÊı
+def standEst(dataMat, user, simMeas, item):#åœ¨ç»™å®šç›¸ä¼¼åº¦è®¡ç®—æ–¹æ³•çš„æ¡ä»¶ä¸‹ï¼Œç”¨æˆ·å¯¹ç‰©å“çš„ä¼°è®¡è¯„åˆ†å€¼(å³è¯¥ç”¨æˆ·ç›®å‰æœªå¯¹è¯¥ç‰©å“æ‰“è¿‡åˆ†)
+    n = shape(dataMat)[1]  #ç‰©å“ä¸ªæ•°
     simTotal = 0.0; ratSimTotal = 0.0
     for j in range(n):
         userRating = dataMat[user,j]
-        if userRating == 0: continue #ÈôÕÒµ½µ±Ç°ÓÃ»§¶ÔÄ³¸öÎïÆ·µÄ´ò·Ö²»ÎªÁã£¬itemÎªĞèÒªÆÀ·ÖµÄÎïÌå,Ê¹ÓÃµÄÊÇ»ùÓÚÎïÆ·µÄÏàËÆ¶È
+        if userRating == 0: continue #è‹¥æ‰¾åˆ°å½“å‰ç”¨æˆ·å¯¹æŸä¸ªç‰©å“çš„æ‰“åˆ†ä¸ä¸ºé›¶ï¼Œitemä¸ºéœ€è¦è¯„åˆ†çš„ç‰©ä½“,ä½¿ç”¨çš„æ˜¯åŸºäºç‰©å“çš„ç›¸ä¼¼åº¦
         overLap = nonzero(logical_and(dataMat[:,item].A>0, \
                                       dataMat[:,j].A>0))[0]
-        if len(overLap) == 0: similarity = 0 #Èç¹ûÁ½¸öÈËÃ»ÓĞ¹²Í¬µÄÎïÆ·´ò·Ö£¬ÔòÏàËÆ¶ÈÎª0
+        if len(overLap) == 0: similarity = 0 #å¦‚æœä¸¤ä¸ªäººæ²¡æœ‰å…±åŒçš„ç‰©å“æ‰“åˆ†ï¼Œåˆ™ç›¸ä¼¼åº¦ä¸º0
         else: similarity = simMeas(dataMat[overLap,item], \
-                                   dataMat[overLap,j])#·ñÔò¼ÆËãËüÃÇµÄÏàËÆ¶È
+                                   dataMat[overLap,j])#å¦åˆ™è®¡ç®—å®ƒä»¬çš„ç›¸ä¼¼åº¦
         #print 'the %d and %d similarity is: %f' % (item, j, similarity)
         simTotal += similarity #
         ratSimTotal += similarity * userRating
     if simTotal == 0: return 0
-    else: return ratSimTotal/simTotal  #ÇóËüÃÇ»ùÓÚÏàËÆ¶ÈµÄ¼ÓÈ¨Æ½¾ùÆÀ·Ö
+    else: return ratSimTotal/simTotal  #æ±‚å®ƒä»¬åŸºäºç›¸ä¼¼åº¦çš„åŠ æƒå¹³å‡è¯„åˆ†
     
-def svdEst(dataMat, user, simMeas, item):#»ùÓÚSVDµÄÆÀ·Ö¹À¼Æ,itemÎªĞèÒªÆÀ·ÖµÄÎïÌå,Ê¹ÓÃµÄÊÇ»ùÓÚÎïÆ·µÄÏàËÆ¶È
-    n = shape(dataMat)[1]#ÎïÆ·¸öÊı
+def svdEst(dataMat, user, simMeas, item):#åŸºäºSVDçš„è¯„åˆ†ä¼°è®¡,itemä¸ºéœ€è¦è¯„åˆ†çš„ç‰©ä½“,ä½¿ç”¨çš„æ˜¯åŸºäºç‰©å“çš„ç›¸ä¼¼åº¦
+    n = shape(dataMat)[1]#ç‰©å“ä¸ªæ•°
     simTotal = 0.0; ratSimTotal = 0.0
     U,Sigma,VT = la.svd(dataMat) #m*n
-    Sig4 = mat(eye(4)*Sigma[:4]) #arrange Sig4 into a diagonal matrix£¬Ãî£¬½«ĞĞÏòÁ¿×ªÎª¶Ô½Ç¾ØÕó
+    Sig4 = mat(eye(4)*Sigma[:4]) #arrange Sig4 into a diagonal matrixï¼Œå¦™ï¼Œå°†è¡Œå‘é‡è½¬ä¸ºå¯¹è§’çŸ©é˜µ
     xformedItems = dataMat.T * U[:,:4] * Sig4.I  #create transformed items
-    for j in range(n):#ÓĞµãÏñPCA°×»¯µÄÒâË¼
+    for j in range(n):#æœ‰ç‚¹åƒPCAç™½åŒ–çš„æ„æ€
         userRating = dataMat[user,j]
         if userRating == 0 or j==item: continue
         similarity = simMeas(xformedItems[item,:].T,\
@@ -76,13 +76,13 @@ def svdEst(dataMat, user, simMeas, item):#»ùÓÚSVDµÄÆÀ·Ö¹À¼Æ,itemÎªĞèÒªÆÀ·ÖµÄÎïÌå
     else: return ratSimTotal/simTotal
 
 def recommend(dataMat, user, N=3, simMeas=cosSim, estMethod=standEst):
-    unratedItems = nonzero(dataMat[user,:].A==0)[1]#find unrated items £¬Ñ°ÕÒÎ´ÆÀ¼¶µÄÎïÆ·
+    unratedItems = nonzero(dataMat[user,:].A==0)[1]#find unrated items ï¼Œå¯»æ‰¾æœªè¯„çº§çš„ç‰©å“
     if len(unratedItems) == 0: return 'you rated everything'
     itemScores = []
     for item in unratedItems:
-        estimatedScore = estMethod(dataMat, user, simMeas, item)#ÓÃ»§¶Ô¸ÃÖÖÎ´ÆÀ·ÖµÄÎïÆ·½øĞĞ·ÖÖµ¹À¼Æ
+        estimatedScore = estMethod(dataMat, user, simMeas, item)#ç”¨æˆ·å¯¹è¯¥ç§æœªè¯„åˆ†çš„ç‰©å“è¿›è¡Œåˆ†å€¼ä¼°è®¡
         itemScores.append((item, estimatedScore))
-    return sorted(itemScores, key=lambda jj: jj[1], reverse=True)[:N]  #Ñ°ÕÒÇ°N¸öÎ´ÆÀ¼¶µÄÎïÆ·
+    return sorted(itemScores, key=lambda jj: jj[1], reverse=True)[:N]  #å¯»æ‰¾å‰Nä¸ªæœªè¯„çº§çš„ç‰©å“
 
 def printMat(inMat, thresh=0.8):
     for i in range(32):
@@ -105,57 +105,57 @@ def imgCompress(numSV=3, thresh=0.8):
     U,Sigma,VT = la.svd(myMat)
     SigRecon = mat(zeros((numSV, numSV)))
     for k in range(numSV):#construct diagonal matrix from vector
-        SigRecon[k,k] = Sigma[k] #¶Ô½ÇÕó
-    reconMat = U[:,:numSV]*SigRecon*VT[:numSV,:] #È¡UÇ°numSVÁĞ£¬VTÇ°numSVĞĞ
+        SigRecon[k,k] = Sigma[k] #å¯¹è§’é˜µ
+    reconMat = U[:,:numSV]*SigRecon*VT[:numSV,:] #å–Uå‰numSVåˆ—ï¼ŒVTå‰numSVè¡Œ
     print "****reconstructed matrix using %d singular values******" % numSV
     printMat(reconMat, thresh)
     
-    print "***¶şÕßÖ®²î***"
+    print "***äºŒè€…ä¹‹å·®***"
     printMat(reconMat-myMat)
-    print "Îó²îÖ®ºÍ£º"+str(sum(abs(reconMat-myMat)>thresh))
+    print "è¯¯å·®ä¹‹å’Œï¼š"+str(sum(abs(reconMat-myMat)>thresh))
     
 if __name__=='__main__':
-    print "²âÊÔSVD:\n"
+    print "æµ‹è¯•SVD:\n"
     Data=loadExData()
     U,Sigma,VT=linalg.svd(Data)
     print "\nSigma:\n"
     print Sigma
     
-    sig3=mat([[Sigma[0],0,0],#Ö»È¡Ç°Èı¸ösigma
+    sig3=mat([[Sigma[0],0,0],#åªå–å‰ä¸‰ä¸ªsigma
               [0,Sigma[1],0],
               [0,0,Sigma[2]]]) 
     reconData=U[:,:3]*sig3*VT[:3,:]
     print reconData
     
     myMat=mat(loadExData()) #7*5
-    print "²âÊÔÅ·ÊÏÏàËÆ¶È£º\n"
+    print "æµ‹è¯•æ¬§æ°ç›¸ä¼¼åº¦ï¼š\n"
     print ecludSim(myMat[:,0], myMat[:,4])
     
-    print "²âÊÔÓàÏÒÏàËÆ¶È£º\n"
+    print "æµ‹è¯•ä½™å¼¦ç›¸ä¼¼åº¦ï¼š\n"
     print cosSim(myMat[:,0], myMat[:,4])
     
-    print "²âÊÔÆ¤¶ûÑ·ÏßĞÔÏàËÆ¶È£º\n"
+    print "æµ‹è¯•çš®å°”é€Šçº¿æ€§ç›¸ä¼¼åº¦ï¼š\n"
     print pearsSim(myMat[:,0], myMat[:,4])
     
     
-    print "²âÊÔÍÆ¼ö£º\n"
+    print "æµ‹è¯•æ¨èï¼š\n"
     myMat=mat(loadExData()) #7*5
     myMat[0,1]=myMat[0,0]=myMat[1,0]=myMat[2,0]=4
     myMat[3,3]=2
     print myMat
     
-    print "cosSim:"+str(recommend(myMat, 2)) #¶ÔµÚ¶ş¸öÓÃ»§½øĞĞÍÆ¼ö,¼´¾ØÕóµÚÈıĞĞ
-    print "ecludSim:"+str(recommend(myMat, 2,simMeas=ecludSim)) #¶ÔµÚ¶ş¸öÓÃ»§½øĞĞÍÆ¼ö,¼´¾ØÕóµÚÈıĞĞ
-    print "pearSim:"+str(recommend(myMat, 2,simMeas=pearsSim)) #¶ÔµÚ¶ş¸öÓÃ»§½øĞĞÍÆ¼ö,¼´¾ØÕóµÚÈıĞĞ
+    print "cosSim:"+str(recommend(myMat, 2)) #å¯¹ç¬¬äºŒä¸ªç”¨æˆ·è¿›è¡Œæ¨è,å³çŸ©é˜µç¬¬ä¸‰è¡Œ
+    print "ecludSim:"+str(recommend(myMat, 2,simMeas=ecludSim)) #å¯¹ç¬¬äºŒä¸ªç”¨æˆ·è¿›è¡Œæ¨è,å³çŸ©é˜µç¬¬ä¸‰è¡Œ
+    print "pearSim:"+str(recommend(myMat, 2,simMeas=pearsSim)) #å¯¹ç¬¬äºŒä¸ªç”¨æˆ·è¿›è¡Œæ¨è,å³çŸ©é˜µç¬¬ä¸‰è¡Œ
     
-    print "²âÊÔÓÃsvdÍÆ¼ö"
+    print "æµ‹è¯•ç”¨svdæ¨è"
     myMat=mat(loadExData2());
     U,Sigma,VT=la.svd(myMat)
     print "Sigma:\n"+str(Sigma)
     print sum(Sigma**2),sum(Sigma**2)*0.9
     print recommend(myMat, 1, estMethod=svdEst)
     
-    print "Í¼ÏñÑ¹Ëõ\n"
+    print "å›¾åƒå‹ç¼©\n"
     imgCompress(2)
     
    
