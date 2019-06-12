@@ -18,7 +18,7 @@ def tfidf(term, doc, dataset):
     """
     # 计算每个单词出现的频数
     count_of_each_term = [doc.count(w) for w in set(doc)]
-    # 当前词的词频
+    # 当前词的词频 = 词的出现次数/所有词的出现总数
     tf = float(doc.count(term))/sum(count_of_each_term)
     # 逆文档词频=文档总数/出现该词的文档数
     doc_list_has_term = [doc for doc in dataset if term in doc]
@@ -32,8 +32,8 @@ D = [a, abb, abc]
 print("tfidf:")
 print(tfidf("a", a, D)) # a在每个doc里都有,且在a只含"a",所以tfidf=0
 print(tfidf("b", abb, D)) # b夺abb中出现2次,所以tfidf较小
-print(tfidf("a", abc, D)) # abc中出山现a一次,所以tfidf
-print(tfidf("b", abc, D)) #
+print(tfidf("a", abc, D)) # a在abc中出山现一次,但在每个doc里都出现,所以tfidf=0
+print(tfidf("b", abc, D)) # b在abc中出现一次,但在abb中出现2次,所以tfidf较小
 print(tfidf("c", abc, D)) # c只在abc中出现,所以较大
 """
 0.0

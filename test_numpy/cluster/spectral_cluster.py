@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 import random
 
+np.random.seed(0)
 # 生成两个高斯分布训练样本用于测试
 # 构造第一类样本类
 mean1 = [0, 0]
@@ -28,7 +29,7 @@ data = np.asarray(data, dtype=np.float32)
 # 算法开始
 # 计算两两样本之间的权重矩阵,在真正使用场景中，样本很多，可以只计算邻接顶点的权重矩阵
 m, n = data.shape
-print("m:", m, "n:", n)
+print("m:", m, "n:", n) #m个样本, 每个样本n维
 distance = np.zeros((m, m), dtype=np.float32)
 
 for i in range(m):
@@ -47,7 +48,8 @@ for i in range(m):
     similarity[i, i] = 1  # 拉普拉斯矩阵的每一行和为0，对角线元素之为1
 
 # 计算拉普拉斯矩阵的前k个最小特征值
-[Q, V] = np.linalg.eig(similarity) # L = D - W, 求L的最小k个特征值对应的特征向量
+[Q, V] = np.linalg.eig(similarity) # L = D - W, 求L的最小k个特征值对应的特征向量,
+                                   # 其实也可以用svd分解来求解
 idx = Q.argsort()
 Q = Q[idx]
 V = V[:, idx]
@@ -68,5 +70,5 @@ for i in range(data.shape[0]):
         plt.plot(data[i, 0], data[i, 1], 'yo')
     elif clf.labels_[i] == 3:
         plt.plot(data[i, 0], data[i, 1], 'bo')
-
+plt.title("Spectral cluster")
 plt.show()

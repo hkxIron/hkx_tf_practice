@@ -21,10 +21,15 @@ x2 = x1 + np.random.normal(loc=0, scale=1, size=len(x1))
 
 def my_pca(X, k_components=2, whiten=False):
     """
+    # X: N*D, U:N*D, S:D*D, V^T:D*D
     X = U*S*(V^T)
     sigma = 1/N*(X^T)*X =(1/N)* V*S*(U^T)*U*S*V^T
           = (1/N)* V*(S*S)*(V^T) = V*(S*S/N)*(V^T)
-    我们只要得到变换矩阵V就行
+
+    由实对角矩阵必可对角化可知:
+    sigma = Ux* D *(Ux^T),因此可得: Ux = V, D = S*S/N,
+    即变换矩阵为奇异值分解的右奇异矩阵的转置V, 我们只要得到变换矩阵V就行
+
     那么新的数据:
     X_new = X * V = U * S * V^T * V = U * S
     V:[D,D]
@@ -36,12 +41,17 @@ def my_pca(X, k_components=2, whiten=False):
     :return:
     """
     n_samples = X.shape[0]
-    X_normal = X - np.mean(X, axis=0)
+    # 先进行中心化
+    x_mean = np.mean(X, axis=0)
+    X_normal = X - x_mean
+
     # 注意:SVD中,U, V并非相同维数
     # X_normal: N*D, U:N*D, S:D*D, VT:D*D
     U,S,VT = linalg.svd(X_normal)
     if whiten:
         """
+        白化操作:
+         
          下面的变换,十分巧妙
          X_new = X*V/sqrt(S*S/n_samples) 
          = X * V/S * sqrt(n_samples))
@@ -51,18 +61,20 @@ def my_pca(X, k_components=2, whiten=False):
         """
         X_new = U[:,:k_components]*math.sqrt(n_samples-1)
     else:
+        # 无白化操作
         # X_new = X * V = U * S * V^T * V = U * S
         X_new = U[:,:k_components]*S[:k_components]
         # 或者
         #X_new = X_normal @ VT.T[:, 0:k_components] # 取前k个元素
-
+    # 用奇异值的平方计算特征值
+    eigen_values = S[:k_components]**2/(n_samples-1)
     print("VT shape:", VT.shape, " S:",S.shape, " X_new:", X_new.shape)
-    return X_new, S[:k_components]**2/(n_samples-1)
+    return X_new, eigen_values, VT.T, x_mean
 
 def plot_simple_demo_my_pca():
     pylab.clf()
-    fig = pylab.figure(num=None, figsize=(20, 4))
-    pylab.subplot(141)
+    fig = pylab.figure(num=None, figsize=(25, 4))
+    pylab.subplot(151)
 
     title = "Original feature space"
     pylab.title(title)
@@ -87,12 +99,12 @@ def plot_simple_demo_my_pca():
 
     pylab.grid(True)
 
-    pylab.subplot(142)
+    pylab.subplot(152)
 
     X = np.c_[(x1, x2)] # X:[N, 2]
 
-    Xtrans, eigen_values = my_pca(X, k_components=2,whiten=False)
-    Xtrans_whiten, _ = my_pca(np.copy(X), k_components=2, whiten=True)
+    Xtrans, eigen_values, V, x_mean = my_pca(X, k_components=2,whiten=False)
+    Xtrans_whiten, _, _, _ = my_pca(np.copy(X), k_components=2, whiten=True)
 
     Xg = Xtrans[good]
     Xb = Xtrans[bad]
@@ -117,7 +129,7 @@ def plot_simple_demo_my_pca():
     Xg = Xtrans_whiten[good]
     Xb = Xtrans_whiten[bad]
     title = "Transformed feature space(whiten)"
-    pylab.subplot(143)
+    pylab.subplot(153)
     pylab.scatter( Xg[:, 0], Xg[:, 1], edgecolor="blue", facecolor="blue")
     pylab.scatter( Xb[:, 0], Xb[:, 1], edgecolor="red", facecolor="white")
 
@@ -127,19 +139,37 @@ def plot_simple_demo_my_pca():
     fig.axes[2].set_xlim(-6,6)
     fig.axes[2].set_ylim(-6,6)
 
+    # X_new_1d = X*V[:,0:1]
     title = "Transformed feature space(1-d)"
-    pylab.subplot(144)
+    pylab.subplot(154)
     pylab.scatter(Xg[:, 0], np.zeros(len(Xg)), edgecolor="blue", facecolor="blue")
     pylab.scatter(Xb[:, 0], np.zeros(len(Xb)), edgecolor="red", facecolor="white")
 
     pylab.title(title)
     pylab.xlabel("$X'$")
-    fig.axes[3].get_yaxis().set_visible(False)
+    fig.axes[3].get_yaxis().set_visible(True)
     fig.axes[3].set_xlim(-6,6)
     fig.axes[3].set_ylim(-6,6)
 
+    # X_new_1d = X*V[:,0:1]
+    # 重构信号
+    X_reconstruct = Xtrans[:,0:1]*(V[:,0:1].T)+x_mean
+    Xg = X_reconstruct[good]
+    Xb = X_reconstruct[bad]
+    title = "reconstruct from transformed feature space(1-d)"
+    pylab.xlabel("$X'$")
+    pylab.subplot(155)
+    pylab.scatter(Xg[:, 0], Xg[:,1], edgecolor="blue", facecolor="blue")
+    pylab.scatter(Xb[:, 0], Xb[:,1], edgecolor="red", facecolor="white")
 
-    pylab.grid(True)
+    pylab.title(title)
+    pylab.xlabel("$X'$")
+    fig.axes[4].get_yaxis().set_visible(True)
+    fig.axes[4].set_xlim(-6,10)
+    fig.axes[4].set_ylim(-6,10)
+
+
+    #pylab.grid(True)
     pylab.autoscale(tight=True)
     filename = "my_pca_demo.png"
     pylab.savefig(os.path.join(CHART_DIR, filename), bbox_inches="tight")
@@ -304,7 +334,7 @@ def plot_simple_demo_lda():
 
     #lda_inst = lda.LDA(n_components=1)
     lda_inst = LinearDiscriminantAnalysis(n_components=1)
-    Xtrans = lda_inst.fit_transform(X, good)
+    Xtrans = lda_inst.fit_transform(X, y=good) # 在此处传了label
 
     Xg = Xtrans[good]
     Xb = Xtrans[bad]
