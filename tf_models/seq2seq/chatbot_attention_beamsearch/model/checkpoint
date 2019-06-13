@@ -1,3 +1,0 @@
-model_checkpoint_path: "chatbot.ckpt-200"
-all_model_checkpoint_paths: "chatbot.ckpt-100"
-all_model_checkpoint_paths: "chatbot.ckpt-200"
