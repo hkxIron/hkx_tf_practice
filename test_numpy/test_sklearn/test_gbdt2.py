@@ -52,18 +52,18 @@ perform CV is performCV is True
 plot Feature Importance if printFeatureImportance is True
 """
 
-def modelfit(alg, dtrain, dtest, predictors, performCV=True, printFeatureImportance=True, cv_folds=5):
+def modelfit(alg, dtrain, dtest, X_columns, performCV=True, printFeatureImportance=True, cv_folds=5):
     # Fit the algorithm on the data
-    alg.fit(dtrain[predictors], dtrain['Disbursed'])
+    alg.fit(dtrain[X_columns], dtrain['Disbursed'])
 
     # Predict training set:
-    dtrain_predictions = alg.predict(dtrain[predictors])
-    dtrain_predprob = alg.predict_proba(dtrain[predictors])[:, 1]
+    dtrain_predictions = alg.predict(dtrain[X_columns])
+    dtrain_predprob = alg.predict_proba(dtrain[X_columns])[:, 1]
 
     # Perform cross-validation:
     if performCV:
         cv_score = cross_validation.cross_val_score(estimator=alg,
-                                                    X=dtrain[predictors],
+                                                    X=dtrain[X_columns],
                                                     y=dtrain['Disbursed'],
                                                     cv=cv_folds,
                                                     scoring='roc_auc')
@@ -78,7 +78,10 @@ def modelfit(alg, dtrain, dtest, predictors, performCV=True, printFeatureImporta
 
     # Print Feature Importance:
     if printFeatureImportance:
-        feat_imp = pd.Series(alg.feature_importances_, predictors).sort_values(ascending=False)
+        # 打印每个特征的重要性,并且排序
+        print("feature importance:", alg.feature_importances_)
+        feat_imp = pd.Series(data=alg.feature_importances_, index=X_columns)\
+            .sort_values(ascending=False)
         feat_imp.plot(kind='bar', title='Feature Importances')
         plt.ylabel('Feature Importance Score')
         plt.show()
@@ -150,7 +153,7 @@ Tune max_features
 """
 
 #Grid seach on subsample and max_features
-param_test2 = {'max_depth':range(5,16,2), 'min_samples_split':range(200,1001,200)}
+param_test2 = {'max_depth':np.array(range(5,16,2)), 'min_samples_split':np.array(range(200,1001,200)) }
 gsearch2 = GridSearchCV(estimator = GradientBoostingClassifier(learning_rate=0.1, n_estimators=60,
                                                 max_features='sqrt', subsample=0.8, random_state=10),
                        param_grid = param_test2, scoring='roc_auc',n_jobs=4,iid=False, cv=5)
@@ -229,8 +232,4 @@ gbm_tuned_4 = GradientBoostingClassifier(learning_rate=0.005, n_estimators=1500,
                                          min_samples_leaf=60, subsample=0.85, random_state=10, max_features=7,
                                          warm_start=True)
 modelfit(gbm_tuned_4, train, None, predictors, performCV=False)
-
-
-
-
 
