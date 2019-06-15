@@ -33,6 +33,7 @@ model.fit(X, y)
 plot_importance(model)
 pyplot.show()
 
+# 交叉验证
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import StratifiedKFold
 model = XGBClassifier()
