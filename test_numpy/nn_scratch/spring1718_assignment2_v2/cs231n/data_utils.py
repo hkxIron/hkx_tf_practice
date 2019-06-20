@@ -214,7 +214,7 @@ def load_tiny_imagenet(path, dtype=np.float32, subtract_mean=True):
 def load_models(models_dir):
     """
     Load saved models from disk. This will attempt to unpickle all files in a
-    directory; any files that give errors on unpickling (such as README.txt)
+    directory; any files that give errors on unpickling (such as README.md)
     will be skipped.
 
     Inputs:

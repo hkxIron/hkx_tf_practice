@@ -41,16 +41,16 @@ print(clf.feature_importances_)
   
 '''''测试结果的打印'''  
 answer = clf.predict(x_train) 
-print "x_train" 
+print("x_train")
 print(x_train) 
-print "answer" 
+print("answer")
 print(answer)
-print "y_train"  #13个点
+print("y_train")  #13个点
 print(y_train) 
-print "precision:" 
+print("precision:")_
 print(np.mean( answer == y_train))  #13
 tt=answer==y_train
-print "tt:",tt  
+print("tt:",tt)
 '''''准确率与召回率'''  
 precision, recall, thresholds = precision_recall_curve(y_train, clf.predict(x_train))  
 answer = clf.predict_proba(x)[:,1]  

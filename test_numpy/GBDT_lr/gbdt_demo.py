@@ -24,7 +24,8 @@ class Config(object):
     maxTreeNum=50
 
 def generate_data():
-    X, y = make_classification(n_samples=1000)
+    X, y = make_classification(n_samples=100)
+    print("X:",X.shape, " y:",y.shape) # x:[1000,20], y [1000,]
     #生成训练/测试数据
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5)
     #对于训练数据，前面一半作为训练GBDT，后一半用来训练LR
@@ -37,10 +38,11 @@ def main():
     gbdt=GBDT(config=config)
     gbdt.buildGbdt(X_train,y_train) #train gbdt
     trainDataFeatures=gbdt.generateFeatures(X_train_lr)
+    print("trainDataFeature shape:", trainDataFeatures.shape)
     testDataFeatures=gbdt.generateFeatures(X_test)
-    print len(trainDataFeatures[0])
+    # 训练GBDT+LR模型
     lrModel = LogisticRegression()
-    lrModel.fit(trainDataFeatures,y_train_lr)
+    lrModel.fit(trainDataFeatures, y_train_lr)
     #test model
     testLabel = lrModel.predict(testDataFeatures)
     accuracy = np.sum((np.array(testLabel)==np.array(y_test)))*1.0/len(y_test)
