@@ -57,11 +57,3 @@ params = grid_result.cv_results_['params']
 for mean, stdev, param in zip(means, stds, params):
     print("%f (%f) with: %r" % (mean, stdev, param)) 
 
-
-
-
-
-
-
-
-
