@@ -4,11 +4,12 @@ d = 6
 alpha = 5
 r1 = 0.6
 r2 = -16
+# yahoo官方 linucb代码
 
 class Policy():
 
     def __init__(self):
-        self.index_all = None
+        self.article_id_to_index = None
         self.Aa = None
         self.Aa_inv = None
         self.ba = None
@@ -16,29 +17,25 @@ class Policy():
         self.max_a = 0
         self.x =None
 
-    def set_articles(self, articles):
-
-        n_articles = len(articles)
-        self.index_all = {}
-        self.Aa = np.zeros((n_articles, d, d))
-        self.Aa_inv = np.zeros((n_articles, d, d))
-        self.ba = np.zeros((n_articles, d, 1))
-        self.theta = np.zeros((n_articles, d, 1))
+    def set_articles(self, article_id_to_embed_map):
+        # articles: id -> embedding map
+        n_articles = len(article_id_to_embed_map)
+        self.article_id_to_index = {}
+        self.Aa = np.zeros((n_articles, d, d)) # [k, d, d], k个arm, 每个arm d维
+        self.Aa_inv = np.zeros((n_articles, d, d)) # [k, d, d], k个arm, 每个arm d维
+        self.ba = np.zeros((n_articles, d, 1)) # [k, d, 1]
+        self.theta = np.zeros((n_articles, d, 1)) # [k, d, 1] , Aa*theta = ba
         i = 0
-        for key in articles:
-            self.index_all[key] = i
-            self.Aa[i] = np.identity(d)
+        for key in article_id_to_embed_map:
+            self.article_id_to_index[key] = i
+            self.Aa[i] = np.identity(d) # 每个 article有自己的Aa
             self.Aa_inv[i] = np.identity(d)
             self.ba[i] = np.zeros((d, 1))
             self.theta[i] = np.zeros((d, 1))
             i += 1
-        #pass
-
 
     def update(self, reward):
-        if reward == -1:
-            pass
-        elif reward == 1 or reward == 0:
+        if reward == 1 or reward == 0:
             if reward == 1:
                 r = r1
             else:
@@ -51,17 +48,28 @@ class Policy():
         else:
             pass
 
-    def recommend(self, time, user_features, choices):
+    def recommend(self, time, user_features, candidate_articles):
         #global max_a
         #global x
 
-        article_len = len(choices)
+        article_len = len(candidate_articles)
+        # user_feature为xt
+        self.x = np.array(user_features).reshape((d,1)) # x:[d, 1]
+        x_t = np.transpose(self.x) # x_t:[1, d]
+        article_indexs = [self.article_id_to_index[article] for article in candidate_articles] # list
 
-        self.x = np.array(user_features).reshape((d,1))
-        x_t = np.transpose(self.x)
-        index = [self.index_all[article] for article in choices]
-        UCB = np.matmul(np.transpose(self.theta[index],(0,2,1)), self.x) + alpha * np.sqrt(np.matmul(x_t, self.Aa_inv[index].dot(self.x)))
+        # 取前k个arm
+        # theta: [k, d, 1]
+        # x:[d, 1]
+        article_thetas = self.theta[article_indexs] # [k, d, 1]
+        article_thetas_trans = np.transpose(article_thetas, (0, 2 ,1)) # [k, 1, d]
+        exploitation = np.matmul(article_thetas_trans, self.x) # [k, 1, 1]
+        # xt:[1, d], Aa_inv:[k, d, d], x:[d, 1]
+        A_inv_x = self.Aa_inv[article_indexs].dot(self.x) # [k, d, 1]
+        exploration = np.sqrt(np.matmul(x_t, A_inv_x))
+
+        UCB = exploitation + alpha * exploration
 
         max_index = np.argmax(UCB)
-        max_a = index[max_index]
-        return choices[max_index]
+        max_a = article_indexs[max_index]
+        return candidate_articles[max_index]

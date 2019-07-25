@@ -34,35 +34,41 @@ from policy_hybrid import HybridLinUCB
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
-
-def process_line(policy, logline):
-    chosen = int(logline.pop(7)) # chosen article
+"""
+日志的意思是从众多article中选择了一个article后的reward
+"""
+def process_line(logline):
+    chosen = int(logline.pop(7)) # chosen article, pop后将会被删除
     reward = int(logline.pop(7)) # 0 or 1
     time = int(logline[0]) # timestamp
-    user_features = [float(x) for x in logline[1:7]]
+    user_features = [float(x) for x in logline[1:7]] # 用户特征
     articles = [int(x) for x in logline[7:]] # list of available article IDs
-    return reward, chosen, policy.recommend(time, user_features, articles)
+    return reward, chosen, time, user_features, articles
 
 
 def evaluate(policy, input_generator):
     score = 0.0
     impressions = 0.0
     n_lines = 0.0
+
     for line in input_generator:
         n_lines += 1
-        reward, chosen, calculated = process_line(policy, line.strip().split())
+        reward, chosen, time, user_features, articles = process_line(line.strip().split())
+        calculated = policy.recommend(time, user_features, articles)
+        # 如果计算的article 与实际上的 article相同
         if calculated == chosen:
             policy.update(reward)
             score += reward
             impressions += 1
         else:
             policy.update(-1)
+
     if impressions < 1:
         logger.info("No impressions were made.")
         return 0.0
     else:
         score /= impressions
-        logger.info("CTR achieved by the policy: %.5f" % score)
+        logger.info("CTR achieved by the policy: %.5f impressions:%d" % (score, impressions))
         return score
 
 
@@ -77,13 +83,15 @@ def import_from_file(f):
 
 def run(source, log_file, articles_file):
     #policy = import_from_file(source)
-    #policy = Policy()
-    policy = HybridLinUCB()
+    policy = Policy()
+    #policy = HybridLinUCB()
     articles_np = np.loadtxt(articles_file)
-    articles = {}
+    articles = {} # id -> embedding
     for art in articles_np:
+        # id -> embedding
         articles[int(art[0])] = [float(x) for x in art[1:]]
     policy.set_articles(articles)
+
     with io.open(log_file, 'rb', buffering=1024*1024*512) as inf:
         return evaluate(policy, inf)
 
