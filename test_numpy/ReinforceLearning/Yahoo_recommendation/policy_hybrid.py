@@ -30,9 +30,9 @@ class HybridLinUCB():
 		self.xaT = None
 		self.xa = None
 
-	def set_articles(self, articles):
+	def set_articles(self, article_id_to_embed_map):
 		i = 0
-		art_len = len(articles)
+		art_len = len(article_id_to_embed_map)
 		self.article_features = np.zeros((art_len, 1, self.d))
 		self.Aa = np.zeros((art_len, self.d, self.d))
 		self.AaI = np.zeros((art_len, self.d, self.d))
@@ -44,9 +44,12 @@ class HybridLinUCB():
 		self.A0IBaTAaI = np.zeros((art_len, self.k, self.d))
 		# self.AaIBaA0IBaTAaI = np.zeros((art_len, self.d, self.d))
 		self.theta = np.zeros((art_len, self.d, 1))
-		for key in articles:
+
+		# 在hybrid中，才使用了article的特征
+
+		for key in article_id_to_embed_map:
 			self.index_all[key] = i
-			self.article_features[i] = articles[key][:]
+			self.article_features[i] = article_id_to_embed_map[key][:]
 			self.Aa[i] = np.identity(self.d)
 			self.AaI[i] = np.identity(self.d)
 			self.Ba[i] = np.zeros((self.d, self.k))
@@ -58,7 +61,6 @@ class HybridLinUCB():
 			# self.AaIBaA0IBaTAaI[i] = np.zeros((self.d, self.d))
 			self.theta[i] = np.zeros((self.d, 1))
 			i += 1
-
 
 	def update(self, reward):
 		if reward == -1:
@@ -91,13 +93,13 @@ class HybridLinUCB():
 			pass
 
 
-	def recommend(self, timestamp, user_features, articles):
-		article_len = len(articles) # 20
+	def recommend(self, timestamp, user_features, candidate_articles):
+		article_len = len(candidate_articles) # 20
 
 		self.xa = np.array(user_features).reshape((self.d,1)) # (6,1)
 		self.xaT = np.transpose(self.xa) # (1,6)
 
-		index = [self.index_all[article] for article in articles]
+		index = [self.index_all[article] for article in candidate_articles]
 		article_features_tmp = self.article_features[index]
 
 		# za : feature of current user/article combination, k*1
@@ -122,7 +124,7 @@ class HybridLinUCB():
 		art_max = index[max_index]
 		self.a_max = art_max # article index with largest UCB
 
-		return articles[max_index]
+		return candidate_articles[max_index]
 
 
 def set_articles(articles):

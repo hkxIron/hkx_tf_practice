@@ -29,7 +29,7 @@ import numpy as np
 #import resource
 #import signal
 import sys
-from policy import Policy
+from policy_disjoint import DisjointPolicy
 from policy_hybrid import HybridLinUCB
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -61,6 +61,7 @@ def evaluate(policy, input_generator):
             score += reward
             impressions += 1
         else:
+            # 给予反向reward
             policy.update(-1)
 
     if impressions < 1:
@@ -83,7 +84,7 @@ def import_from_file(f):
 
 def run(source, log_file, articles_file):
     #policy = import_from_file(source)
-    policy = Policy()
+    policy = DisjointPolicy()
     #policy = HybridLinUCB()
     articles_np = np.loadtxt(articles_file)
     articles = {} # id -> embedding
@@ -106,7 +107,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '-articles_file', nargs='?', const="data/webscope-articles.txt", default="data/webscope-articles.txt", help='File containing the article features.')
     parser.add_argument(
-        '-source_file',  nargs='?',const="policy.py",default="policy.py", help='.py file implementing the policy.')
+        '-source_file',  nargs='?',const="policy_disjoint.py",default="policy_disjoint.py", help='.py file implementing the policy.')
     parser.add_argument(
         '-log',  nargs='?',const="log", default="log", help='Enable logging for debugging', action='store_true')
     args = parser.parse_args()
@@ -114,7 +115,7 @@ if __name__ == "__main__":
     #args = {}
     log_file = "data/webscope-logs.txt"
     articles_file = "data/webscope-articles.txt"
-    source_file = "policy.py"
+    source_file = "policy_disjoint.py"
     log = "log/1.txt"
     with open(source_file, "r") as fin:
         source = fin.read()

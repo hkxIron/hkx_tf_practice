@@ -6,7 +6,7 @@ r1 = 0.6
 r2 = -16
 # yahoo官方 linucb代码
 
-class Policy():
+class DisjointPolicy():
 
     def __init__(self):
         self.article_id_to_index = None
@@ -18,6 +18,10 @@ class Policy():
         self.x =None
 
     def set_articles(self, article_id_to_embed_map):
+        """
+        在Disjoint Linear Models中，article 的embeding并没有使用
+        """
+
         # articles: id -> embedding map
         n_articles = len(article_id_to_embed_map)
         self.article_id_to_index = {}
@@ -41,9 +45,16 @@ class Policy():
             else:
                 r = r2
             #print("max_a:", self.max_a, "Aa:", self.Aa," Aa[max_a]:", self.Aa[self.max_a])
+
+            """
+            用reward更新选中arm的参数
+            """
+            # x:[d, 1]
             self.Aa[self.max_a] += np.outer(self.x, self.x)
             self.Aa_inv[self.max_a] = np.linalg.inv(self.Aa[self.max_a])
+            # 更新arm的收益ba
             self.ba[self.max_a] += r * self.x
+            # 更瓣theta, Aa*theta = ba
             self.theta[self.max_a] = self.Aa_inv[self.max_a].dot(self.ba[self.max_a])
         else:
             pass
@@ -51,6 +62,8 @@ class Policy():
     def recommend(self, time, user_features, candidate_articles):
         #global max_a
         #global x
+
+        #TODO:注意：此处只用user有feature,而arm并没有feature
 
         article_len = len(candidate_articles)
         # user_feature为xt
@@ -68,6 +81,7 @@ class Policy():
         A_inv_x = self.Aa_inv[article_indexs].dot(self.x) # [k, d, 1]
         exploration = np.sqrt(np.matmul(x_t, A_inv_x))
 
+        # 所有的文章都算一次ucb，而只需要选出收益最大的即可
         UCB = exploitation + alpha * exploration
 
         max_index = np.argmax(UCB)
