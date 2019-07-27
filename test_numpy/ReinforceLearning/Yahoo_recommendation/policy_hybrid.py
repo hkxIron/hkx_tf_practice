@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class HybridLinUCB():
 	def __init__(self):
 		self.alpha = 2.1 # 1 + np.sqrt(np.log(2/delta)/2)
@@ -29,6 +28,7 @@ class HybridLinUCB():
 		self.zT = None
 		self.xaT = None
 		self.xa = None
+		print("class name:"+self.__class__.__name__)
 
 	def set_articles(self, article_id_to_embed_map):
 		i = 0
@@ -126,14 +126,3 @@ class HybridLinUCB():
 
 		return candidate_articles[max_index]
 
-
-def set_articles(articles):
-	global HybridLinUCB
-	HybridLinUCB = HybridLinUCB()
-	HybridLinUCB.set_articles(articles)
-
-def update(reward):
-	return HybridLinUCB.update(reward)
-
-def recommend(timestamp, user_features, articles):
-	return HybridLinUCB.recommend(timestamp, user_features, articles)

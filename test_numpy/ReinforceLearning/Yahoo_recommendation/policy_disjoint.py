@@ -2,8 +2,8 @@ import numpy as np
 
 d = 6
 alpha = 5
-r1 = 0.6
-r2 = -16
+r1 = 0.8
+r2 = -20
 # yahoo官方 linucb代码
 
 class DisjointPolicy():
@@ -16,6 +16,7 @@ class DisjointPolicy():
         self.theta = None
         self.max_a = 0
         self.x =None
+        print("class name:"+self.__class__.__name__)
 
     def set_articles(self, article_id_to_embed_map):
         """
@@ -85,5 +86,5 @@ class DisjointPolicy():
         UCB = exploitation + alpha * exploration
 
         max_index = np.argmax(UCB)
-        max_a = article_indexs[max_index]
+        self.max_a = article_indexs[max_index]
         return candidate_articles[max_index]

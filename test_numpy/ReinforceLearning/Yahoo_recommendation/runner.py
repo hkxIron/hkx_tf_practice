@@ -30,6 +30,7 @@ import numpy as np
 #import signal
 import sys
 from policy_disjoint import DisjointPolicy
+from policy_eplison_greedy import EplisionGreedy
 from policy_hybrid import HybridLinUCB
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -69,7 +70,7 @@ def evaluate(policy, input_generator):
         return 0.0
     else:
         score /= impressions
-        logger.info("CTR achieved by the policy: %.5f impressions:%d" % (score, impressions))
+        logger.info("CTR achieved by the policy [%s]: %.5f impressions:%d" % (policy.__class__.__name__, score, impressions))
         return score
 
 
@@ -84,17 +85,33 @@ def import_from_file(f):
 
 def run(source, log_file, articles_file):
     #policy = import_from_file(source)
-    policy = DisjointPolicy()
-    #policy = HybridLinUCB()
+    policy_eplision = EplisionGreedy()
+    policy_disjoint = DisjointPolicy()
+    policy_hybrid = HybridLinUCB()
     articles_np = np.loadtxt(articles_file)
     articles = {} # id -> embedding
     for art in articles_np:
         # id -> embedding
         articles[int(art[0])] = [float(x) for x in art[1:]]
-    policy.set_articles(articles)
+    policy_eplision.set_articles(articles)
+    policy_disjoint.set_articles(articles)
+    policy_hybrid.set_articles(articles)
 
-    with io.open(log_file, 'rb', buffering=1024*1024*512) as inf:
-        return evaluate(policy, inf)
+    with io.open(log_file, 'rb', buffering=1024*1024*512) as fin:
+         evaluate(policy_eplision, fin)
+         fin.seek(0)
+         evaluate(policy_disjoint, fin)
+         fin.seek(0)
+         evaluate(policy_hybrid, fin)
+
+
+"""
+令人吃惊的是,epsilon_greedy的表现居然有时很好,不过其对参数epsilon比较敏感
+
+INFO:__main__:CTR achieved by the policy [EplisionGreedy]: 0.04167 impressions:240
+INFO:__main__:CTR achieved by the policy [DisjointPolicy]: 0.03310 impressions:4924
+INFO:__main__:CTR achieved by the policy [HybridLinUCB]: 0.04195 impressions:4958
+"""
 
 
 if __name__ == "__main__":
@@ -113,10 +130,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     """
     #args = {}
+    np.random.seed(0)
     log_file = "data/webscope-logs.txt"
     articles_file = "data/webscope-articles.txt"
     source_file = "policy_disjoint.py"
     log = "log/1.txt"
-    with open(source_file, "r") as fin:
+    with open(source_file, "r", encoding="utf-8") as fin:
         source = fin.read()
     run(source, log_file, articles_file)
