@@ -46,7 +46,7 @@ class UCB():
         """
         # x:[d, 1]
         index = self.max_arm_index
-        self.confidence_bound[index] = alpha* np.log(np.sum(self.count)) / np.sqrt(self.count[index])
+        self.confidence_bound[index] = alpha* np.sqrt(np.log(np.sum(self.count)) / self.count[index])
         self.acc_reward_rate[index] = (self.acc_reward_rate[index]*self.count[index] + r)*1.0/(self.count[index]+1)
         self.acc_reward[index] += r
         self.count[index] +=1
