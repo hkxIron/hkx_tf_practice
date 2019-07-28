@@ -32,6 +32,7 @@ import sys
 from policy_disjoint import DisjointPolicy
 from policy_eplison_greedy import EplisionGreedy
 from policy_hybrid import HybridLinUCB
+from policy_ucb import UCB
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
@@ -66,7 +67,7 @@ def evaluate(policy, input_generator):
             policy.update(-1)
 
     if impressions < 1:
-        logger.info("No impressions were made.")
+        logger.info("policy:[%s], No impressions were made."%policy.__class__.__name__)
         return 0.0
     else:
         score /= impressions
@@ -88,17 +89,22 @@ def run(source, log_file, articles_file):
     policy_eplision = EplisionGreedy()
     policy_disjoint = DisjointPolicy()
     policy_hybrid = HybridLinUCB()
+    policy_ucb = UCB()
     articles_np = np.loadtxt(articles_file)
     articles = {} # id -> embedding
+
     for art in articles_np:
         # id -> embedding
         articles[int(art[0])] = [float(x) for x in art[1:]]
     policy_eplision.set_articles(articles)
     policy_disjoint.set_articles(articles)
     policy_hybrid.set_articles(articles)
+    policy_ucb.set_articles(articles)
 
     with io.open(log_file, 'rb', buffering=1024*1024*512) as fin:
          evaluate(policy_eplision, fin)
+         fin.seek(0)
+         evaluate(policy_ucb, fin)
          fin.seek(0)
          evaluate(policy_disjoint, fin)
          fin.seek(0)

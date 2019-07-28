@@ -20,7 +20,7 @@ class DisjointPolicy():
 
     def set_articles(self, article_id_to_embed_map):
         """
-        在Disjoint Linear Models中，article 的embeding并没有使用
+        TODO: 在Disjoint Linear Models中，article 的embeding并没有使用
         """
 
         # articles: id -> embedding map
@@ -64,12 +64,14 @@ class DisjointPolicy():
         #global max_a
         #global x
 
-        #TODO:注意：此处只用user有feature,而arm并没有feature
+        #TODO:注意：在disjoint中只用user有feature,而arm feature并没有用
 
         article_len = len(candidate_articles)
         # user_feature为xt
         self.x = np.array(user_features).reshape((d,1)) # x:[d, 1]
         x_t = np.transpose(self.x) # x_t:[1, d]
+
+        # 只从candidate 中取arm,而并未从所有的arm中取值
         article_indexs = [self.article_id_to_index[article] for article in candidate_articles] # list
 
         # 取前k个arm
@@ -80,6 +82,7 @@ class DisjointPolicy():
         exploitation = np.matmul(article_thetas_trans, self.x) # [k, 1, 1]
         # xt:[1, d], Aa_inv:[k, d, d], x:[d, 1]
         A_inv_x = self.Aa_inv[article_indexs].dot(self.x) # [k, d, 1]
+        # exploration: [k, 1, 1]
         exploration = np.sqrt(np.matmul(x_t, A_inv_x))
 
         # 所有的文章都算一次ucb，而只需要选出收益最大的即可
@@ -87,4 +90,4 @@ class DisjointPolicy():
 
         max_index = np.argmax(UCB)
         self.max_a = article_indexs[max_index]
-        return candidate_articles[max_index]
+        return article_indexs[max_index]
