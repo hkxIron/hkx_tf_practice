@@ -14,13 +14,13 @@ class DisjointPolicy():
         self.Aa_inv = None
         self.ba = None
         self.theta = None
-        self.max_a = 0
+        self.max_arm_index = 0
         self.x =None
         print("class name:"+self.__class__.__name__)
 
     def set_articles(self, article_id_to_embed_map):
         """
-        TODO: 在Disjoint Linear Models中，article 的embeding并没有使用
+         TODO: 在Disjoint Linear Models中，article 的embeding并没有使用
         """
 
         # articles: id -> embedding map
@@ -51,12 +51,12 @@ class DisjointPolicy():
             用reward更新选中arm的参数
             """
             # x:[d, 1]
-            self.Aa[self.max_a] += np.outer(self.x, self.x)
-            self.Aa_inv[self.max_a] = np.linalg.inv(self.Aa[self.max_a])
+            self.Aa[self.max_arm_index] += np.outer(self.x, self.x)
+            self.Aa_inv[self.max_arm_index] = np.linalg.inv(self.Aa[self.max_arm_index])
             # 更新arm的收益ba
-            self.ba[self.max_a] += r * self.x
+            self.ba[self.max_arm_index] += r * self.x
             # 更瓣theta, Aa*theta = ba
-            self.theta[self.max_a] = self.Aa_inv[self.max_a].dot(self.ba[self.max_a])
+            self.theta[self.max_arm_index] = self.Aa_inv[self.max_arm_index].dot(self.ba[self.max_arm_index])
         else:
             pass
 
@@ -64,30 +64,27 @@ class DisjointPolicy():
         #global max_a
         #global x
 
-        #TODO:注意：在disjoint中只用user有feature,而arm feature并没有用
+        # TODO:注意：在disjoint中只用user有feature,而arm feature并没有用
 
         article_len = len(candidate_articles)
         # user_feature为xt
         self.x = np.array(user_features).reshape((d,1)) # x:[d, 1]
         x_t = np.transpose(self.x) # x_t:[1, d]
-
-        # 只从candidate 中取arm,而并未从所有的arm中取值
-        article_indexs = [self.article_id_to_index[article] for article in candidate_articles] # list
+        candidate_article_indexs = [self.article_id_to_index[article] for article in candidate_articles] # list
 
         # 取前k个arm
         # theta: [k, d, 1]
         # x:[d, 1]
-        article_thetas = self.theta[article_indexs] # [k, d, 1]
+        article_thetas = self.theta[candidate_article_indexs] # [k, d, 1]
         article_thetas_trans = np.transpose(article_thetas, (0, 2 ,1)) # [k, 1, d]
         exploitation = np.matmul(article_thetas_trans, self.x) # [k, 1, 1]
         # xt:[1, d], Aa_inv:[k, d, d], x:[d, 1]
-        A_inv_x = self.Aa_inv[article_indexs].dot(self.x) # [k, d, 1]
-        # exploration: [k, 1, 1]
+        A_inv_x = self.Aa_inv[candidate_article_indexs].dot(self.x) # [k, d, 1]
         exploration = np.sqrt(np.matmul(x_t, A_inv_x))
 
         # 所有的文章都算一次ucb，而只需要选出收益最大的即可
-        UCB = exploitation + alpha * exploration
+        reward = exploitation + alpha * exploration
 
-        max_index = np.argmax(UCB)
-        self.max_a = article_indexs[max_index]
-        return article_indexs[max_index]
+        max_index = np.argmax(reward)
+        self.max_arm_index = candidate_article_indexs[max_index]
+        return candidate_articles[max_index]

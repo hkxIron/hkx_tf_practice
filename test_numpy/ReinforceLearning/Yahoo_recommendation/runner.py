@@ -58,11 +58,13 @@ def evaluate(policy, input_generator):
         reward, chosen, time, user_features, articles = process_line(line.strip().split())
         calculated = policy.recommend(time, user_features, articles)
         # 如果计算的article 与实际上的 article相同
+        # reward:命中article,此时有article点击与未点击情况
         if calculated == chosen:
             policy.update(reward)
             score += reward
             impressions += 1
         else:
+            # reward:未命中article
             # 给予反向reward
             policy.update(-1)
 
@@ -71,7 +73,8 @@ def evaluate(policy, input_generator):
         return 0.0
     else:
         score /= impressions
-        logger.info("CTR achieved by the policy [%s]: %.5f impressions:%d" % (policy.__class__.__name__, score, impressions))
+        logger.info("CTR achieved by the policy [%s]: %.5f impressions:%d imp_recall:%d" %
+                    (policy.__class__.__name__, score, impressions, score*impressions))
         return score
 
 
@@ -102,9 +105,9 @@ def run(source, log_file, articles_file):
     policy_ucb.set_articles(articles)
 
     with io.open(log_file, 'rb', buffering=1024*1024*512) as fin:
-         evaluate(policy_eplision, fin)
-         fin.seek(0)
          evaluate(policy_ucb, fin)
+         fin.seek(0)
+         evaluate(policy_eplision, fin)
          fin.seek(0)
          evaluate(policy_disjoint, fin)
          fin.seek(0)
@@ -114,9 +117,10 @@ def run(source, log_file, articles_file):
 """
 令人吃惊的是,epsilon_greedy的表现居然有时很好,不过其对参数epsilon比较敏感
 
-INFO:__main__:CTR achieved by the policy [EplisionGreedy]: 0.04167 impressions:240
-INFO:__main__:CTR achieved by the policy [DisjointPolicy]: 0.03310 impressions:4924
-INFO:__main__:CTR achieved by the policy [HybridLinUCB]: 0.04195 impressions:4958
+INFO:__main__:CTR achieved by the policy [UCB]: 0.03250 impressions:3323 imp_recall:108
+INFO:__main__:CTR achieved by the policy [EplisionGreedy]: 0.03336 impressions:3477 imp_recall:116
+INFO:__main__:CTR achieved by the policy [DisjointPolicy]: 0.03310 impressions:4924 imp_recall:162
+INFO:__main__:CTR achieved by the policy [HybridLinUCB]: 0.04195 impressions:4958 imp_recall:208
 """
 
 
