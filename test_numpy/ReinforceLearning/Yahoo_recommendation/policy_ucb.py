@@ -25,7 +25,7 @@ class UCB():
         self.acc_reward = np.zeros((n_articles, 1))
         self.count = np.ones((n_articles, 1))
         self.acc_reward_rate = np.zeros((n_articles, 1))
-        self.confidence_bound = alpha/np.ones((n_articles, 1))
+        self.confidence_bound = alpha/np.random.rand(n_articles, 1)
         self.article_list = []
 
         i = 0
@@ -35,6 +35,7 @@ class UCB():
             i+=1
 
     def update(self, reward):
+        #if reward !=0 and reward != 1: return
         if reward == 1:
             r = r1
         else:

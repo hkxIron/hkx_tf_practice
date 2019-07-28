@@ -34,6 +34,7 @@ class EplisionGreedy():
             i+=1
 
     def update(self, reward):
+        #if reward !=0 and reward != 1: return
         if reward == 1:
             r = r1
         else:
