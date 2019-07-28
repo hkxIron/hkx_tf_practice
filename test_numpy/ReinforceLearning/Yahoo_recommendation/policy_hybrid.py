@@ -6,7 +6,7 @@ class HybridLinUCB():
 		self.r1 = 0.8
 		self.r0 = -20
 		self.d = 6 # dimension of user features = d
-		self.k = self.d * self.d # dimension of article features = k
+		self.k = self.d * self.d # dimension of user-article features = k
 		self.article_features = {}
 		self.A0 = np.identity(self.k) # A0 : matrix to compute hybrid part, k*k
 		self.A0I = np.identity(self.k) # A0I: inverse of A0
@@ -22,8 +22,8 @@ class HybridLinUCB():
 		# self.AaIBaA0IBaTAaI = {}
 		self.theta = {}
 		self.beta = np.zeros((self.k, 1))
-		self.index_all = {}
-		self.a_max = None
+		self.article_id_to_index = {}
+		self.acticle_max_index = None
 		self.z = None
 		self.zT = None
 		self.xaT = None
@@ -45,10 +45,9 @@ class HybridLinUCB():
 		# self.AaIBaA0IBaTAaI = np.zeros((art_len, self.d, self.d))
 		self.theta = np.zeros((art_len, self.d, 1))
 
-		# 在hybrid中，才使用了article的特征
-
+		# TODO: 在hybrid中，才使用了article的embedding特征
 		for key in article_id_to_embed_map:
-			self.index_all[key] = i
+			self.article_id_to_index[key] = i
 			self.article_features[i] = article_id_to_embed_map[key][:]
 			self.Aa[i] = np.identity(self.d)
 			self.AaI[i] = np.identity(self.d)
@@ -71,20 +70,20 @@ class HybridLinUCB():
 			else:
 				r = self.r0
 
-			self.A0 += self.BaT[self.a_max].dot(self.AaIBa[self.a_max])
-			self.b0 += self.BaT[self.a_max].dot(self.AaIba[self.a_max])
-			self.Aa[self.a_max] += np.dot(self.xa, self.xaT)
-			self.AaI[self.a_max] = np.linalg.inv(self.Aa[self.a_max])
-			self.Ba[self.a_max] += np.dot(self.xa, self.zT)
-			self.BaT[self.a_max] = np.transpose(self.Ba[self.a_max])
-			self.ba[self.a_max] += r * self.xa
-			self.AaIba[self.a_max] = np.dot(self.AaI[self.a_max], self.ba[self.a_max])
-			self.AaIBa[self.a_max] = np.dot(self.AaI[self.a_max], self.Ba[self.a_max])
+			self.A0 += self.BaT[self.acticle_max_index].dot(self.AaIBa[self.acticle_max_index])
+			self.b0 += self.BaT[self.acticle_max_index].dot(self.AaIba[self.acticle_max_index])
+			self.Aa[self.acticle_max_index] += np.dot(self.xa, self.xaT)
+			self.AaI[self.acticle_max_index] = np.linalg.inv(self.Aa[self.acticle_max_index])
+			self.Ba[self.acticle_max_index] += np.dot(self.xa, self.zT)
+			self.BaT[self.acticle_max_index] = np.transpose(self.Ba[self.acticle_max_index])
+			self.ba[self.acticle_max_index] += r * self.xa
+			self.AaIba[self.acticle_max_index] = np.dot(self.AaI[self.acticle_max_index], self.ba[self.acticle_max_index])
+			self.AaIBa[self.acticle_max_index] = np.dot(self.AaI[self.acticle_max_index], self.Ba[self.acticle_max_index])
 
-			self.A0 += np.dot(self.z, self.zT) - np.dot(self.BaT[self.a_max], self.AaIBa[self.a_max])
-			self.b0 += r * self.z - np.dot(self.BaT[self.a_max], self.AaIba[self.a_max])
+			self.A0 += np.dot(self.z, self.zT) - np.dot(self.BaT[self.acticle_max_index], self.AaIBa[self.acticle_max_index])
+			self.b0 += r * self.z - np.dot(self.BaT[self.acticle_max_index], self.AaIba[self.acticle_max_index])
 			self.A0I = np.linalg.inv(self.A0)
-			self.A0IBaTAaI[self.a_max] = self.A0I.dot(self.BaT[self.a_max]).dot(self.AaI[self.a_max])
+			self.A0IBaTAaI[self.acticle_max_index] = self.A0I.dot(self.BaT[self.acticle_max_index]).dot(self.AaI[self.acticle_max_index])
 			# self.AaIBaA0IBaTAaI[self.a_max] = np.matmul(self.AaIBa[self.a_max], self.A0IBaTAaI[self.a_max])
 			self.beta = np.dot(self.A0I, self.b0)
 			self.theta = self.AaIba - np.dot(self.AaIBa, self.beta)
@@ -99,21 +98,25 @@ class HybridLinUCB():
 		self.xa = np.array(user_features).reshape((self.d,1)) # (6,1)
 		self.xaT = np.transpose(self.xa) # (1,6)
 
-		index = [self.index_all[article] for article in candidate_articles]
-		article_features_tmp = self.article_features[index]
+		candidate_article_indexs = [self.article_id_to_index[article] for article in candidate_articles]
+		# 这些embedding 特征是通过bilinear model训练出来的
+        # TODO: 此处使用了article的特征
+		article_features_tmp = self.article_features[candidate_article_indexs]
 
+		# TODO:za, 用户与文章的交叉特征
 		# za : feature of current user/article combination, k*1
-		za = np.outer(article_features_tmp.reshape(-1), self.xa).reshape((article_len,self.k,1)) # (20,36,1)
+		za = np.outer(article_features_tmp.reshape(-1), self.xa)\
+			.reshape((article_len,self.k,1)) # (20,36,1)
 		zaT = np.transpose(za, (0,2,1)) # (20,1,36)
 
 		A0Iza = np.matmul(self.A0I, za) # (20,36,1)
-		A0IBaTAaIxa = np.matmul(self.A0IBaTAaI[index], self.xa) # (20,36,1)
-		AaIxa = self.AaI[index].dot(self.xa) # (20,6,1)
-		AaIBaA0IBaTAaIxa = np.matmul(self.AaIBa[index], A0IBaTAaIxa) # (20,6,1)
-		# AaIBaA0IBaTAaIxa = np.matmul(self.AaIBaA0IBaTAaI[index], self.xa) # (20,6,1)
+		A0IBaTAaIxa = np.matmul(self.A0IBaTAaI[candidate_article_indexs], self.xa) # (20,36,1)
+		AaIxa = self.AaI[candidate_article_indexs].dot(self.xa) # (20,6,1)
+		AaIBaA0IBaTAaIxa = np.matmul(self.AaIBa[candidate_article_indexs], A0IBaTAaIxa) # (20,6,1)
+		# AaIBaA0IBaTAaIxa = np.matmul(self.AaIBaA0IBaTAaI[candidate_article_indexs], self.xa) # (20,6,1)
 
 		s = np.matmul(zaT, A0Iza - 2*A0IBaTAaIxa) + np.matmul(self.xaT, AaIxa + AaIBaA0IBaTAaIxa) # (20,1,1)
-		p = zaT.dot(self.beta) + np.matmul(self.xaT, self.theta[index]) + self.alpha*np.sqrt(s) # (20,1,1)
+		p = zaT.dot(self.beta) + np.matmul(self.xaT, self.theta[candidate_article_indexs]) + self.alpha*np.sqrt(s) # (20,1,1)
 		# assert (s < 0).any() == False
 		# assert np.isnan(np.sqrt(s)).any() == False
 
@@ -121,8 +124,8 @@ class HybridLinUCB():
 		max_index = np.argmax(p)
 		self.z = za[max_index]
 		self.zT = zaT[max_index]
-		art_max = index[max_index]
-		self.a_max = art_max # article index with largest UCB
+		art_max = candidate_article_indexs[max_index]
+		self.acticle_max_index = art_max # article candidate_article_indexs with largest UCB
 
 		return candidate_articles[max_index]
 
