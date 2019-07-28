@@ -95,6 +95,7 @@ class HybridLinUCB():
 	def recommend(self, timestamp, user_features, candidate_articles):
 		article_len = len(candidate_articles) # 20
 
+		# TODO: 此处与disjoint一样,使用了user_feature
 		self.xa = np.array(user_features).reshape((self.d,1)) # (6,1)
 		self.xaT = np.transpose(self.xa) # (1,6)
 
