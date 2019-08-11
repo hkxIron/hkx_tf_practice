@@ -68,7 +68,7 @@ class DisjointPolicy():
 
         # TODO:注意：在disjoint中只用user有feature,而arm feature并没有用
         article_len = len(candidate_articles)
-        # user_feature为xt
+        # user_feature为xt,即下面的文章序列均为同一个用户的行为序列
         self.x = np.array(user_features).reshape((d,1)) # x:[d, 1]
         x_t = np.transpose(self.x) # x_t:[1, d]
         candidate_article_indexs = [self.article_id_to_index[article] for article in candidate_articles] # list
