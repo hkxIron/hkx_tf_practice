@@ -69,23 +69,23 @@ class DisjointPolicy():
 
         # TODO:注意：在disjoint中只用user有feature,而arm feature并没有用
         article_len = len(candidate_articles)
-        # user_feature为xt,即下面的文章序列均为同一个用户的行为序列
+        # user_feature为xt,即下面的文章序列均为"同一个用户"的行为序列
         self.x = np.array(user_features).reshape((d,1)) # x:[d, 1]
         x_t = np.transpose(self.x) # x_t:[1, d]
         candidate_article_indexs = [self.article_id_to_index[article] for article in candidate_articles] # list
 
-        # 取目标arm的前k个arm序列
+        # 取目标arm前的k个arm序列
         # theta: [k, d, 1]
         # x:[d, 1]
         article_thetas = self.theta[candidate_article_indexs] # [k, d, 1]
         article_thetas_trans = np.transpose(article_thetas, (0, 2, 1)) # [k, 1, d]
         # 论文中算法1:p_{t,a}=theta*x_{t,a} + alpha*sqrt(x_{t,a}^T*A_a*x_{t,a})
-        exploitation = np.matmul(article_thetas_trans, self.x) # [k, 1, 1]
+        exploitation = np.matmul(article_thetas_trans, self.x) # [k, 1, 1],此处的x为user feature
         # xt:[1, d], Aa_inv:[k, d, d], x:[d, 1]
         A_inv_x = self.Aa_inv[candidate_article_indexs].dot(self.x) # [k, d, 1]
         exploration = np.sqrt(np.matmul(x_t, A_inv_x)) # [k, 1, 1]
 
-        # 所有的文章都算一次ucb，而只需要选出收益最大的即可
+        # 将前面的k个文章都算一次ucb，而只需要选出收益最大的即可
         reward = exploitation + alpha * exploration
 
         max_index = np.argmax(reward)
