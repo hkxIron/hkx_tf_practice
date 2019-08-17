@@ -60,6 +60,7 @@ class DisjointPolicy():
             # 更新theta,论文中算法1: Aa*theta = ba  => theta_a <- A_a^(-1)*ba
             self.theta[self.max_arm_index] = self.Aa_inv[self.max_arm_index].dot(self.ba[self.max_arm_index])
         else:
+            # 未命中arm,此次事件将被完全忽略
             pass
 
     def recommend(self, time, user_features, candidate_articles):

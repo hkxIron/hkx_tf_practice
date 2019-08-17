@@ -64,8 +64,7 @@ def evaluate(policy, input_generator):
             score += reward
             impressions += 1
         else:
-            # reward:未命中article
-            # 给予反向reward
+            # 在当前历史下未命中article,此次事件将被完全忽略
             policy.update(-1)
 
     if impressions < 1:

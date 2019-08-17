@@ -108,7 +108,7 @@ class HybridLinUCB():
 		# za : feature of current user/article combination, k*1
 		za = np.outer(article_features_tmp.reshape(-1), self.xa)\
 			.reshape((article_len,self.k,1)) # (20,36,1)
-		zaT = np.transpose(za, (0,2,1)) # (20,1,36)
+		zaT = np.transpose(za, (0,2,1)) # (20,1,36), 将交叉矩阵展开成一维向量
 
 		A0Iza = np.matmul(self.A0I, za) # (20,36,1)
 		A0IBaTAaIxa = np.matmul(self.A0IBaTAaI[candidate_article_indexs], self.xa) # (20,36,1)
@@ -117,7 +117,11 @@ class HybridLinUCB():
 		# AaIBaA0IBaTAaIxa = np.matmul(self.AaIBaA0IBaTAaI[candidate_article_indexs], self.xa) # (20,6,1)
 
 		s = np.matmul(zaT, A0Iza - 2*A0IBaTAaIxa) + np.matmul(self.xaT, AaIxa + AaIBaA0IBaTAaIxa) # (20,1,1)
-		p = zaT.dot(self.beta) + np.matmul(self.xaT, self.theta[candidate_article_indexs]) + self.alpha*np.sqrt(s) # (20,1,1)
+		exploration = self.alpha*np.sqrt(s) # (20,1,1)
+
+		exploitation =  zaT.dot(self.beta) + np.matmul(self.xaT, self.theta[candidate_article_indexs])
+
+		p = exploitation + exploration
 		# assert (s < 0).any() == False
 		# assert np.isnan(np.sqrt(s)).any() == False
 
