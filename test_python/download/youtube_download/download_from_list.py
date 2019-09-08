@@ -11,11 +11,20 @@ import os,sys
 import platform
 
 """
+error:"token" parameter not in video info for unknown reason
+需要去官网下载最新的bin:
+https://github.com/ytdl-org/youtube-dl
+"""
+
+"""
 D:\lunaWorkspace\old_bak\youtube_downloadProj>D:\lunaWorkspace\old_bak\youtube_d
 ownloadProj\youtube-dl.exe https://www.youtube.com/watch?v=NfnWJUyUJYU  --proxy "dev-proxy.oa.com:8080" 
   -o %(title).%(ext)  --write-auto-sub --verbose
   
-用法示例:python download_from_list.py list_advanced_deep_learning_and_reinforcelearning_2018.txt C:\\Users\kexin\youtube\
+用法示例:
+python download_from_list.py list_advanced_deep_learning_and_reinforcelearning_2018.txt C:\\Users\kexin\youtube\
+python download_from_list.py list_RL_david_silver_2015.txt C:\\Users\kexin\youtube\
+
 """
 
 #downloader=r"D:\public_code\hkx_tf_practice\test_python\youtube_download\youtube-dl.exe "
@@ -27,7 +36,9 @@ else: # Linux
     downloader=r"youtube-dl "
 
 #downloader=r"youtube-dl "  # linux
+#proxy = ' --proxy "dev-proxy.oa.com:8080" ' # 在公司，代理很好用
 proxy = ' --proxy "dev-proxy.oa.com:8080" ' # 在公司，代理很好用
+
 format = '_%(title)s_%(resolution)s.%(ext)s"  --write-auto-sub --verbose '
 
 def download(link_list, output_dir):
@@ -61,6 +72,7 @@ def read_link_list(link_list_file):
     link_list = []
     with open(link_list_file,"r") as fr:
         for line in fr.readlines():
+            # 不读取注释的
             if line.strip().startswith("#") or len(line.strip()) <=5: continue
             link_list.append(line.rstrip("\n"))
     return link_list
