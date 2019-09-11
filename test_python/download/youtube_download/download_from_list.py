@@ -25,6 +25,10 @@ ownloadProj\youtube-dl.exe https://www.youtube.com/watch?v=NfnWJUyUJYU  --proxy 
 python download_from_list.py list_advanced_deep_learning_and_reinforcelearning_2018.txt C:\\Users\kexin\youtube\
 python download_from_list.py list_RL_david_silver_2015.txt C:\\Users\kexin\youtube\
 
+
+利用ffmpeg从mkv转为mp4:
+ffmpeg -i '01_RL Course by David Silver - Lecture 2 - Markov Decision Process_1920x1080.mkv'  -strict -2 '01_RL Course by David Silver - Lecture 2 - Markov Decision Process_1920x1080.mp4'
+
 """
 
 #downloader=r"D:\public_code\hkx_tf_practice\test_python\youtube_download\youtube-dl.exe "
@@ -37,9 +41,12 @@ else: # Linux
 
 #downloader=r"youtube-dl "  # linux
 #proxy = ' --proxy "dev-proxy.oa.com:8080" ' # 在公司，代理很好用
-proxy = ' --proxy "dev-proxy.oa.com:8080" ' # 在公司，代理很好用
+proxy = ' --proxy "xx.yy.cn:1234" '
 
-format = '_%(title)s_%(resolution)s.%(ext)s"  --write-auto-sub --verbose '
+format = '_%(title)s_%(resolution)s.%(ext)s" '
+
+option=' --write-auto-sub --verbose '
+#option=' --write-auto-sub --verbose  --recode-video mp4 ' # 很多不能转为mp4
 
 def download(link_list, output_dir):
     if not os.path.exists(output_dir):
@@ -55,7 +62,7 @@ def download(link_list, output_dir):
     for link in link_list:
         prefix = str(index).zfill(2)  # 填充为两位
         print("begin to download: ", link)
-        cmd = downloader + link +" -o "+ os.path.join('"'+output_dir, prefix + format)
+        cmd = downloader + link +" -o "+ os.path.join('"'+output_dir, prefix + format+ option)
         if len(proxy) > 0:
             cmd += proxy
         print("cmd: ", cmd)
