@@ -38,7 +38,7 @@ grid.fit(X, y)
 
 print("Best: %f using %s" % (grid.best_score_, grid.best_params_))
 
-#Best: 0.673590 using {'lasso__alpha': 0.4, 'meta-randomforestregressor__n_estimators': 10, 'ridge__alpha
+#Best: 0.673590 using {'lasso__alpha': 0.4, 'meta-randomforestregressor__n_estimators': 10, 'ridge__alpha': 0.3
 
 cv_keys = ('mean_test_score', 'std_test_score', 'params')
 for r, _ in enumerate(grid.cv_results_['mean_test_score']):

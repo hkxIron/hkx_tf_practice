@@ -118,11 +118,15 @@ def plotROC3(predScore, labels):
 if __name__ == "__main__":
     np.random.seed(0)
     num = 10
-    score = np.random.rand(num)
+    score = np.random.rand(num) # 0.916
+    #score = np.random.rand(num)/2 # 0.916
+    #score = np.zeros(num) # 0.5
+    #score = np.zeros(num)+1 # 0.5
     label = np.random.randint(low=0,high=2,size=num)
-    fpr, tpr, thresholds = metrics.roc_curve(label, score) # sklearn中的tpr,fpr只将x轴变动时的记录下来了
-    auc = metrics.auc(fpr, tpr)
-    print("sklearn auc:", auc," fpr:", fpr, " tpr:", tpr)
     plotROC1(score, label)
     plotROC2(score, label)
     plotROC3(score, label)
+    print('================')
+    fpr, tpr, thresholds = metrics.roc_curve(label, score) # sklearn中的tpr,fpr只将x轴变动时的记录下来了
+    auc = metrics.auc(fpr, tpr)
+    print("sklearn auc:", auc," fpr:", fpr, " tpr:", tpr)
