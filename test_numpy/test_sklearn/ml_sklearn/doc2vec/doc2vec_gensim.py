@@ -37,7 +37,7 @@ def get_dataset():
         #treat punctuation as individual words
         for c in punctuation:
             corpus = [z.replace(c, ' %s '%c) for z in corpus]
-        corpus = [z.split() for z in corpus]
+        corpus = [z.split() for z in corpus] # 二维矩阵,每一行是一个句子所有token的序列
         return corpus
 
     x_train = cleanText(x_train)
@@ -68,10 +68,12 @@ def getVecs(model, corpus, size):
 ##对数据进行训练
 def train(x_train,x_test,unsup_reviews,size = 400,epoch_num=10):
     #实例DM和DBOW模型
+    model_word2vec = gensim.models.Word2Vec(min_count=1, window=10, size=size, sample=1e-3, negative=5, workers=3)
     model_dm = gensim.models.Doc2Vec(min_count=1, window=10, size=size, sample=1e-3, negative=5, workers=3)
     model_dbow = gensim.models.Doc2Vec(min_count=1, window=10, size=size, sample=1e-3, negative=5, dm=0, workers=3)
 
-    #使用所有的数据建立词典
+    # 使用所有的数据建立词典
+    # x_train:二维矩阵,每一行是一个句子所有token的序列
     model_dm.build_vocab(np.concatenate((x_train, x_test, unsup_reviews)))
     model_dbow.build_vocab(np.concatenate((x_train, x_test, unsup_reviews)))
 
