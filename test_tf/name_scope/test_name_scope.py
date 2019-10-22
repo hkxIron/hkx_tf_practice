@@ -44,11 +44,12 @@ def t2_1():
 
     # 下面来共享上面已经定义好的变量
     # note: 在下面的 scope 中的get_variable()变量必须已经定义过了，才能设置 reuse=True，否则会报错
-    with tf.variable_scope('v_scope2') as scope2:
+    with tf.variable_scope('v_scope2') as scope2: # 如果variable_scope变了，那它们就不是同一个变量
         Weights2 = tf.get_variable('Weights', shape=[2,3])
 
     print(Weights1.name) # v_scope/Weights:0
     print(Weights2.name) # v_scope2/Weights:0
+    print(id(Weights1) == id(Weights2)) # False, 未共用embedding
 
 def t3():
     import tensorflow as tf
@@ -76,7 +77,22 @@ def t3():
 
     tf.get_variable_scope().reuse_variables() # 设置变量重用
     weight_var5 = tf.get_variable('v_scope/Weights')  # v_scope/Weights:0,
+    print("weight_var==weight_var5:", id(weight_var) == id(weight_var5))
     print("var5:",weight_var5.name) # v_scope/Weights:0, 获取的是var1的值
+
+    # 重用Weights变量
+    with tf.variable_scope('v_scope', tf.AUTO_REUSE) as scope2:
+        weight_var = tf.get_variable('Weights',shape=[2,3])
+        print("v_scope_deep/var1:", weight_var.name) # v_scope/Weights:0
+        print("weight_var==weight_var5:", id(weight_var) == id(weight_var5))
+
+    """ 
+    # 会出错
+    with tf.variable_scope('deep', tf.AUTO_REUSE):
+        weight_var_deep = tf.get_variable('Weights',shape=[2,3])
+        print("v_scope_deep/var1:", weight_var_deep.name) # v_scope/Weights:0
+        print("weight_var==weight_var5:", id(weight_var_deep) == id(weight_var5))
+    """
 
     init = tf.global_variables_initializer()
     sess.run(init)
@@ -129,9 +145,9 @@ def test_abs_name_scope():
                         e = tf.constant(50.0, name="e")
                     assert e.op.name == "e"
 
-t2_1()
+#t2_1()
 #t2()
-#t3()
+t3()
 #t4()
 
 #test_abs_name_scope()
