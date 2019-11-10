@@ -42,23 +42,27 @@ y2p = clf.predict(x2)
 
 scores = []
 #for train, test in KFold(len(y), n_splits=5):
-for train, test in KFold(n_splits=5):
+for train, test in KFold(n_splits=5).split(x):
     xtrain, xtest, ytrain, ytest = x[train], x[test], y[train], y[test]
 
-    b = SelectKBest(f_regression, k=2)
+    # 1.进行特征选择
+    b = SelectKBest(f_regression, k=2) #选择最好的两个特征列
     b.fit(xtrain, ytrain)
+    print(b.get_support()) # [False False False ... False False False]
+    
+    # 2.使用选择后的特征进行训练
     xtrain = xtrain[:, b.get_support()]
     xtest = xtest[:, b.get_support()]
-
     clf.fit(xtrain, ytrain)
     scores.append(clf.score(xtest, ytest))
 
     yp = clf.predict(xtest)
-    plt.plot(yp, ytest, 'o')
-    plt.plot(ytest, ytest, 'r-')
+    
+    plt.plot(yp, ytest, 'o') # test集上预测
+    
+    plt.plot(ytest, ytest, 'r-') # 真实的label
 
 plt.xlabel("Predicted")
 plt.ylabel("Observed")
 
 print("CV Score is ", np.mean(scores))
-
