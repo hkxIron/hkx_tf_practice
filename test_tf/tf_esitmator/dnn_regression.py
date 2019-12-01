@@ -59,10 +59,8 @@ def main(argv):
   # `categorical_column_with_vocabulary_file`). For features covering a
   # range of positive integers use `categorical_column_with_identity`.
   body_style_vocab = ["hardtop", "wagon", "sedan", "hatchback", "convertible"]
-  body_style = tf.feature_column.categorical_column_with_vocabulary_list(
-      key="body-style", vocabulary_list=body_style_vocab)
-  make = tf.feature_column.categorical_column_with_hash_bucket(
-      key="make", hash_bucket_size=50)
+  body_style = tf.feature_column.categorical_column_with_vocabulary_list(key="body-style", vocabulary_list=body_style_vocab)
+  make = tf.feature_column.categorical_column_with_hash_bucket(key="make", hash_bucket_size=50)
 
   feature_columns = [
       tf.feature_column.numeric_column(key="curb-weight"),
@@ -79,8 +77,7 @@ def main(argv):
 
   # Build a DNNRegressor, with 2x20-unit hidden layers, with the feature columns
   # defined above as input.
-  model = tf.estimator.DNNRegressor(
-      hidden_units=[20, 20], feature_columns=feature_columns)
+  model = tf.estimator.DNNRegressor(hidden_units=[20, 20], feature_columns=feature_columns)
 
   # Train the model.
   model.train(input_fn=input_train, steps=STEPS)
