@@ -138,63 +138,46 @@ node* connect_head_tail_by_reverse(node* pList) {
     return pList;
 }
 
+node* get_list(int*a, int len) {
+    node* head;
+    node* pre = NULL;
+    for(int i=0;i<len;i++){
+        node* p = new node();
+        p->x = a[i];
+        if(pre==NULL) head = p;
+        else pre->next = p;
+        pre=p;
+    }
+    return head;
+}
+
 int main(){
     {
         int a[] = {1,2, 3, 4, 5 ,6 };
         int len = sizeof(a)/sizeof(int);
-        node* head;
-        node* pre = NULL;
-        for(int i=0;i<len;i++){
-            node* p = new node();
-            p->x = a[i];
-            if(pre==NULL) head = p;
-            else pre->next = p;
-            pre=p;
-        }
+        node* head = get_list(a, len);
         print(head);
-        //----------
         print(connect_head_tail(head));
-    }
-
-    {
-
-        std::cout<<"------------"<<std::endl;
-        int a[] = {1,2, 3, 4, 5};
-        int len = sizeof(a)/sizeof(int);
-        node* head;
-        node* pre = NULL;
-        for(int i=0;i<len;i++){
-            node* p = new node();
-            p->x = a[i];
-            if(pre==NULL) head = p;
-            else pre->next = p;
-            pre=p;
-        }
-        print(head);
-        //----------
-        print(connect_head_tail(head));
-
     }
 
     {
         std::cout<<"------------"<<std::endl;
-        int a[] = {1,2, 3, 4, 5,6};
+        int a[] = {1,2, 3, 4, 5};
         int len = sizeof(a)/sizeof(int);
-        node* head;
-        node* pre = NULL;
-        for(int i=0;i<len;i++){
-            node* p = new node();
-            p->x = a[i];
-            if(pre==NULL) head = p;
-            else pre->next = p;
-            pre=p;
-        }
+        node* head = get_list(a, len);
         print(head);
-        //----------
+        print(connect_head_tail(head));
+    }
+
+    {
+        std::cout<<"------------"<<std::endl;
+        int a[] = {1,2, 3, 4, 5, 6};
+        int len = sizeof(a)/sizeof(int);
+        node* head = get_list(a, len);
+        print(head);
         print(connect_head_tail_by_reverse(head));
     }
-
-    /**
+/**
  1 2 3 4 5 6
  1 6 2 5 3 4
 ------------
