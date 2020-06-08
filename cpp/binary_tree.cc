@@ -199,6 +199,15 @@ void pre_mirror(tree* root){
     pre_mirror(root->right);
 }
 
+// 求树的最小深度(层次遍历情况下,找到第一个两个孩子节点为空的节点深度)
+int min_depth(tree* root){
+    if(root==NULL) return 0;
+    int left_depth = min_depth(root->left);
+    int right_depth = min_depth(root->right);
+    // 因为当前结点不为空，那么 深度是子树 + 1
+    return std::min(left_depth, right_depth) + 1;
+}
+
 // 求树的深度
 int depth(tree* root){
     if(root==NULL) return 0;
@@ -523,6 +532,7 @@ int main(){
         char a[100]="abchk###m##dei##g##f#l##j##"; //从先序序列（含有#）中建立二叉树 
         char* p_str=a;
         tree* root=create_tree(p_str);
+        cout<<"\ntree min depth:"<<min_depth(root)<<endl;
         cout<<"\n层次访问二叉树:"<<endl;
         level_visit_tree(root, visit);
         cout<<"\nzig zag访问二叉树:"<<endl;
