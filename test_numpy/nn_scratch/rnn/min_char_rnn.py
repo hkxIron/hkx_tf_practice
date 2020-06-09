@@ -113,7 +113,9 @@ def lossFun(inputs, targets, hprev):
     # L_t = -sum_{k}{label_{k}*log(p_{k})}, 其中t为时间步,k为标签类别
     # 对于第t个时间步
     # p = softmax(y)
-    # y = Why*h+by =>
+    # y = Why*h+by
+    # h(t) = tanh(Whx * x(t) + Whh * h(t - 1) + bh)
+    # =>
     #   dL/dWhy = dL/dy*h,
     #   dL/dby = dL/dy
     #   dL/dh = dL/dy*Why
@@ -162,7 +164,7 @@ def lossFun(inputs, targets, hprev):
     dWhh += np.dot(dhraw, hs[t-1].T)
     # Whh:[hidden_size, hidden_size]
     # dhraw:[hidden_size, batch_size=1]
-    # dhnext = [hidden_size, hidden_size]
+    # dhnext = [hidden_size, batch_size=1]
     dhnext = np.dot(Whh.T, dhraw) # 注意:在最后时更新t-1的dhnext
 
   for dparam in [dWxh, dWhh, dWhy, dbh, dby]:
@@ -174,7 +176,9 @@ def gradCheck(inputs, target, hprev):
   global Wxh, Whh, Why, bh, by
   num_checks, delta = 10, 1e-5
   _, dWxh, dWhh, dWhy, dbh, dby, _ = lossFun(inputs, targets, hprev)
-  for param,dparam,name in zip([Wxh, Whh, Why, bh, by], [dWxh, dWhh, dWhy, dbh, dby], ['Wxh', 'Whh', 'Why', 'bh', 'by']):
+  for param,dparam,name in zip([Wxh, Whh, Why, bh, by],
+                               [dWxh, dWhh, dWhy, dbh, dby],
+                               ['Wxh', 'Whh', 'Why', 'bh', 'by']):
     s0 = dparam.shape
     s1 = param.shape
     assert(s0 == s1, 'Error dims dont match: %s and %s.'%(s0, s1))
@@ -191,9 +195,12 @@ def gradCheck(inputs, target, hprev):
       # fetch both numerical and analytic gradient
       grad_analytic = dparam.flat[ri]
       grad_numerical = (cg0 - cg1) / ( 2 * delta )
-      rel_error = abs(grad_analytic - grad_numerical) / abs(grad_numerical + grad_analytic)
-      print('%f, %f => %e ' % (grad_numerical, grad_analytic, rel_error))
-      # rel_error should be on order of 1e-7 or less
+      grad_sum_abs =  abs(grad_numerical + grad_analytic)
+      if grad_sum_abs>0:
+        rel_error = abs(grad_analytic - grad_numerical) / grad_sum_abs
+        check_flag = rel_error <= 1e-7
+        print('%f, %f => %e , check_flag:%s' % (grad_numerical, grad_analytic, rel_error, check_flag))
+        # rel_error should be on order of 1e-7 or less
 
 def sample(h, seed_ix, n):
   """ 
@@ -202,7 +209,7 @@ def sample(h, seed_ix, n):
   """
   batch_size = 1
   x = np.zeros((vocab_size, batch_size))
-  x[seed_ix] = 1 # 当前输入的字符char
+  x[seed_ix] = 1 # 当前输入的字符char作为初始的seed
   word_indexs = []
   for t in range(n):
     # 做一次前向传播
@@ -232,6 +239,8 @@ while True:
 
   # sample from the model now and then
   if iter % 100 == 0:
+    if iter == 0:
+      gradCheck(inputs, targets[0], hprev)
     # 每100次从model中进行采样
     sample_ix = sample(hprev, inputs[0], 200)
     txt = ''.join(ix_to_char[ix] for ix in sample_ix)
