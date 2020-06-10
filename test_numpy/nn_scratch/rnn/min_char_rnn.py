@@ -125,7 +125,7 @@ def lossFun(inputs, targets, hprev):
     #   dhnext= dL/dh(t)
     #         = dL/dh(t+1)* dtanh* Whh
     #         = dhraw *Whh
-    # 对于最后一个时间步T, dhnext=0
+    # 注意:对于最后一个时间步T, 因此dhnext=0
     # 当前时间步对ht的梯度:dL/dh = dL/dy * Why
     # 因此,总dL/dh梯度: dL/dh = dL/dy*Why + dhnext
     #
