@@ -466,7 +466,7 @@ class Model(object):
         return loss
 
     def infer(self, sess, batch):
-
+        # infer与eval相同,但只要predict,而不需要loss
         feed_dict = {self.enc_seq: batch['enc_seq'],
                      self.enc_seq_length: batch['enc_seq_length'],
                      self.target_seq_index: batch['target_seq'],
@@ -477,6 +477,9 @@ class Model(object):
 
     def attention(self, ref_encoders, query, with_softmax, scope="attention"):
         """
+        u_i= V^T*tanh(W_decoder*query + W_encoder* encoder_hidden_i) + bias
+        attention_i = softmax(u_i)
+
         :param ref_encoders: encoder的输出, [batch, max_enc_length, hidden]
         :param query: decoder的输入, [batch, hidden]
         :param with_softmax:
