@@ -18,6 +18,8 @@ print("X:",X)
 cell = tf.contrib.rnn.BasicLSTMCell(num_units=hidden_size, state_is_tuple=True)
 initial_state = cell.zero_state(batch_size, dtype=tf.float64)
 
+# output_all_hidden_states: [batch_size, timestep_size, hidden_size]
+# last_cell_and_hidden_state: {c: [batch_size, hidden_size] h:[batch_size, hidden_size]}
 output_all_hidden_states, last_cell_and_hidden_state = tf.nn.dynamic_rnn(  # 准确的讲是: all_hidden_state, last_cell_and_hidden_state
     cell=cell,
     dtype=tf.float64,
@@ -39,8 +41,9 @@ with tf.Session() as sess:
     print("state_c:", sess.run(state_c)) # (batch, hidden)
 
 
-print("result: ", result) # output_all_hidden_states: (batch_size, timestep_size, hidden_size)
-# last_cell_and_hidden_state: c: (batch_size, hidden_size) h:(batch_size, hidden_size)
+print("result: ", result)
+# output_all_hidden_states: [batch_size, timestep_size, hidden_size]
+# last_cell_and_hidden_state: c: [batch_size, hidden_size] h:[batch_size, hidden_size]
 assert(result[0]["output_all_hidden_states"].shape == (batch_size, timestep_size, hidden_size))
 # 第二个example中的outputs超过6步(7-10步)的值应该为0
 assert((result[0]["output_all_hidden_states"][1,7,:] == np.zeros(cell.output_size)).all())
