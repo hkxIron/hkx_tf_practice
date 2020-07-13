@@ -5,6 +5,7 @@ from tensorflow.contrib import rnn
 from tensorflow.python.util import nest
 from tensorflow.python.framework import dtypes
 # https://github.com/princewen/tensorflow_practice/blob/master/RL/myPtrNetwork/README.md
+# https://www.jianshu.com/p/2ad389e91467
 
 LSTMCell = rnn.LSTMCell
 MultiRNNCell = rnn.MultiRNNCell
@@ -166,7 +167,7 @@ class Model(object):
         # embeded_enc_inputs: [batch, out_height=1, out_width=seq_length=max_enc_length, output_channel=hidden_dim=256]
         #                  => [batch, seq_length=max_enc_length, hidden_dim=256]
         #
-        # 可以看出来,作者选用的是1*1的卷积,即基于单像素在不同通道上的卷积,两个通道分别代表[x,y]坐标
+        # 理解:可以看出来,作者选用的是1*1的卷积,即基于单像素在不同通道上的卷积,两个通道分别代表[x,y]坐标
         self.embeded_enc_inputs = tf.nn.conv1d(value=self.enc_seq,
                                                filters=input_embed,
                                                stride=1,
@@ -199,11 +200,12 @@ class Model(object):
             # 给最开头添加一个结束标记，同时这个标记也将作为decoder的初始输入
             # first_decoder_input:[batch_size, seq_length=1, hidden_dim]
             self.first_decoder_input = tf.expand_dims(
-                input=trainable_initial_state(self.batch_size, self.hidden_dim, name="first_decoder_input"),
-                axis=1)
+                input=trainable_initial_state(self.batch_size, self.hidden_dim, name="first_decoder_input"), # 未指定initializer, 因此值都是0
+                axis=1
+            )
 
             # 0 index indicates terminal, 第0个元素代表终结符
-            # first_decoder_input: [batch_size,1,hidden_dim]
+            # first_decoder_input: [batch_size, seq_length=1, hidden_dim]
             # encoder_outputs: [batch_size, seq_length=max_enc_length, hidden_dim]
             #               => [batch_size, 1+seq_length, hidden_dim]
             self.encoder_outputs = tf.concat(values=[self.first_decoder_input, self.encoder_outputs],
@@ -211,8 +213,16 @@ class Model(object):
 
         # -----------------decoder 训练--------------------
         """
+        在seq2seq中: 知识就是力量 
+                 => <SOS> knowledge is power <EOS>
+                 
+        seq2seq中decoder的输入是另外一种embedding,
         与seq2seq不同的是，pointer-network的输入并不是target序列的embedding，
-        而是根据target序列的值选择相应位置的encoder的输出。
+        而是根据target序列的值选择相应位置的encoder的输出作为decoder的输入。
+        
+        1 2 3 4 =>
+                  <SOS> 1 4 2 1
+        
         
         我们知道encoder的输出长度在添加了开始输出之后形状为:[batch, 1+max_enc_seq_length, hidden_dim]。
         现在假设我们拿第一条记录进行训练,第一条记录输入的是点[<=,1,2,3,4]的xy坐标序列:
@@ -477,6 +487,7 @@ class Model(object):
 
     def attention(self, ref_encoders, query, with_softmax, scope="attention"):
         """
+        从后来transformer的角度来看,Key=ref, Value=ref, Query = query
         u_i= V^T*tanh(W_decoder*query + W_encoder* encoder_hidden_i) + bias
         attention_i = softmax(u_i)
 
@@ -487,12 +498,12 @@ class Model(object):
         :return: [batch, max_enc_length]
         """
         with tf.variable_scope(scope):
-            W_encoder = tf.get_variable("W_e", [self.hidden_dim, self.attention_dim], initializer=self.initializer)  # [hidden, atten_dim]
+            W_encoder = tf.get_variable("W_e", [self.hidden_dim, self.attention_dim], initializer=self.initializer) # [hidden, atten_dim]
             W_decoder = tf.get_variable("W_d", [self.hidden_dim, self.attention_dim], initializer=self.initializer) # [hidden, atten_dim]
             # query: [batch, hidden]
             # W_decoder:[hidden, attention_dim]
             # decoder_portion: [batch, attention_dim=20]
-            decoder_portion = tf.matmul(query, W_decoder) # query转换到attention空间
+            decoder_portion = tf.matmul(query, W_decoder) # 将decoder里的query转换到attention空间
 
             scores = [] # [max_enc_length+1, batch]
             # v_blend:[atten_dim,1]
@@ -507,18 +518,18 @@ class Model(object):
                 # refi: [batch, atten_dim],我感觉这里存在这很多重复计算
                 refi = tf.matmul(tf.squeeze(ref_encoders[:, i, :]), W_encoder) # 此行是将ref_encoder转换到attention空间
 
-                # decoder_portion: [batch, attention_dim=20]
+                # decoder_portion: [batch, atten_dim=20]
                 # refi: [batch, atten_dim]
                 # v_blend:[atten_dim,1]
                 # ui:[batch, 1]
-                ui = tf.add(tf.matmul(tf.nn.tanh(decoder_portion + refi), v_blend), bais_blend)# 公式: V^T*tanh(W_decoder*query + W_encoder* encoder_hidden_i) + bias
+                ui = tf.matmul(tf.nn.tanh(decoder_portion + refi), v_blend) + bais_blend # 公式: V^T*tanh(W_decoder*query + W_encoder* encoder_hidden_i) + bias
 
-                # [max_enc_length+1, batch]
+                # scores:[max_enc_length+1, batch]
                 scores.append(tf.squeeze(ui))
 
             # scores: [max_enc_length+1, batch]
             #      => [batch, max_enc_length+1]
-            scores = tf.transpose(scores, perm=[1,0])
+            scores = tf.transpose(scores, perm=[1,0]) # scores的含义,当前decoder时间步i对于所有encoder_j的注意力分数
             if with_softmax:
                 return tf.nn.softmax(scores, axis=1) # [batch, max_enc_length+1]
             else:
@@ -534,13 +545,15 @@ class Model(object):
         :return [batch, hidden], 用query对ref的hidden隐向量进行attention加权
     """
     def glimpse_fn(self, ref, query, scope="glimpse"):
+        # query:[batch, hidden]
+        # ref: [batch, max_enc_encoder, hidden]
         # p:[batch, max_enc_encoder], 每行均为一个概率分布
         p = self.attention(ref, query, with_softmax=True, scope=scope)
         # p_alignments: [batch, max_enc_encoder, 1]
         p_alignments = tf.expand_dims(p, axis=2)
         # p_alignments: [batch, max_enc_encoder, 1]
         # ref: [batch, max_enc_encoder, hidden]
-        # return [batch, hidden], 用query对ref的hidden隐向量进行attention加权
+        # return [batch, hidden], 用query对ref的各时间步的hidden隐向量进行attention加权
         return tf.reduce_sum(p_alignments * ref, axis=[1], keep_dims=False)
 
 
