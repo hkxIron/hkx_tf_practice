@@ -10,13 +10,14 @@ from tensorflow.python.framework import dtypes
 LSTMCell = rnn.LSTMCell
 MultiRNNCell = rnn.MultiRNNCell
 
+# 返回一个tensor, 如Tensor("my_init_state_0_tiled:0", shape=(3, 2), dtype=float32)
 def trainable_initial_state(batch_size,
                             state_size,
                             initializer=None,
                             name="initial_state"):
     flat_state_size = nest.flatten(state_size)
 
-    if not initializer:
+    if not initializer: # None
         flat_initializer = tuple(tf.zeros_initializer for _ in flat_state_size)
     else:
         flat_initializer = tuple(tf.zeros_initializer for initializer in flat_state_size)
@@ -64,7 +65,7 @@ def index_matrix_to_pairs(index_matrix):
     #               [[1, 2], [1, 3], [1, 1]]] # 1代表第1个样本
     #
     # input:
-    # [3,1,4] => [[0,3],
+    # [3,1,4] => [[0,3], # [sample_index, seq_index]
     #             [1,1],
     #             [2,4]]
     replicated_first_indices = tf.range(tf.shape(index_matrix)[0])
@@ -74,7 +75,7 @@ def index_matrix_to_pairs(index_matrix):
         #                                 [1, 1, 1]])
         replicated_first_indices = tf.tile( # 复制元素
             tf.expand_dims(replicated_first_indices, axis=1),
-            [1, tf.shape(index_matrix)[1]])
+            multiples=[1, tf.shape(index_matrix)[1]])
     return tf.stack([replicated_first_indices, index_matrix], axis=rank)
 
 class Model(object):
@@ -120,19 +121,20 @@ class Model(object):
     def _build_model(self):
 
         # -----------------定义输入------------------
-        # enc_seq:[batch, max_enc_length, input_dim=2]
+        # enc_seq:[batch, max_enc_length, input_dim=2], 2代表x,y
         self.enc_seq = tf.placeholder(dtype=tf.float32,shape=[self.batch_size,self.max_enc_length,2], name='enc_seq')
         # target_seq_index:[batch, max_dec_length]
         self.target_seq_index = tf.placeholder(dtype=tf.int32, shape=[self.batch_size, self.max_dec_length], name='target_seq')
         # enc_seq_length:[batch]
-        self.enc_seq_length = tf.placeholder(dtype=tf.int32,shape=[self.batch_size], name='enc_seq_length')
+        self.enc_seq_length = tf.placeholder(dtype=tf.int32, shape=[self.batch_size], name='enc_seq_length')
         # target_seq_length:[batch]
-        self.target_seq_length = tf.placeholder(dtype=tf.int32,shape=[self.batch_size], name='target_seq_length')
+        self.target_seq_length = tf.placeholder(dtype=tf.int32, shape=[self.batch_size], name='target_seq_length')
 
         # ----------------输入处理-------------------
         """
         我们要对输入进行处理，将输入转换为embedding，embedding的长度和lstm的隐藏神经元个数相同。
-        这里指的注意的就是 tf.nn.conv1d函数了，这个函数首先会对输入进行一个扩展，然后再调用tf.nn.conv2d进行二维卷积。关于该函数的过程可以看代码中的注释或者看该函数的源代码。
+        这里指的注意的就是 tf.nn.conv1d函数了，这个函数首先会对输入进行一个扩展，然后再调用tf.nn.conv2d进行二维卷积。
+        关于该函数的过程可以看代码中的注释或者看该函数的源代码。
 
         input_dim 是 2，hidden_dim 是 lstm的隐藏层的数量
 
@@ -174,6 +176,9 @@ class Model(object):
                                                padding="VALID")
 
         # -----------------encoder------------------
+        """
+        encoder seq: "1 2 3 4"
+        """
         tf.logging.info("Create a model..")
         with tf.variable_scope("encoder"):
             # 构建一个多层的LSTM
@@ -184,18 +189,19 @@ class Model(object):
                 cells = [self.enc_cell] * self.num_layers # num_layers=1,代表有多少层lstm layer
                 self.enc_cell = MultiRNNCell(cells)
             # 建立可训练的lstm初始状态
+            # 返回一个tensor, 如Tensor("my_init_state_0_tiled:0", shape=(3, 2), dtype=float32), [batch, hidden_dim]
             self.enc_init_state = trainable_initial_state(self.batch_size,
-                                                          self.enc_cell.state_size)
+                                                          self.enc_cell.state_size) # hidden_size
 
             # embeded_enc_inputs: [batch, seq_length=max_enc_length, hidden_dim=256],这里的seq_length其实已经padding到max_sequence长度
+            # self.enc_seq_length:[batch]
             # self.encoder_outputs = output_all_hidden_states: [batch_size, seq_length=max_enc_length, hidden_dim]
             # self.enc_final_states = last_cell_and_hidden_state: {c: [batch_size, hidden_size], h:[batch_size, hidden_size]}
-            # self.enc_seq_length:[batch]
             self.encoder_outputs, self.enc_final_states = tf.nn.dynamic_rnn(
                 self.enc_cell, # lstm cell
                 self.embeded_enc_inputs, #
                 self.enc_seq_length, # [batch]
-                self.enc_init_state)
+                self.enc_init_state) # [batch, hidden_dim]
 
             # 给最开头添加一个结束标记，同时这个标记也将作为decoder的初始输入
             # first_decoder_input:[batch_size, seq_length=1, hidden_dim]
@@ -204,36 +210,48 @@ class Model(object):
                 axis=1
             )
 
-            # 0 index indicates terminal, 第0个元素代表终结符
+            # 0 index indicates terminal, 第0个元素代表 SOS
             # first_decoder_input: [batch_size, seq_length=1, hidden_dim]
             # encoder_outputs: [batch_size, seq_length=max_enc_length, hidden_dim]
             #               => [batch_size, 1+seq_length, hidden_dim]
-            self.encoder_outputs = tf.concat(values=[self.first_decoder_input, self.encoder_outputs],
+            self.encoder_outputs = tf.concat(values=[self.first_decoder_input, self.encoder_outputs], # 在最前面插入 SOS, 即encoder seq:"EOS 1 2 3 4"
                                              axis=1)
 
         # -----------------decoder 训练--------------------
         """
         在seq2seq中: 知识就是力量 
-                 => <SOS> knowledge is power <EOS>
-                 
-        seq2seq中decoder的输入是另外一种embedding,
-        与seq2seq不同的是，pointer-network的输入并不是target序列的embedding，
-        而是根据target序列的值选择相应位置的encoder的输出作为decoder的输入。
+                 => <SOS> knowledge is power.
+        即 SOS -> knowledge
+           knowledge -> is          
+           is -> power
+           power -> EOS.
+        seq2seq中decoder的输入是另外一种decoder_embedding,即一般不与encoder共享encoder_embedding
+        
+        与seq2seq不同的是，pointer-network的decoder的输入并不是target序列的单独的embedding，
+        而是根据target序列的值选择相应位置的encoder的hidden输出作为decoder的输入,而不是与seq2seq中一样embedding_lookup,
+        同时预测的目标也是输入中序列的元素下标,
+        所以在pointer-network中decoder阶段需要对encoder-output进行stop_gradient。
         
         1 2 3 4 =>
                   <SOS> 1 4 2 1
+                  
+        即 SOS     => 1
+           [x1,y1] => 4
+           [x4,y4] => 2
+           [x2,y2] => 1
+           [x1,y1] => EOS
+        注意:EOS并非输入的数据,而是强制加入预测阶段,以使输出序列终止
         
-        
-        我们知道encoder的输出长度在添加了开始输出之后形状为:[batch, 1+max_enc_seq_length, hidden_dim]。
-        现在假设我们拿第一条记录进行训练,第一条记录输入的是点[<=,1,2,3,4]的xy坐标序列:
+        我们知道encoder的输出长度在添加了开始SOS(即0)输出之后形状为:[batch, 1+max_enc_seq_length, hidden_dim]。
+        现在假设我们拿第一条记录进行训练,第一条记录encoder输入的是点[1,2,3,4]的xy坐标序列:
         [[x1,y1],
          [x2,y2],
          [x3,y3],
          [x4,y4],
         ]，
-        相应的预测序列是:[1,2,4]，那么decoder依次的输入[>=,1,4,2,1]是
-        self.enc_outputs[0][0], 
-        self.enc_outputs[0][1], 
+        相应的预测序列是:[1,4,2]，那么decoder依次的输入[SOS,1,4,2,1]:
+        self.enc_outputs[0][0], 0代表 "SOS"
+        self.enc_outputs[0][1], 注意不是embedding_lookup
         self.enc_outputs[0][4], 
         self.enc_outputs[0][2], 
         self.enc_outputs[0][1], 
@@ -260,7 +278,7 @@ class Model(object):
             # embeded_dec_inputs: [batch, max_dec_length, hidden_dim], 注意:这里seq_length=max_dec_length,而不是1+max_enc_seq, 因为根据pointer-network,并非所有输入结点都会在输出序列中
             #
             # gather_nd完成的功能就是从enc_outputs中选出target_seq中对应的index的向量,组成embed_dec_inputs
-            self.embeded_dec_inputs = tf.stop_gradient( # 阻止梯度传回到encoder
+            self.embeded_dec_inputs = tf.stop_gradient( # 共用encoder_outputs,阻止梯度传回到encoder
                 tf.gather_nd(self.encoder_outputs, self.target_idx_pairs))
 
             """
@@ -281,15 +299,14 @@ class Model(object):
             """
             # 给target最后一维增加结束标记,数据都是从1开始的，所以结束也是回到1
             # tiled_zero_idxs:[batch, 1],注意,补1的地方的值均为0
-            tiled_zero_idxs = tf.tile(tf.zeros([1, 1], dtype=tf.int32),
-                                      multiples=[self.batch_size, 1],
-                                      name="tiled_zero_idxs")
+            # tiled_zero_idxs = tf.tile(tf.zeros([1, 1], dtype=tf.int32), multiples=[self.batch_size, 1], name="tiled_zero_idxs")
             # target_seq_index:[batch, max_dec_length]
             # add_terminal_target_seq: [batch, max_dec_length+1], 注意:target id中结束标记加在末尾,加的index=0
-            self.add_terminal_target_seq = tf.concat([self.target_seq_index, tiled_zero_idxs], axis=1)
+            #self.add_terminal_target_seq = tf.concat([self.target_seq_index, tiled_zero_idxs], axis=1) # 即 "1 4 2 1 EOS"
+
             #如果使用了结束标记的话，要给encoder的输出拼上开始状态，同时给decoder的输入拼上开始状态
             # embeded_dec_inputs: [batch, max_dec_length, hidden_dim]
-            #                  => [batch, 1+max_dec_length, hidden_dim]
+            #                  => [batch, 1+max_dec_length, hidden_dim], 即 "SOS 1 4 2 1"
             self.embeded_dec_inputs = tf.concat([self.first_decoder_input,
                                                  self.embeded_dec_inputs],
                                                 axis=1) # embedding中结束标记加在首位
@@ -314,42 +331,44 @@ class Model(object):
 
             """
             对于decoder来说，这里我们每次每个batch只输入一个值，然后使用循环来实现整个decoder的过程：
-            
             即对于每条样本的每个输出时刻i,都需要计算与每个输入时刻j的attention,因此时间复杂度为o(m*n),运行速度较慢
+            "SOS 1 4 2 1" => "1 4 2 1 EOS"
             """
             # 训练self.max_dec_length  + 1轮，每一轮输入batch * hidden_dim
-            for i in range(self.max_dec_length  + 1):
+            for i in range(self.max_dec_length + 1):
                 if i > 0:
                     tf.get_variable_scope().reuse_variables()
-                # embeded_dec_inputs: [batch, 1+max_dec_length, hidden_dim]
+                # embeded_dec_inputs: [batch, 1+max_dec_length, hidden_dim], 即 "SOS 1 4 2 1"
                 # cell_input:[batch, hidden_dim]
-                cell_input = tf.squeeze(self.embeded_dec_inputs[:, i, :])  # [batch,hidden_dim]
+                cell_input = tf.squeeze(self.embeded_dec_inputs[:, i, :])  # [batch, hidden_dim]
                 # output_i:[batch, hidden_dim], dec_state: {c: [batch_size, hidden_size], h: [batch_size, hidden_size]}
                 output_i, dec_state = self.dec_cell(inputs=cell_input, state=dec_state)  # lstm经过一个时间步后的output: [batch, hidden],由于并没有多个timestep,所以不需要dynamic_rnn
 
                 # 使用pointer机制选择得到softmax的输出，idx_softmax_probility:[batch, max_enc_length + 1]
                 # 论文中decoder时刻i对所有输入时刻j的attention系数: u(i,j) = V^T*tanh(W1*ej+W2*di), j in(1,...,n)
-                # encoder_outputs:[batch_size, 1+encoder_seq_length, hidden_dim], encoder时刻中的所有j
+                # encoder_outputs:[batch_size, 1+encoder_seq_length, hidden_dim], encoder时刻中的所有j, encoder seq:"EOS 1 2 3 4"
                 # output_i:[batch, hidden_dim], decoder时刻中的i
-                # idx_softmax_probility:[batch, max_enc_length + 1], 当前decoder时刻中的i对encoder所有时刻j的attention系数
+                # idx_softmax_probility:[batch, 1+encoder_seq_length], 当前decoder时刻中的i对encoder所有时刻j的attention系数
                 idx_softmax_probility = self.choose_index_probility(self.encoder_outputs, output_i)
                 # 选择每个batch中最大的id, [batch]
-                # idx_softmax_probility:[batch, max_enc_length + 1]
+                # idx_softmax_probility:[batch, 1+encoder_seq_length]
                 # idx:[batch]
                 idx = tf.argmax(idx_softmax_probility, axis=1, output_type=dtypes.int32)
 
                 # decoder的每个输出的softmax序列
-                # idx_softmax_probility:[batch, max_enc_length + 1]
-                # predict_indexes_distribution: [max_dec_length+1, batch, max_enc_length + 1]
+                # idx_softmax_probility:[batch, 1+max_enc_length]
+                # predict_indexes_distribution: [max_dec_length+1, batch, 1+max_enc_length]
                 self.predict_indexes_distribution.append(idx_softmax_probility)
 
                 # decoder的每个输出的id
                 # idx:[batch]
-                # predict_indexes:[max_dec_length + 1, batch]
+                # predict_indexes:[max_dec_length+1, batch]
                 self.predict_indexes.append(idx)
 
+            # "1 4 2 1 EOS"
             self.predict_indexes = tf.convert_to_tensor(self.predict_indexes) # list-> tensor, [max_dec_length+1, batch]
-            self.predict_indexes_distribution = tf.convert_to_tensor(self.predict_indexes_distribution) # list->tensor, [max_dec_length+1, batch, max_enc_length + 1]
+            # predict_indexes_distribution中的下标: "1 4 2 1 EOS"
+            self.predict_indexes_distribution = tf.convert_to_tensor(self.predict_indexes_distribution) # list->tensor, [max_dec_length+1, batch, 1+max_enc_length]
 
         # ----------------loss------------------
         with tf.variable_scope("loss"):
@@ -369,27 +388,39 @@ class Model(object):
             #
             # self.loss = -tf.reduce_sum(self.dec_target_labels * tf.log(self.dec_pred_logits))
             # self.inference_loss = -tf.reduce_mean(self.dec_target_labels * tf.log(self.dec_inference_logits))
-            #
 
 
+            # predict_indexes_distribution中的下标: "1 4 2 1 EOS"
             # predict_indexes_distribution: [max_dec_length+1, batch, max_enc_length + 1]
-            # training_logits: [max_dec_length, batch, max_enc_length + 1]
+            # training_logits: [max_dec_length, batch, max_enc_length + 1], 去掉了最后的EOS然后计算loss
             #               => [batch, max_dec_length, max_enc_length + 1]
-            training_logits = tf.identity(tf.transpose(self.predict_indexes_distribution[:-1], perm=[1,0,2])) # [:-1],去掉最后的结束符
-            # target_seq_index:[batch, max_dec_length]
+            training_logits = tf.identity(tf.transpose(self.predict_indexes_distribution[:-1], perm=[1,0,2])) # [:-1], 计算loss时去掉最后的结束符 EOS
+            # target_seq_index:[batch, max_dec_length], 下标:"1 4 2 1"
             # targets:[batch, max_dec_length]
             targets = tf.identity(self.target_seq_index)
 
-            # target_seq_length:[batch]
+            """
+            一条样本的target_index_seq如下:
+            1 4 2 1 
+            即已经包含 +1了
+            即 SOS     => 1
+               [x1,y1] => 4
+               [x4,y4] => 2
+               [x2,y2] => 1
+               [x1,y1] => EOS (在计算loss时该行去掉了,但我认为应该加上才对,最后一个也需要预测对)
+            
+            注意:training_logits已经去掉了最后的结束符
+            """
+            # target_seq_length:[batch], 记录了每样本需要预测的真正长度
             # max_dec_length:[1], scalar
             # masks: [batch, max_dec_length], 用sequence_mask补零
             masks = tf.sequence_mask(self.target_seq_length, maxlen=self.max_dec_length, dtype=tf.float32,name="masks")
             # training_logits: [batch, max_dec_length, max_enc_length + 1]
             # loss:[1],此处的loss为所有序列拼起来的平均值, 防止序列越长,loss越大,从而使模型倾向于选择更短的序列
             self.loss = tf.contrib.seq2seq.sequence_loss(
-                logits=training_logits, # [batch_size, sequence_length, num_decoder_symbols]
-                targets=targets, # [batch_size, sequence_length]
-                weights=masks # [batch_size, sequence_length]
+                logits=training_logits, # [batch_size, max_dec_length, max_enc_length + 1], 1代表EOS,其它的代表 1 2 3 4
+                targets=targets, # [batch_size, max_dec_length]
+                weights=masks # [batch_size, max_dec_length]
             )
             self.optimizer = tf.train.AdamOptimizer(self.lr_start)
             self.train_op = self.optimizer.minimize(self.loss)
@@ -404,7 +435,7 @@ class Model(object):
             dec_state = self.enc_final_states
             # 预测阶段最开始的输入是之前定义的初始输入
             # perdict_decoder_input:[batch_size, seq_length=1, hidden_dim]
-            self.predict_decoder_input = self.first_decoder_input
+            self.predict_decoder_input = self.first_decoder_input  # SOS,是一个全0的输入
             for i in range(self.max_dec_length + 1):
                 if i > 0:
                     tf.get_variable_scope().reuse_variables()
@@ -413,7 +444,7 @@ class Model(object):
                 self.embeded_dec_inputs = tf.concat([self.first_decoder_input, self.embeded_dec_inputs], axis=1) # embedding中结束标记加在首位
                 注意:此处predict_decoder_input与embed_dec_inputs不同,此处并没有target_id组成的序列的输入
                 """
-                # perdict_decoder_input:[batch_size, seq_length=1, hidden_dim]
+                # predict_decoder_input:[batch_size, seq_length=1, hidden_dim]
                 #                     =>[batch_size, hidden_dim]
                 self.predict_decoder_input = tf.squeeze(self.predict_decoder_input)  # [batch, 1, hidden] -> [batch, hidden]
 
@@ -423,15 +454,16 @@ class Model(object):
                 output_i, dec_state = self.dec_cell(inputs=self.predict_decoder_input, state=dec_state)  # output:[batch, hidden]
 
                 # 同样根据pointer机制得到softmax输出
-                # encoder_outputs: [batch_size, 1+seq_length, hidden_dim]
+                # encoder_outputs: [batch_size, 1+max_enc_length, hidden_dim]
                 # output_i:[batch_size, hidden_dim]
-                # idx_softmax_probility: [batch, 1+enc_max_length]
+                # idx_softmax_probility: [batch, 1+max_enc_length]
                 idx_softmax_probility = self.choose_index_probility(self.encoder_outputs, output_i)
 
-                # 选择 最大的那个id
+                # 选择最大的那个id
                 idx = tf.argmax(idx_softmax_probility, axis=1, output_type=dtypes.int32)  # [batch]
 
                 # 将选择的id转换为pair
+                # idx:[batch]
                 # idx_pairs:[batch, 2], 第一列为sample_index, 第二列为seq_index
                 idx_pairs = index_matrix_to_pairs(idx)
 
@@ -439,15 +471,16 @@ class Model(object):
                 # encoder_outputs:[batch, 1+seq_length, hidden_dim]
                 # idx_pairs:[batch, 2], 第一列为sample_index, 第二列为seq_index
                 # predict_decoder_input:[batch, 1, hidden]
-                self.predict_decoder_input = tf.stop_gradient(tf.gather_nd(self.encoder_outputs, idx_pairs))
+                self.predict_decoder_input = tf.stop_gradient(tf.gather_nd(self.encoder_outputs, idx_pairs)) # 更新下一个decoder的input,此处需要阻断梯度,不需要将梯度传回encoder
 
                 # decoder的每个输出的id
                 # idx:[batch]
                 # infer_predict_indexes:[max_dec_length+1, batch]
                 self.infer_predict_indexes.append(idx)
+
                 # decoder的每个输出的softmax序列
                 # idx_softmax_probility: [batch, 1+enc_max_length]
-                # infer_predict_indexes_distribution:[max_dec_length+1, batch, enc_max_length+1]
+                # infer_predict_indexes_distribution:[max_dec_length+1, batch, 1+max_enc_length]
                 self.infer_predict_indexes_distribution.append(idx_softmax_probility)
 
             self.infer_predict_indexes = tf.convert_to_tensor(self.infer_predict_indexes, dtype=tf.int32)
@@ -487,11 +520,11 @@ class Model(object):
 
     def attention(self, ref_encoders, query, with_softmax, scope="attention"):
         """
-        从后来transformer的角度来看,Key=ref, Value=ref, Query = query
-        u_i= V^T*tanh(W_decoder*query + W_encoder* encoder_hidden_i) + bias
+        从后来transformer的角度来看,Key=ref, Value=ref, Query=query
+        u_i= V^T*tanh(W_decoder*query + W_encoder* encoder_i) + bias
         attention_i = softmax(u_i)
 
-        :param ref_encoders: encoder的输出, [batch, max_enc_length, hidden]
+        :param ref_encoders: encoder的输出, [batch, max_enc_length, hidden_dim]
         :param query: decoder的输入, [batch, hidden]
         :param with_softmax:
         :param scope:
@@ -500,6 +533,7 @@ class Model(object):
         with tf.variable_scope(scope):
             W_encoder = tf.get_variable("W_e", [self.hidden_dim, self.attention_dim], initializer=self.initializer) # [hidden, atten_dim]
             W_decoder = tf.get_variable("W_d", [self.hidden_dim, self.attention_dim], initializer=self.initializer) # [hidden, atten_dim]
+
             # query: [batch, hidden]
             # W_decoder:[hidden, attention_dim]
             # decoder_portion: [batch, attention_dim=20]
@@ -570,4 +604,9 @@ if __name__ == "__main__":
     index=tf.constant([1,4,5])
     pairs = index_matrix_to_pairs(index)
     with tf.Session() as sess:
-        print(sess.run(pairs))
+        print("paris:", sess.run(pairs))
+
+    batch_size = 3
+    state_size = 2
+    enc_init_state = trainable_initial_state(batch_size, state_size, tf.zeros_initializer, "my_init_state")
+    print(enc_init_state) # Tensor("my_init_state_0_tiled:0", shape=(3, 2), dtype=float32)

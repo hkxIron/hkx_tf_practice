@@ -37,7 +37,7 @@ def main(_):
                                                                               train_enc_seq_length[-batch_size:], \
                                                                               train_target_seq_length[-batch_size:]
     #0~ -1*batch的所有数据均作为训练用
-    train_enc_seq, train_target_seq, train_enc_seq_length, train_target_seq_length= train_enc_seq[: -batch_size], \
+    train_enc_seq, train_target_seq, train_enc_seq_length, train_target_seq_length = train_enc_seq[: -batch_size], \
                                                                                   train_target_seq[:-batch_size], \
                                                                                   train_enc_seq_length[:-batch_size], \
                                                                                   train_target_seq_length[:-batch_size]
