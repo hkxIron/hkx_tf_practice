@@ -204,9 +204,9 @@ class Model(object):
                 self.enc_init_state) # [batch, hidden_dim]
 
             # 给最开头添加一个结束标记，同时这个标记也将作为decoder的初始输入
-            # first_decoder_input:[batch_size, seq_length=1, hidden_dim]
+            # first_decoder_input:[batch_size, seq_length=1, hidden_dim], 代表:EOS
             self.first_decoder_input = tf.expand_dims(
-                input=trainable_initial_state(self.batch_size, self.hidden_dim, name="first_decoder_input"), # 未指定initializer, 因此值都是0
+                input=trainable_initial_state(self.batch_size, self.hidden_dim, name="first_decoder_input"), # 值为全0的tensor,Tensor("my_init_state_0_tiled:0", shape=(3, 2), dtype=float32)
                 axis=1
             )
 
@@ -214,7 +214,7 @@ class Model(object):
             # first_decoder_input: [batch_size, seq_length=1, hidden_dim]
             # encoder_outputs: [batch_size, seq_length=max_enc_length, hidden_dim]
             #               => [batch_size, 1+seq_length, hidden_dim]
-            self.encoder_outputs = tf.concat(values=[self.first_decoder_input, self.encoder_outputs], # 在最前面插入 SOS, 即encoder seq:"EOS 1 2 3 4"
+            self.encoder_outputs = tf.concat(values=[self.first_decoder_input, self.encoder_outputs], # 在encoder_outputs最前面插入 EOS, 即encoder seq:"EOS 1 2 3 4"
                                              axis=1)
 
         # -----------------decoder 训练--------------------
@@ -273,7 +273,7 @@ class Model(object):
             # target_idx_pairs: [batch=20, max_dec_length=10, indexs=2], 其中indexs=[sample_index_in_batch, seq_index]
             self.target_idx_pairs = index_matrix_to_pairs(self.target_seq_index)
 
-            # encoder_outputs:    [batch, 1+max_enc_sequence, hidden_dim]
+            # encoder_outputs:    [batch, 1+max_enc_sequence, hidden_dim], 第0个元素是 EOS
             # target_idx_pairs:   [batch, max_dec_length, indexs=2], 其中indexs=[sample_index_in_batch, seq_index]
             # embeded_dec_inputs: [batch, max_dec_length, hidden_dim], 注意:这里seq_length=max_dec_length,而不是1+max_enc_seq, 因为根据pointer-network,并非所有输入结点都会在输出序列中
             #
