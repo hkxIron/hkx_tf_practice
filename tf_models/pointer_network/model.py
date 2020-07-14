@@ -95,6 +95,7 @@ class Model(object):
         self.max_enc_length = config.max_enc_length
         self.max_dec_length = config.max_dec_length
         self.num_glimpse = config.num_glimpse
+        self.use_terminal_symbol = config.use_terminal_symbol
 
         self.init_min_val = config.init_min_val
         self.init_max_val = config.init_max_val
@@ -205,12 +206,14 @@ class Model(object):
 
             # 给最开头添加一个结束标记，同时这个标记也将作为decoder的初始输入
             # first_decoder_input:[batch_size, seq_length=1, hidden_dim], 代表:EOS 或 SOS
-            self.first_decoder_input = tf.expand_dims(
+            self.first_decoder_input = tf.expand_dims( # 其实它的值可以不为0,而是随机一个
+                #input=trainable_initial_state(self.batch_size, self.hidden_dim, initializer=tf.initializers.truncated_normal(), name="first_decoder_input"), # 值为全0的tensor,Tensor("my_init_state_0_tiled:0", shape=(3, 2), dtype=float32)
                 input=trainable_initial_state(self.batch_size, self.hidden_dim, name="first_decoder_input"), # 值为全0的tensor,Tensor("my_init_state_0_tiled:0", shape=(3, 2), dtype=float32)
                 axis=1
             )
 
-            # 0 index indicates terminal, 第0个元素代表 SOS
+            # 0 index indicates terminal, 第0个元素代表 SOS(也可以称为EOS)
+            # 比如原来序列为:"1 2 3 4", 现在encoder_outputs:"SOS 1 2 3 4"
             # first_decoder_input: [batch_size, seq_length=1, hidden_dim]
             # encoder_outputs: [batch_size, seq_length=max_enc_length, hidden_dim]
             #               => [batch_size, 1+seq_length, hidden_dim]
@@ -299,17 +302,18 @@ class Model(object):
             """
             # 给target最后一维增加结束标记,数据都是从1开始的，所以结束也是回到1
             # tiled_zero_idxs:[batch, 1],注意,补1的地方的值均为0
-            tiled_zero_idxs = tf.tile(tf.zeros([1, 1], dtype=tf.int32),  # 加一个O的index代表EOS
+            tiled_zero_idxs = tf.tile(tf.zeros([1, 1], dtype=tf.int32),  # 加一个O的index代表EOS,即需要你预测 encoder_outputs中添加到最前面的 SOS终止符
                                       multiples=[self.batch_size, 1],
                                       name="tiled_zero_idxs")
             # target_seq_index:[batch, max_dec_length]
-            # add_terminal_target_seq: [batch, max_dec_length+1], 注意:target id中结束标记加在末尾,加的index=0
-            self.add_terminal_target_seq = tf.concat([self.target_seq_index, tiled_zero_idxs],
-                                                     axis=1) # 即 "1 4 2 1" -> "1 4 2 1 EOS"
+            # add_terminal_target_index_seq: [batch, max_dec_length+1], 注意:target id中结束标记加在末尾,加的index=0,注意此处必须是index=0,不能是其它的index
+            self.add_terminal_target_index_seq = tf.concat([self.target_seq_index, tiled_zero_idxs],
+                                                           axis=1) # 即 "1 4 2 1" -> "1 4 2 1 EOS"
 
             #如果使用了结束标记的话，要给encoder的输出拼上开始状态，同时给decoder的输入拼上开始状态
             # embeded_dec_inputs: [batch, max_dec_length, hidden_dim]
-            #                  => [batch, 1+max_dec_length, hidden_dim], 即 "SOS 1 4 2 1"
+            #                  => [batch, 1+max_dec_length, hidden_dim],
+            #                  即 decoder inputs: "SOS 1 4 2 1"  decoder outputs:"1 4 2 1 EOS'
             self.embeded_dec_inputs = tf.concat([self.first_decoder_input,
                                                  self.embeded_dec_inputs],
                                                 axis=1) # embedding中结束标记加在首位
@@ -387,49 +391,61 @@ class Model(object):
             # self.dec_inference_logits = tf.reshape(
             #     tf.transpose(tf.squeeze(self.infer_predict_indexes_distribution), [1, 0, 2]),
             #     [-1])  # B * D * E + 1
-            # self.dec_target_labels = tf.reshape(tf.one_hot(self.add_terminal_target_seq, depth=self.max_enc_length+ 1), [-1])
+            # self.dec_target_labels = tf.reshape(tf.one_hot(self.add_terminal_target_index_seq, depth=self.max_enc_length+ 1), [-1])
             #
             # self.loss = -tf.reduce_sum(self.dec_target_labels * tf.log(self.dec_pred_logits))
             # self.inference_loss = -tf.reduce_mean(self.dec_target_labels * tf.log(self.dec_inference_logits))
 
-
             # predict_indexes_distribution中的下标: "1 4 2 1 EOS"
             # predict_indexes_distribution: [max_dec_length+1, batch, max_enc_length + 1]
-            # training_logits: [max_dec_length, batch, max_enc_length + 1], 去掉了最后的EOS然后计算loss
-            #               => [batch, max_dec_length, max_enc_length + 1]
-            training_logits = tf.identity(tf.transpose(self.predict_indexes_distribution[:-1], perm=[1,0,2])) # [:-1], 计算loss时去掉最后的结束符 EOS
-            #training_logits = tf.identity(tf.transpose(self.predict_indexes_distribution, perm=[1,0,2])) # [:-1], 计算loss时去掉最后的结束符 EOS
+            # pred_indexes_distribution: [max_dec_length+1, batch, max_enc_length + 1]  or [max_dec_length, batch, max_enc_length + 1
+            if self.use_terminal_symbol: # 不知为何使用了use_terminal_symbol后,训练时loss无法下降
+                pred_indexes_distribution = self.predict_indexes_distribution
+            else:
+                pred_indexes_distribution = self.predict_indexes_distribution[:-1] # [:-1], 计算loss时去掉最后的结束符 EOS
+
+            # training_logits: [max_dec_length+1 or max_dec_length, batch, max_enc_length + 1], 未去掉最后的EOS然后计算loss
+            #               => [batch, max_dec_length+1 or max_dec_length, max_enc_length + 1]
+            training_logits = tf.identity(tf.transpose(pred_indexes_distribution, perm=[1,0,2])) # [:-1], 计算loss时去掉最后的结束符 EOS
+
             # target_seq_index:[batch, max_dec_length], 下标:"1 4 2 1"
-            # targets:[batch, max_dec_length]
-            targets = tf.identity(self.target_seq_index)
-            #targets = tf.identity(self.add_terminal_target_seq)
+            if self.use_terminal_symbol:
+                # target_seq_indexs:[batch, max_dec_length+1]
+                target_seq_indexs = tf.identity(self.add_terminal_target_index_seq) # 有终止符, 下标: "1 4 2 1 EOS"
+                # target_seq_length:[batch], 记录了每样本需要预测的真正长度
+                # max_dec_length:[1], scalar
+                # masks: [batch, max_dec_length+1], 用sequence_mask补零
+                masks = tf.sequence_mask(self.target_seq_length+1, maxlen=self.max_dec_length+1, dtype=tf.float32, name="masks")
+            else:
+                # target_seq_indexs:[batch, max_dec_length]
+                target_seq_indexs = tf.identity(self.target_seq_index)
+                # target_seq_length:[batch], 记录了每样本需要预测的真正长度
+                # max_dec_length:[1], scalar
+                # masks: [batch, max_dec_length], 用sequence_mask补零
+                masks = tf.sequence_mask(self.target_seq_length, maxlen=self.max_dec_length, dtype=tf.float32, name="masks")
 
             """
-            一条样本的target_index_seq如下:
+            一条样本的 target_seq_indexs 如下:
             1 4 2 1 
             即已经包含 +1了
             即 SOS     => 1
                [x1,y1] => 4
                [x4,y4] => 2
                [x2,y2] => 1
-               [x1,y1] => EOS (在计算loss时该行去掉了,但我认为应该加上才对,最后一个也需要预测对)
+               [x1,y1] => EOS 
             
             注意:training_logits已经去掉了最后的结束符
             """
-            # target_seq_length:[batch], 记录了每样本需要预测的真正长度
-            # max_dec_length:[1], scalar
-            # masks: [batch, max_dec_length], 用sequence_mask补零
-            # masks = tf.sequence_mask(self.target_seq_length+1, maxlen=self.max_dec_length+1, dtype=tf.float32, name="masks")
-            masks = tf.sequence_mask(self.target_seq_length, maxlen=self.max_dec_length, dtype=tf.float32, name="masks")
-            # training_logits: [batch, max_dec_length, max_enc_length + 1]
+            # training_logits: [batch, max_dec_length or max_dec_length+1, max_enc_length + 1]
             # loss:[1],此处的loss为所有序列拼起来的平均值, 防止序列越长,loss越大,从而使模型倾向于选择更短的序列
             self.loss = tf.contrib.seq2seq.sequence_loss(
-                logits=training_logits, # [batch_size, max_dec_length, max_enc_length + 1], 1代表EOS,其它的代表 1 2 3 4
-                targets=targets, # [batch_size, max_dec_length]
-                weights=masks # [batch_size, max_dec_length]
+                logits=training_logits, # [batch_size, max_dec_length or max_dec_length+1, max_enc_length + 1], 1代表EOS,其它的代表 1 2 3 4
+                targets=target_seq_indexs, # [batch_size, max_dec_length or max_dec_length+1]
+                weights=masks # [batch_size, max_dec_length or max_dec_length+1]
             )
             self.optimizer = tf.train.AdamOptimizer(self.lr_start)
             self.train_op = self.optimizer.minimize(self.loss)
+
 
         # ----------------------decoder inference----------------------
         # 预测输出的id序列
@@ -441,11 +457,11 @@ class Model(object):
             dec_state = self.enc_final_states
             # 预测阶段最开始的输入是之前定义的初始输入
             # perdict_decoder_input:[batch_size, seq_length=1, hidden_dim]
-            self.predict_decoder_input = self.first_decoder_input  # SOS,是一个全0的输入
+            self.predict_decoder_input = self.first_decoder_input  # SOS
+            # 注意:此处与train阶段的decoder的不同
             for i in range(self.max_dec_length + 1):
                 if i > 0:
                     tf.get_variable_scope().reuse_variables()
-
                 """
                 self.embeded_dec_inputs = tf.concat([self.first_decoder_input, self.embeded_dec_inputs], axis=1) # embedding中结束标记加在首位
                 注意:此处predict_decoder_input与embed_dec_inputs不同,此处并没有target_id组成的序列的输入
@@ -473,7 +489,7 @@ class Model(object):
                 # idx_pairs:[batch, 2], 第一列为sample_index, 第二列为seq_index
                 idx_pairs = index_matrix_to_pairs(idx)
 
-                # 选择的下一个时刻的输入,此处亦与train decoder阶段不同
+                # 更新predict_decoder_input: 选择下一个时刻的输入,此处亦与train decoder阶段不同,在train decoder中并不需要更新
                 # encoder_outputs:[batch, 1+seq_length, hidden_dim]
                 # idx_pairs:[batch, 2], 第一列为sample_index, 第二列为seq_index
                 # predict_decoder_input:[batch, 1, hidden]
@@ -489,7 +505,9 @@ class Model(object):
                 # infer_predict_indexes_distribution:[max_dec_length+1, batch, 1+max_enc_length]
                 self.infer_predict_indexes_distribution.append(idx_softmax_probility)
 
+            # infer_predict_indexes:[max_dec_length+1, batch]
             self.infer_predict_indexes = tf.convert_to_tensor(self.infer_predict_indexes, dtype=tf.int32)
+            # infer_predict_indexes_distribution:[max_dec_length+1, batch, 1+max_enc_length]
             self.infer_predict_indexes_distribution = tf.convert_to_tensor(self.infer_predict_indexes_distribution, dtype=tf.float32)
 
     def train(self, sess, batch):
@@ -508,9 +526,9 @@ class Model(object):
     def eval(self, sess, batch):
         # 对于eval阶段，不需要反向传播，所以只执行self.loss, self.summary_op两个op，并传入相应的数据
         feed_dict = {self.enc_seq: batch['enc_seq'],
-                      self.enc_seq_length: batch['enc_seq_length'],
-                      self.target_seq_index: batch['target_seq'],
-                      self.target_seq_length: batch['target_seq_length']}
+                     self.enc_seq_length: batch['enc_seq_length'],
+                     self.target_seq_index: batch['target_seq'],
+                     self.target_seq_length: batch['target_seq_length']}
         loss= sess.run([self.loss], feed_dict=feed_dict)
         return loss
 
@@ -527,7 +545,9 @@ class Model(object):
     def attention(self, ref_encoders, query, with_softmax, scope="attention"):
         """
         从后来transformer的角度来看,Key=ref, Value=ref, Query=query
-        u_i= V^T*tanh(W_decoder*query + W_encoder* encoder_i) + bias
+
+        u_i = v^T*tanh(Wq*q + W_ref*ri ), (if i!=pai(j) for all j<i)
+            = V^T*tanh(W_decoder*query + W_encoder* encoder_i) + bias
         attention_i = softmax(u_i)
 
         :param ref_encoders: encoder的输出, [batch, max_enc_length, hidden_dim]
@@ -577,6 +597,9 @@ class Model(object):
 
 
     """ 
+        在论文中还提到一个词叫做glimpse function，他首先将上面式子中的q进行了处理，公式如下：
+        
+        
         计算经过与输入对齐之后的query
         
         ref: [batch, max_enc_encoder, hidden]
