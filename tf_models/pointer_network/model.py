@@ -204,7 +204,7 @@ class Model(object):
                 self.enc_init_state) # [batch, hidden_dim]
 
             # 给最开头添加一个结束标记，同时这个标记也将作为decoder的初始输入
-            # first_decoder_input:[batch_size, seq_length=1, hidden_dim], 代表:EOS
+            # first_decoder_input:[batch_size, seq_length=1, hidden_dim], 代表:EOS 或 SOS
             self.first_decoder_input = tf.expand_dims(
                 input=trainable_initial_state(self.batch_size, self.hidden_dim, name="first_decoder_input"), # 值为全0的tensor,Tensor("my_init_state_0_tiled:0", shape=(3, 2), dtype=float32)
                 axis=1
@@ -299,10 +299,13 @@ class Model(object):
             """
             # 给target最后一维增加结束标记,数据都是从1开始的，所以结束也是回到1
             # tiled_zero_idxs:[batch, 1],注意,补1的地方的值均为0
-            # tiled_zero_idxs = tf.tile(tf.zeros([1, 1], dtype=tf.int32), multiples=[self.batch_size, 1], name="tiled_zero_idxs")
+            tiled_zero_idxs = tf.tile(tf.zeros([1, 1], dtype=tf.int32),  # 加一个O的index代表EOS
+                                      multiples=[self.batch_size, 1],
+                                      name="tiled_zero_idxs")
             # target_seq_index:[batch, max_dec_length]
             # add_terminal_target_seq: [batch, max_dec_length+1], 注意:target id中结束标记加在末尾,加的index=0
-            #self.add_terminal_target_seq = tf.concat([self.target_seq_index, tiled_zero_idxs], axis=1) # 即 "1 4 2 1 EOS"
+            self.add_terminal_target_seq = tf.concat([self.target_seq_index, tiled_zero_idxs],
+                                                     axis=1) # 即 "1 4 2 1" -> "1 4 2 1 EOS"
 
             #如果使用了结束标记的话，要给encoder的输出拼上开始状态，同时给decoder的输入拼上开始状态
             # embeded_dec_inputs: [batch, max_dec_length, hidden_dim]
@@ -395,9 +398,11 @@ class Model(object):
             # training_logits: [max_dec_length, batch, max_enc_length + 1], 去掉了最后的EOS然后计算loss
             #               => [batch, max_dec_length, max_enc_length + 1]
             training_logits = tf.identity(tf.transpose(self.predict_indexes_distribution[:-1], perm=[1,0,2])) # [:-1], 计算loss时去掉最后的结束符 EOS
+            #training_logits = tf.identity(tf.transpose(self.predict_indexes_distribution, perm=[1,0,2])) # [:-1], 计算loss时去掉最后的结束符 EOS
             # target_seq_index:[batch, max_dec_length], 下标:"1 4 2 1"
             # targets:[batch, max_dec_length]
             targets = tf.identity(self.target_seq_index)
+            #targets = tf.identity(self.add_terminal_target_seq)
 
             """
             一条样本的target_index_seq如下:
@@ -414,7 +419,8 @@ class Model(object):
             # target_seq_length:[batch], 记录了每样本需要预测的真正长度
             # max_dec_length:[1], scalar
             # masks: [batch, max_dec_length], 用sequence_mask补零
-            masks = tf.sequence_mask(self.target_seq_length, maxlen=self.max_dec_length, dtype=tf.float32,name="masks")
+            # masks = tf.sequence_mask(self.target_seq_length+1, maxlen=self.max_dec_length+1, dtype=tf.float32, name="masks")
+            masks = tf.sequence_mask(self.target_seq_length, maxlen=self.max_dec_length, dtype=tf.float32, name="masks")
             # training_logits: [batch, max_dec_length, max_enc_length + 1]
             # loss:[1],此处的loss为所有序列拼起来的平均值, 防止序列越长,loss越大,从而使模型倾向于选择更短的序列
             self.loss = tf.contrib.seq2seq.sequence_loss(
