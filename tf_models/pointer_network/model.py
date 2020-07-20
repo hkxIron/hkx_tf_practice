@@ -175,7 +175,7 @@ class Model(object):
                                                filters=input_embed,
                                                stride=1,
                                                padding="VALID")
-
+        tf.layers.conv1d()
         # -----------------encoder------------------
         """
         encoder seq: "1 2 3 4"
