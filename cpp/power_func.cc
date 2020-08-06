@@ -65,7 +65,7 @@ public:
         if(n == 1) return base;
         int exponent =abs(n);
 	
-	// 2^13, curr_base=2, exponent=5=4+0+1 = 101 
+	// 2^5, curr_base=2, exponent=5=4+0+1 = 101 
 	// exponent最低位为1, curr_base = 2 , res=2 , curr_base=4, exponent右移1位= 2 = 10
 	// exponent最低位为0, curr_base =4, res不变,curr_base=16, exponent右移1位= 1
 	// exponent最低位为1, curr_base =16, res=res*16=32, exponent右移1位= 0
