@@ -45,8 +45,19 @@ proxy = ' --proxy "xx.yy.cn:1234" '
 
 format = '_%(title)s_%(resolution)s.%(ext)s" '
 
-option=' --write-auto-sub --verbose '
 #option=' --write-auto-sub --verbose  --recode-video mp4 ' # 很多不能转为mp4
+option=' --write-auto-sub --verbose --sub-format srt --sub-lang en,zh-Hans'
+"""
+参数--write-auto-sub 是下载自动生成的字幕，不加 auto 是下载上传者上传的字幕
+--skip-download 表示不下载视频
+
+--write-sub                      Write subtitle file
+--write-auto-sub                 Write automatic subtitle file (YouTube only)
+--all-subs                       Download all the available subtitles of the video
+--list-subs                      List all available subtitles for the video
+--sub-format FORMAT              Subtitle format, accepts formats preference, for example: "srt" or "ass/srt/best"
+--sub-lang LANGS                 Languages of the subtitles to download (optional) separated by commas, use IETF language tags like 'en,pt'
+"""
 
 def download(link_list, output_dir):
     if not os.path.exists(output_dir):
