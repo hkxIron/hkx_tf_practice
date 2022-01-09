@@ -175,7 +175,6 @@ class Model(object):
                                                filters=input_embed,
                                                stride=1,
                                                padding="VALID")
-        tf.layers.conv1d()
         # -----------------encoder------------------
         """
         encoder seq: "1 2 3 4"
@@ -639,3 +638,5 @@ if __name__ == "__main__":
     state_size = 2
     enc_init_state = trainable_initial_state(batch_size, state_size, tf.zeros_initializer, "my_init_state")
     print(enc_init_state) # Tensor("my_init_state_0_tiled:0", shape=(3, 2), dtype=float32)
+    # tf.reduce_max()
+    # tf.minimum()

@@ -26,10 +26,10 @@ def f2():
     x=mean+sigma*np.random.randn(10000)
     fig,(ax0,ax1) = plt.subplots(nrows=2,figsize=(9,6))
     #第二个参数是柱子宽一些还是窄一些，越大越窄越密
-    ax0.hist(x,40,normed=1,histtype='bar',facecolor='yellowgreen',alpha=0.75)
+    ax0.hist(x,40,histtype='bar',facecolor='yellowgreen',alpha=0.75)
     ##pdf概率分布图，一万个数落在某个区间内的数有多少个
     ax0.set_title('pdf')
-    ax1.hist(x,20,normed=1,histtype='bar',facecolor='pink',alpha=0.75,cumulative=True,rwidth=0.8)
+    ax1.hist(x,20,histtype='bar',facecolor='pink',alpha=0.75,cumulative=True,rwidth=0.8)
     #cdf累计概率函数，cumulative累计。比如需要统计小于5的数的概率
     ax1.set_title("cdf")
     fig.subplots_adjust(hspace=0.4)
@@ -41,7 +41,7 @@ def f3():
     sigma = 1
     x=mean+sigma*np.random.randn(10000)
     #第二个参数是柱子宽一些还是窄一些，越大越窄越密
-    plt.hist(x,bins=40,normed=1,histtype='bar',facecolor='yellowgreen',alpha=0.75)
+    plt.hist(x,bins=40,histtype='bar',facecolor='yellowgreen',alpha=0.75)
     plt.title("hist")
     ##pdf概率分布图，一万个数落在某个区间内的数有多少个
     plt.show()
@@ -52,6 +52,23 @@ def f4():
     tt="sdf|123"
     tt.rstrip("\n")
 
+def f5():
+    # 这两行代码使得 pyplot 画出的图形中可以显示中文
+    plt.rcParams['font.sans-serif'] = ['SimHei']
+    plt.rcParams['axes.unicode_minus'] = False
+
+    x = np.arange(start=0, stop=1.2, step=0.001)
+    y = x**(3.0/4.0)
+    plt.grid()
+    plt.plot(x,y, label='$y=x^{3/4}$') # latex
+    plt.plot(x,x, label='$y=x$')
+
+    plt.legend()
+    plt.ylabel('$y$')
+    plt.xlabel('$x$')
+    plt.title("word2vec negative sampling prob")
+    plt.show()
 
 if __name__ =='__main__' :
-    f3()
+    #f3()
+    f5()
