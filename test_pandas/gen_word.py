@@ -4,18 +4,21 @@ from docxtpl import DocxTemplate
 
 i=1
 def process(args):
-    print('输入参数:公司信息表.xlsx 模板.docx 输出路径:C:\out\\')
-    print('input args:{}'.format(args[1:]))
-    company_info=pd.read_excel(r'{}'.format(args[1]), converters = {'期末余额': str})
-    tpl=DocxTemplate(r'{}'.format(args[2]))
-    out_path_tmp=r'{}'.format(args[3])
+    print('input arguments:{}'.format(args[1:]))
+    help = '用法示例:python '+ args[0] +' C:\\公司信息表.xlsx C:\\word模板.docx C:\输出路径\\'
+    if len(args[1:]) != 3:
+        print(help)
+        return
+    company_info=pd.read_excel(args[1], converters = {'期末余额': str})
+    tpl=DocxTemplate(args[2])
+    out_path_tmp=args[3]
 
     #company_info=pd.read_excel(r"C:\Users\kexin\Desktop\test\company.xlsx", converters = {'期末余额': str})
     #tpl=DocxTemplate(r"C:\Users\kexin\Desktop\test\template.docx")
     #out_file_tmp= r'C:\Users\kexin\Desktop\test\out\{}_{}.docx'
 
     if not os.path.exists(out_path_tmp):
-        print("create output path:", out_path_tmp)
+        print("file path not exists, create output path:", out_path_tmp)
         os.mkdir(out_path_tmp)
 
     def process_func(row):
