@@ -17,6 +17,8 @@ https://github.com/ytdl-org/youtube-dl
 
 由于youtube-dl已不再更新，需要使用yt-dlp, 作为youtube-dl的继承者
 https://github.com/yt-dlp/yt-dlp
+
+python -m pip install -U yt-dlp
 """
 
 """
