@@ -62,7 +62,6 @@ class DeepFM(object):
         # V: feature_length * K
         # 对于原始特征X的每一维,都可以由一个k维的vi来表示
         V = tf.Variable(tf.truncated_normal(shape=[self.feature_length, self.k], mean=0, stddev=0.01), dtype='float32')
-
         # Factorization Machine
         # 感觉可以用 sparseTensor来实现
         with tf.variable_scope('FM'):

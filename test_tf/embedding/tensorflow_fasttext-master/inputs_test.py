@@ -78,7 +78,7 @@ def test_reading_inputs():
 
 
 if __name__ == '__main__':
-    print "Test Parse Spec:"
+    print("Test Parse Spec:")
     test_parse_spec()
-    print "Test Input Fn"
+    print("Test Input Fn")
     test_reading_inputs()
