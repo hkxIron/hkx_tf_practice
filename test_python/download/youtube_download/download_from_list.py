@@ -14,6 +14,11 @@ import platform
 error:"token" parameter not in video info for unknown reason
 需要去官网下载最新的bin:
 https://github.com/ytdl-org/youtube-dl
+
+由于youtube-dl已不再更新，需要使用yt-dlp, 作为youtube-dl的继承者
+https://github.com/yt-dlp/yt-dlp
+
+python -m pip install -U yt-dlp
 """
 
 """
@@ -24,6 +29,7 @@ ownloadProj\youtube-dl.exe https://www.youtube.com/watch?v=NfnWJUyUJYU  --proxy 
 用法示例:
 python download_from_list.py list_advanced_deep_learning_and_reinforcelearning_2018.txt C:\\Users\kexin\youtube\
 python download_from_list.py list_RL_david_silver_2015.txt C:\\Users\kexin\youtube\
+python download_from_list.py  nn_from_zero.txt nn_from_zero/
 
 
 利用ffmpeg从mkv转为mp4:
@@ -35,13 +41,16 @@ ffmpeg -i '01_RL Course by David Silver - Lecture 2 - Markov Decision Process_19
 sysstr = platform.system()
 print("system: ", sysstr)
 if sysstr  =="Windows":
-    downloader=r"youtube-dl.exe "  # 由于是在当前路径下，所以不需要写全路径
+    #downloader=r"youtube-dl.exe "  # 由于是在当前路径下，所以不需要写全路径
+    downloader=r"yt-dlp.exe "  # 由于是在当前路径下，所以不需要写全路径
 else: # Linux
-    downloader=r"youtube-dl "
+    #downloader=r"youtube-dl "
+    downloader=r"yt-dlp "
 
 #downloader=r"youtube-dl "  # linux
 #proxy = ' --proxy "dev-proxy.oa.com:8080" ' # 在公司，代理很好用
-proxy = ' --proxy "xx.yy.cn:1234" '
+#proxy = ' --proxy "xx.yy.cn:3128" '
+proxy = ' --proxy "fq.mioffice.cn:3128" '
 
 format = '_%(title)s_%(resolution)s.%(ext)s" '
 
