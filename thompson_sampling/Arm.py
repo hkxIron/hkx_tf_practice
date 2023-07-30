@@ -38,6 +38,11 @@ class Arm(object):
     def record_failure(self):
         self.b += 1
 
+    """
+    其理论基础是：beta-二项分布共轭，
+    如果后验分布与先验分布属于同类分布，则先验分布与后验分布被称为共轭分布，而先验分布被称为似然函数的共轭先验。
+    即先验是beta分布，二项分布为似然函数，则后验分布也为beta分布    
+    """
     #从当前的后验分布中采样一个样本
     def draw_ctr(self):
         return np.random.beta(self.a, self.b, 1)[0]
