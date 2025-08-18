@@ -155,7 +155,7 @@ public:
         if(k > input.size() || input.empty())
             return vector<int>();
 
-        // 建立最大堆(所有的元素都比堆顶元素小)
+        // 建立最大堆(所有的元素都比堆顶元素小)， 注意，堆在出堆时才保证出堆的元素有序，在建堆时并不保证所有元素有序，只保证部分元素有序
         vector<int> ans(input.begin(), input.begin()+k); // max heap, 只有k个元素
         make_heap(ans.begin(), ans.end(), comp); // 将这k个元素建立一个堆
 
@@ -225,6 +225,7 @@ int main()
     //fclose(stdin);
     return 0;
 }
+
 
 
 
