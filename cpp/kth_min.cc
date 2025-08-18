@@ -64,9 +64,9 @@ public:
         int pivot = a[low] ;
         // 一直进行交换,直到左右指针相遇
         while(low<high){
-            while(low<high&&a[high]>=pivot) --high; // 将右边小于pivot的找出来
+            while(low<high&&a[high]>=pivot) --high; // 将右边小于pivot的找出来, 并放到左边
             a[low] = a[high];
-            while(low<high&&a[low]<=pivot) ++low; // 将左边大于pivot的找出来
+            while(low<high&&a[low]<=pivot) ++low; // 将左边大于pivot的找出来,并放到右边，此时low所在的位置空缺了
             a[high] = a[low];
         }
         a[low] = pivot; // 找到pivot的位置
@@ -166,3 +166,4 @@ int main()
     //fclose(stdin);
     return 0;
 }
+
