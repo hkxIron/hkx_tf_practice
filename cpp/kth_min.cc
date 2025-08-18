@@ -77,13 +77,15 @@ public:
     int partition(vector<int> &input, int left, int right){
         if(left > right)
             return -1;
+		// 将input[right]当成pivot元素
+		// pos 的作用是标记当前已处理区间中所有 ≤ pivot 的元素的右边界
         int pos = left-1;
         for(int i=left; i<right; i++){
             if(input[i] <= input[right]){
                 std::swap(input[i], input[++pos]);
             }
         }
-
+		// 将pivot放到 ++pos
         std::swap(input[right], input[++pos]);
         // input[left, pos] <= input[pos]
         // input[pos+1, right] > input[pos]
@@ -166,4 +168,5 @@ int main()
     //fclose(stdin);
     return 0;
 }
+
 
